@@ -409,7 +409,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "Lancamentos/notificacoes_enviadas.json"]
+ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json"]
 
 def _aba_estado(api, pid):
     aba = _aba_real(api, pid, "_estado")
@@ -570,8 +570,19 @@ def main():
     api = api_google(cred)
     aba_estado = estado_carregar(api, planilha_id)
     resumo_fila = processar_fila(api, planilha_id)
+    arq_fila = os.path.join(PASTA, "Lancamentos", "ultima_fila.json")
+    lanc_recente = False          # houve lançamento pelo painel nos últimos 10 minutos? (aí não é "edição à mão")
+    try:
+        with open(arq_fila, encoding="utf-8") as f:
+            ult = datetime.datetime.fromisoformat(json.load(f)["ts"])
+        lanc_recente = (datetime.datetime.now() - ult).total_seconds() < 600
+    except Exception:
+        pass
     if resumo_fila:
         print(f"Fila: {len(resumo_fila)} lançamento(s) aplicado(s) na planilha.")
+        os.makedirs(os.path.dirname(arq_fila), exist_ok=True)
+        with open(arq_fila, "w", encoding="utf-8") as f:
+            json.dump({"ts": datetime.datetime.now().isoformat(timespec="seconds")}, f)
     tok, dono, repo = preparar_ambiente()
     xlsx = os.path.join(PASTA, "Insanos.xlsx")
     print("Lendo a planilha do Google...")
@@ -620,7 +631,8 @@ def main():
                 itens = [r for r, _ in resumo_fila]
                 corpo = " · ".join(itens[:3]) + (f" · e mais {len(itens) - 3}" if len(itens) > 3 else "")
                 g.notificar("✅ Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao")
-            elif os.environ.get("ORIGEM") == "edicao":
+            elif evento == "repository_dispatch" and not lanc_recente:
+                # a planilha avisou e a Fila estava vazia: foi edição feita à mão na planilha
                 g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")
         except Exception as e:
             print(f"Aviso: notificação de atualização não enviada ({e}).")
