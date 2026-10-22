@@ -367,7 +367,7 @@ def processar_fila(api, pid):
     if not aba:
         return 0
     v = _ler(api, pid, f"'{aba}'!A1:F2000")
-    n = 0
+    n, resumo = 0, []
     for i, row in enumerate(v[1:], start=2):
         row = row + [""] * 6
         if _sa(row[4]) not in ("pendente", "aguardando"):
@@ -386,7 +386,24 @@ def processar_fila(api, pid):
             res, sit = f"{type(e).__name__}: {e}", "erro"
         _gravar(api, pid, [(f"'{aba}'!E{i}", sit), (f"'{aba}'!F{i}", f"{datetime.datetime.now():%d/%m/%Y %H:%M} · {res}")])
         print(f"Fila linha {i}: {sit} · {res}"); n += 1
-    return n
+        if sit == "feito":
+            resumo.append((_resumo_item(d), str(row[1]).strip().lower()))
+    return resumo
+
+def _resumo_item(d):
+    """Texto curto do lançamento, para a notificação."""
+    tp = d.get("tipo")
+    try:
+        if tp == "lancamento_presenca":
+            dt = datetime.datetime.strptime(d["data"], "%Y-%m-%d").strftime("%d/%m")
+            return f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({dt})"
+        if tp == "pagamento_manual":
+            return "Compensação: " + ", ".join(k for k, v in (d.get("status") or {}).items() if v)
+        if tp == "integrante":
+            return f"Cadastro: {({'novo': 'novo integrante', 'afastar': 'afastado', 'reativar': 'reativado', 'excluir': 'excluído'}).get(d.get('acao'), d.get('acao'))} {d.get('apelido', '')}"
+    except Exception:
+        pass
+    return str(tp or "alteração")
 
 # ---------------------------------------------------------------------
 #  Memória entre execuções (na nuvem cada execução começa do zero):
@@ -552,9 +569,9 @@ def main():
             print(f"Nada a fazer agora ({agora:%H:%M}): fora da época de pagamentos e dos horários de aviso (9h, 13h e 19h)."); return
     api = api_google(cred)
     aba_estado = estado_carregar(api, planilha_id)
-    feitos = processar_fila(api, planilha_id)
-    if feitos:
-        print(f"Fila: {feitos} lançamento(s) aplicado(s) na planilha.")
+    resumo_fila = processar_fila(api, planilha_id)
+    if resumo_fila:
+        print(f"Fila: {len(resumo_fila)} lançamento(s) aplicado(s) na planilha.")
     tok, dono, repo = preparar_ambiente()
     xlsx = os.path.join(PASTA, "Insanos.xlsx")
     print("Lendo a planilha do Google...")
@@ -588,6 +605,25 @@ def main():
             print(f"Aviso: verificação de pagamentos falhou ({type(e).__name__}: {e}). O painel é gerado mesmo assim.")
     try:
         g.main()
+        # notificação para o comando: o site já foi publicado com a alteração
+        try:
+            if resumo_fila:
+                ap_de = {str(k).strip().lower(): v for k, v in g.EMAIL_APELIDO.items()}
+                try:      # apelido como está escrito na planilha ("Edu", e não "edu")
+                    import openpyxl
+                    _wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
+                    bonito = {str(r[1]).strip().lower(): str(r[1]).strip() for r in _wb["Dados Integrantes"].iter_rows(min_row=2, max_col=2, values_only=True) if r[1]}
+                    _wb.close()
+                except Exception:
+                    bonito = {}
+                quem = sorted({bonito.get(ap_de.get(e, ""), ap_de.get(e, "")) for _, e in resumo_fila if e} - {""})
+                itens = [r for r, _ in resumo_fila]
+                corpo = " · ".join(itens[:3]) + (f" · e mais {len(itens) - 3}" if len(itens) > 3 else "")
+                g.notificar("✅ Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao")
+            elif os.environ.get("ORIGEM") == "edicao":
+                g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")
+        except Exception as e:
+            print(f"Aviso: notificação de atualização não enviada ({e}).")
     finally:
         try:
             estado_salvar(api, planilha_id, aba_estado)
