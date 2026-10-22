@@ -4,7 +4,7 @@ Painel Insanos na nuvem (GitHub Actions).
 2) Roda o mesmo programa do painel (painel.py) e publica neste repositório.
 Nada de dados pessoais fica no repositório: a planilha temporária existe só durante a execução.
 """
-import os, sys, json, datetime
+import os, sys, json, datetime, unicodedata
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO", "Pagamentos"]
@@ -38,15 +38,26 @@ def ler_google(planilha_id, cred_json):
     cred = service_account.Credentials.from_service_account_info(json.loads(cred_json),
            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"])
     api = build("sheets", "v4", credentials=cred, cache_discovery=False)
-    meta = api.spreadsheets().get(spreadsheetId=planilha_id, fields="sheets.properties.title").execute()
+    meta = api.spreadsheets().get(spreadsheetId=planilha_id, fields="properties.title,sheets.properties.title").execute()
     existentes = [s["properties"]["title"] for s in meta["sheets"]]
-    abas = [a for a in ABAS if a in existentes]
-    faltam = [a for a in ABAS if a not in existentes]
+    print(f"Planilha do Google: \"{meta.get('properties', {}).get('title', '?')}\" com {len(existentes)} abas: " + ", ".join(f'"{x}"' for x in existentes))
+    # acha cada aba sem ligar para espaços, acentos ou maiúsculas ("Presença " = "Presenca")
+    norm = lambda x: "".join(ch for ch in unicodedata.normalize("NFD", str(x).strip().lower()) if not unicodedata.combining(ch))
+    real = {}
+    for a in ABAS:
+        achou = next((e for e in existentes if norm(e) == norm(a)), None)
+        if achou:
+            real[a] = achou
+    faltam = [a for a in ABAS if a not in real]
     if faltam:
         print("Aviso: abas não encontradas na planilha do Google:", ", ".join(faltam))
-    res = api.spreadsheets().values().batchGet(spreadsheetId=planilha_id, ranges=[f"'{a}'!A1:BZ500" for a in abas],
+    if "Presenca" not in real or "Dados Integrantes" not in real:
+        print("[ERRO] A planilha precisa ter as abas Presenca e Dados Integrantes. Confira se o PLANILHA_ID é o da planilha certa.")
+        sys.exit(1)
+    nomes = list(real)
+    res = api.spreadsheets().values().batchGet(spreadsheetId=planilha_id, ranges=[f"'{real[a]}'!A1:BZ500" for a in nomes],
           valueRenderOption="UNFORMATTED_VALUE", dateTimeRenderOption="SERIAL_NUMBER").execute()
-    return {a: vr.get("values", []) for a, vr in zip(abas, res.get("valueRanges", []))}
+    return {a: vr.get("values", []) for a, vr in zip(nomes, res.get("valueRanges", []))}
 
 def preparar_ambiente():
     """Chaves do cofre -> arquivos temporários que o painel espera."""
