@@ -4,8 +4,8 @@ on:
   workflow_dispatch:        # botão "Run workflow"
   repository_dispatch:      # a planilha avisa quando chega um lançamento
     types: [lancamento]
-  schedule:                 # de hora em hora, das 8h às 17h (Brasília = UTC-3): boletos + painel atualizado
-    - cron: "7 11-20 * * *"
+  schedule:                 # de meia em meia hora, das 7h às 19h (Brasília = UTC-3); o programa decide o que fazer
+    - cron: "7,37 10-22 * * *"
 
 permissions:
   contents: write
