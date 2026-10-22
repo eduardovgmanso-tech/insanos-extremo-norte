@@ -4,7 +4,7 @@ Painel Insanos na nuvem (GitHub Actions).
 2) Roda o mesmo programa do painel (painel.py) e publica neste repositório.
 Nada de dados pessoais fica no repositório: a planilha temporária existe só durante a execução.
 """
-import os, sys, json, datetime, unicodedata
+import os, sys, json, datetime, unicodedata, re
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO", "Pagamentos"]
@@ -142,6 +142,226 @@ def aplicar_pagamento(api, pid, d):
     _gravar(api, pid, gr)
     return "PGTO: " + (", ".join(feitos) if feitos else "nada alterado")
 
+# ---------------------------------------------------------------------
+#  Cadastro (novo, afastar, reativar, excluir) na planilha do Google — mesma lógica do PC.
+#  Cópia de segurança: o Histórico de versões do Google Planilhas (Arquivo > Histórico de versões).
+# ---------------------------------------------------------------------
+def _ids(api, pid):
+    meta = api.spreadsheets().get(spreadsheetId=pid, fields="sheets.properties(sheetId,title)").execute()
+    return {s["properties"]["title"]: s["properties"]["sheetId"] for s in meta["sheets"]}
+
+def _ler_f(api, pid, rng):
+    """Valores com as FÓRMULAS (para saber quais células são fórmula)."""
+    return api.spreadsheets().values().get(spreadsheetId=pid, range=rng, valueRenderOption="FORMULA").execute().get("values", [])
+
+def _estrutura(api, pid, reqs):
+    if reqs:
+        api.spreadsheets().batchUpdate(spreadsheetId=pid, body={"requests": reqs}).execute()
+
+def _faixa(sid, r0, r1, c0, c1):   # índices começando em 1, fim incluído
+    return {"sheetId": sid, "startRowIndex": r0 - 1, "endRowIndex": r1, "startColumnIndex": c0 - 1, "endColumnIndex": c1}
+
+def _di_mapa(api, pid):
+    aba = _aba_real(api, pid, "Dados Integrantes")
+    v = _ler(api, pid, f"'{aba}'!A1:AN400")
+    cab = {}
+    for c, x in enumerate((v[0] if v else []), start=1):
+        if _sa(x):
+            cab[_sa(x)] = c
+    def col(*inicios):
+        return next((c for k, c in cab.items() if any(k.startswith(i) for i in inicios)), None)
+    C = {"num": 1, "ap": 2, "cargo": 3, "lista": col("numero lista") or 4, "grau": col("grau") or 5,
+         "tel": col("telefone"), "nome": col("nome completo"), "nasc": col("nascimento"),
+         "colete": col("colete"), "tam": col("tamanho"), "email": col("email", "e-mail"),
+         "sit": col("situa"), "desde": col("afastado")}
+    linhas = {}
+    fim_tab = 1
+    for r, row in enumerate(v[1:], start=2):
+        ap = str((list(row) + ["", ""])[1]).strip()
+        if ap:
+            linhas[_sa(ap)] = r
+    for r in range(2, len(v) + 1):          # bloco contínuo de integrantes (a "tabela"): até a primeira linha vazia
+        if str((list(v[r - 1]) + ["", ""])[1]).strip():
+            fim_tab = r
+        else:
+            break
+    return aba, C, linhas, fim_tab, max(cab.values() or [1])
+
+def _inserir_linha_di(api, pid, aba, sid, depois_de, ult_col):
+    """Insere uma linha logo depois de 'depois_de' copiando as FÓRMULAS da linha de cima; devolve a linha nova."""
+    nova = depois_de + 1
+    _estrutura(api, pid, [
+        {"insertDimension": {"range": {"sheetId": sid, "dimension": "ROWS", "startIndex": nova - 1, "endIndex": nova}, "inheritFromBefore": True}},
+        {"copyPaste": {"source": _faixa(sid, depois_de, depois_de, 1, ult_col), "destination": _faixa(sid, nova, nova, 1, ult_col),
+                       "pasteType": "PASTE_NORMAL"}}])
+    # limpa o que não é fórmula (os dados copiados do vizinho)
+    f = (_ler_f(api, pid, f"'{aba}'!A{nova}:{_col(ult_col)}{nova}") or [[]])[0]
+    limpar = [(f"'{aba}'!{_col(c)}{nova}", "") for c in range(1, ult_col + 1) if not str((list(f) + [""] * ult_col)[c - 1]).startswith("=")]
+    _gravar(api, pid, limpar)
+    return nova
+
+def _totais_linha(aba, v, linha, ult):
+    """Fórmulas de Sim, Não e % da linha do evento (logo depois do último integrante), como no PC."""
+    c_sim, c_nao, c_pct = ult + 1, ult + 2, ult + 3
+    ls, ln = _col(c_sim), _col(c_nao)
+    l7 = list(v[6]) if len(v) > 6 else []
+    rot_sim = f"${ls}$7" if _sa((l7 + [""] * 90)[c_sim - 1]) == "sim" else '"Sim"'
+    rot_nao = f"${ln}$7" if _sa((l7 + [""] * 90)[c_nao - 1]) in ("nao",) else '"Não"'
+    fx = f"D{linha}:{_col(ult)}{linha}"
+    return [(f"'{aba}'!{ls}{linha}", f'=IF(COUNTIF({fx},{rot_sim})=0,"",COUNTIF({fx},{rot_sim}))'),
+            (f"'{aba}'!{ln}{linha}", f'=IF(COUNTIF({fx},{rot_nao})=0,"",COUNTIF({fx},{rot_nao}))'),
+            (f"'{aba}'!{_col(c_pct)}{linha}", f'=IFERROR({ls}{linha}/({ls}{linha}+{ln}{linha}),"")')]
+
+def _abas_eventos(api, pid):
+    return [a for a in (_aba_real(api, pid, n) for n in ("Presenca", "Insights", "Staff")) if a]
+
+def _cols_integrantes(v):
+    cols, c = {}, 4
+    l6 = list(v[5]) if len(v) > 5 else []
+    while True:
+        nome = str((l6 + [""] * 90)[c - 1]).strip()
+        if not nome or nome.lower().startswith("presen"):
+            return cols, c - 1
+        cols[_sa(nome)] = c; c += 1
+
+def _linha_adesao(v):
+    return next((r for r in range(8, len(v) + 1) if _sa((list(v[r - 1]) + [""])[0]).startswith("ades")), None)
+
+def _colunas_nas_abas(api, pid, ap, cargo, apos, log):
+    ids = _ids(api, pid)
+    for aba in _abas_eventos(api, pid):
+        v = _ler(api, pid, f"'{aba}'!A1:CZ60")
+        cols, ult = _cols_integrantes(v)
+        if _sa(ap) in cols:
+            continue
+        pos = cols.get(_sa(apos), ult) + 1
+        sid = ids[aba]
+        viz = pos - 1 if pos - 1 >= 4 else pos + 1
+        _estrutura(api, pid, [
+            {"insertDimension": {"range": {"sheetId": sid, "dimension": "COLUMNS", "startIndex": pos - 1, "endIndex": pos}, "inheritFromBefore": pos > 4}},
+            {"copyPaste": {"source": _faixa(sid, 8, 42, viz if viz < pos else pos + 1, viz if viz < pos else pos + 1),
+                           "destination": _faixa(sid, 8, 42, pos, pos), "pasteType": "PASTE_DATA_VALIDATION"}}])
+        cargo_curto = re.sub(r"\s*\([^)]*\)\s*", " ", str(cargo or "")).strip()
+        _gravar(api, pid, [(f"'{aba}'!{_col(pos)}6", ap), (f"'{aba}'!{_col(pos)}7", cargo_curto)])
+        v = _ler(api, pid, f"'{aba}'!A1:CZ60"); ult += 1
+        fim = _linha_adesao(v)
+        gr = []
+        for r in range(8, ((fim - 2) if fim else 42) + 1):
+            gr += _totais_linha(aba, v, r, ult)
+        _gravar(api, pid, gr)
+        if fim:   # "Adesão Integrante" da coluna nova: mesma fórmula do vizinho
+            vz = pos - 1 if pos - 1 >= 4 else pos + 1
+            _estrutura(api, pid, [{"copyPaste": {"source": _faixa(sid, fim, fim, vz, vz), "destination": _faixa(sid, fim, fim, pos, pos), "pasteType": "PASTE_FORMULA"}}])
+        log.append(f"coluna criada na aba {aba}")
+
+def _linha_pgto(api, pid, ap, r_di, log):
+    aba = _aba_real(api, pid, "PGTO")
+    if not aba:
+        return
+    v = _ler(api, pid, f"'{aba}'!A1:J400")
+    ult = 1
+    for r, row in enumerate(v[1:], start=2):
+        rot = str((list(row) + ["", ""])[1])
+        if rot.strip():
+            ult = r
+        if _sa(rot).endswith(_sa(ap)):
+            return
+    sid = _ids(api, pid)[aba]
+    _estrutura(api, pid, [{"copyPaste": {"source": _faixa(sid, ult, ult, 1, 26), "destination": _faixa(sid, ult + 1, ult + 1, 1, 26), "pasteType": "PASTE_NORMAL"}}])
+    di = _aba_real(api, pid, "Dados Integrantes")
+    _gravar(api, pid, [(f"'{aba}'!B{ult + 1}", f"='{di}'!F{r_di}&\" - \"&'{di}'!B{r_di}"),
+                       (f"'{aba}'!C{ult + 1}", "Em aberto"), (f"'{aba}'!J{ult + 1}", "")])
+    log.append("linha criada na aba PGTO")
+
+def aplicar_integrante(api, pid, d):
+    ap, acao = str(d.get("apelido", "")).strip(), d.get("acao")
+    if not ap or acao not in ("novo", "afastar", "reativar", "excluir"):
+        return "pedido incompleto"
+    aba, C, linhas, fim_tab, ult_col = _di_mapa(api, pid)
+    sid = _ids(api, pid)[aba]
+    r = linhas.get(_sa(ap))
+    log = []
+    if acao == "novo":
+        if r:
+            return f"{ap} já está na Dados Integrantes (nada feito)"
+        dd = d.get("dados", {}) or {}
+        r_ap = linhas.get(_sa(d.get("apos", ""))) if d.get("apos") else None
+        r = _inserir_linha_di(api, pid, aba, sid, r_ap or fim_tab, ult_col)
+        vals = {"num": dd.get("num"), "ap": ap, "cargo": dd.get("cargo"), "grau": dd.get("grau"), "tel": dd.get("tel"),
+                "nome": dd.get("nome"), "colete": dd.get("colete"), "tam": dd.get("tam"), "email": dd.get("email"), "sit": "Ativo"}
+        gr = [(f"'{aba}'!{_col(C[k])}{r}", v) for k, v in vals.items() if C.get(k) and v not in (None, "")]   # CPF não é gravado
+        if C.get("nasc") and dd.get("nasc"):
+            try:
+                gr.append((f"'{aba}'!{_col(C['nasc'])}{r}", datetime.datetime.strptime(dd["nasc"], "%Y-%m-%d").strftime("%d/%m/%Y")))
+            except ValueError:
+                pass
+        _gravar(api, pid, gr)
+        _colunas_nas_abas(api, pid, ap, dd.get("cargo", ""), d.get("apos", ""), log)
+        _linha_pgto(api, pid, ap, r, log)
+        return f"{ap}: novo integrante na linha {r} da Dados Integrantes; " + "; ".join(log)
+    if r is None:
+        return f"{ap} não está na Dados Integrantes (nada feito)"
+    if acao == "afastar":
+        gr = [(f"'{aba}'!{_col(C['sit'])}{r}", "Afastado")]
+        if C.get("desde") and d.get("desde"):
+            gr.append((f"'{aba}'!{_col(C['desde'])}{r}", datetime.datetime.strptime(d["desde"], "%Y-%m-%d").strftime("%d/%m/%Y")))
+        _gravar(api, pid, gr)
+        return f"{ap}: afastado desde {d.get('desde', '')}"
+    if acao == "excluir":
+        pg = _aba_real(api, pid, "PGTO")
+        if pg:
+            vv, ff = _ler(api, pid, f"'{pg}'!A1:B400"), _ler_f(api, pid, f"'{pg}'!A1:B400")
+            for rp in range(2, len(vv) + 1):
+                txt = str((list(vv[rp - 1]) + ["", ""])[1]); frm = str((list(ff[rp - 1]) + ["", ""])[1]).replace("$", "") if rp <= len(ff) else ""
+                if _sa(txt).endswith(_sa(ap)) or ("dados integrantes" in frm.lower() and re.search(rf"!B{r}(?!\d)", frm)):
+                    _estrutura(api, pid, [{"deleteDimension": {"range": {"sheetId": _ids(api, pid)[pg], "dimension": "ROWS", "startIndex": rp - 1, "endIndex": rp}}}])
+                    log.append("linha apagada da PGTO"); break
+        for ae in _abas_eventos(api, pid):
+            v = _ler(api, pid, f"'{ae}'!A1:CZ60")
+            cols, ult = _cols_integrantes(v)
+            alvo = cols.get(_sa(ap))
+            if not alvo:
+                continue
+            _estrutura(api, pid, [{"deleteDimension": {"range": {"sheetId": _ids(api, pid)[ae], "dimension": "COLUMNS", "startIndex": alvo - 1, "endIndex": alvo}}}])
+            v = _ler(api, pid, f"'{ae}'!A1:CZ60"); ult -= 1
+            fim = _linha_adesao(v); gr = []
+            for rr in range(8, ((fim - 2) if fim else 42) + 1):
+                gr += _totais_linha(ae, v, rr, ult)
+            _gravar(api, pid, gr)
+            log.append(f"coluna apagada da aba {ae}")
+        aba, C, linhas, fim_tab, ult_col = _di_mapa(api, pid)
+        r = linhas.get(_sa(ap))
+        if r:
+            _estrutura(api, pid, [{"deleteDimension": {"range": {"sheetId": sid, "dimension": "ROWS", "startIndex": r - 1, "endIndex": r}}}])
+        return f"{ap}: excluído de toda a planilha; " + "; ".join(log)
+    if acao == "reativar":
+        apos = d.get("apos", "")
+        r_ap = linhas.get(_sa(apos)) if apos else None
+        if r_ap and r != r_ap + 1:      # leva a linha para logo depois de 'apos', dentro do bloco de integrantes
+            f_old = (_ler_f(api, pid, f"'{aba}'!A{r}:{_col(ult_col)}{r}") or [[]])[0]
+            nova = _inserir_linha_di(api, pid, aba, sid, r_ap, ult_col)
+            r_old = r + 1 if r > r_ap else r
+            gr = [(f"'{aba}'!{_col(c)}{nova}", (list(f_old) + [""] * ult_col)[c - 1])
+                  for c in range(1, ult_col + 1) if not str((list(f_old) + [""] * ult_col)[c - 1]).startswith("=")]
+            _gravar(api, pid, gr)
+            _estrutura(api, pid, [{"deleteDimension": {"range": {"sheetId": sid, "dimension": "ROWS", "startIndex": r_old - 1, "endIndex": r_old}}}])
+            aba, C, linhas, fim_tab, ult_col = _di_mapa(api, pid)
+            r = linhas.get(_sa(ap))
+        gr = [(f"'{aba}'!{_col(C['sit'])}{r}", "Ativo")]
+        if C.get("desde"):
+            gr.append((f"'{aba}'!{_col(C['desde'])}{r}", ""))
+        _gravar(api, pid, gr)
+        cargo = (_ler(api, pid, f"'{aba}'!C{r}:C{r}") or [[""]])[0]
+        _colunas_nas_abas(api, pid, ap, (list(cargo) + [""])[0], apos, log)
+        _linha_pgto(api, pid, ap, r, log)
+        return f"{ap}: reativado; " + "; ".join(log)
+
+def renumerar_google(api, pid, mudancas):
+    """Numero Lista (coluna D da Dados Integrantes): ativos numerados, afastados/excluídos em branco."""
+    aba = _aba_real(api, pid, "Dados Integrantes")
+    _gravar(api, pid, [(f"'{aba}'!D{linha}", num if num else "") for linha, num, ap in mudancas])
+    print("Numero Lista acertado: " + ", ".join(f"{ap} = {num if num else '(afastado/excluído)'}" for _, num, ap in mudancas))
+
 def processar_fila(api, pid):
     aba = _aba_real(api, pid, "Fila")
     if not aba:
@@ -150,7 +370,7 @@ def processar_fila(api, pid):
     n = 0
     for i, row in enumerate(v[1:], start=2):
         row = row + [""] * 6
-        if _sa(row[4]) != "pendente":
+        if _sa(row[4]) not in ("pendente", "aguardando"):
             continue
         try:
             d = json.loads(row[3]); tp = d.get("tipo")
@@ -159,7 +379,7 @@ def processar_fila(api, pid):
             elif tp == "pagamento_manual":
                 res, sit = aplicar_pagamento(api, pid, d), "feito"
             elif tp == "integrante":
-                res, sit = "cadastro ainda é aplicado pelo computador (próxima etapa da nuvem)", "aguardando"
+                res, sit = aplicar_integrante(api, pid, d), "feito"
             else:
                 res, sit = f"tipo desconhecido: {tp}", "erro"
         except Exception as e:
@@ -337,6 +557,7 @@ def main():
     if os.environ.get("LANC_URL") and os.environ.get("LANC_CHAVE"):
         g.NUVEM = {"url": os.environ["LANC_URL"], "chave": os.environ["LANC_CHAVE"]}   # o painel manda os lançamentos direto
     # partes que só existem no PC (arquivos de lançamento, Excel pelo Windows, tarefa agendada): desligadas na nuvem
+    g.renumerar_lista = lambda mudancas: renumerar_google(api, planilha_id, mudancas)
     for nome in ("migrar_staff", "importar_lancamentos", "importar_integrantes", "importar_pagamentos_manuais",
                  "importar_acessos", "garantir_tarefa_avisos"):
         setattr(g, nome, lambda *a, **k: None)
