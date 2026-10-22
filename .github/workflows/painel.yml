@@ -38,5 +38,6 @@ jobs:
           ACESSOS_CHAVE: ${{ secrets.ACESSOS_CHAVE }}
           LANC_URL: ${{ secrets.LANC_URL }}
           LANC_CHAVE: ${{ secrets.LANC_CHAVE }}
+          NOTIFICAR: ${{ secrets.NOTIFICAR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python nuvem.py
