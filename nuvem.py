@@ -683,7 +683,9 @@ def main():
                 quem = _quem([e for _, e, _d in resumo_fila], xlsx, g)
                 itens = [r for r, _, _d in resumo_fila]
                 corpo = " · ".join(itens[:3]) + (f" · e mais {len(itens) - 3}" if len(itens) > 3 else "")
-                g.notificar("✅ Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao")
+                zaps = [d.get("zap") for _, _, d in resumo_fila if d.get("zap")]
+                g.notificar("✅ Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao",
+                            zap=zaps[-1] if zaps else None)      # a mensagem pronta do último lançamento com lista
             elif evento == "repository_dispatch" and not lanc_recente:
                 # a planilha avisou e a Fila estava vazia: foi edição feita à mão na planilha
                 g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")

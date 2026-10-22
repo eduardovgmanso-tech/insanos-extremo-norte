@@ -1381,7 +1381,7 @@ def _pywebpush():
             print("Aviso: não consegui instalar o componente das notificações (pywebpush).")
             return None
 
-def notificar(titulo, corpo, tag="aviso"):
+def notificar(titulo, corpo, tag="aviso", zap=None):
     """Manda a notificação para todos os celulares que ativaram no app."""
     if not ACESSOS_URL or not os.path.exists(ARQ_VAPID_PEM):
         return
@@ -1396,7 +1396,12 @@ def notificar(titulo, corpo, tag="aviso"):
     wp = _pywebpush()
     if wp is None:
         return
-    dados = json.dumps({"title": titulo, "body": corpo, "tag": tag, "url": "adm.html"}, ensure_ascii=False)
+    msg = {"title": titulo, "body": corpo, "tag": tag, "url": "adm.html"}
+    if zap:      # mensagem pronta para o botão "📲 Enviar no WhatsApp" (a notificação tem limite de tamanho)
+        msg["zap"] = zap
+        if len(json.dumps(msg, ensure_ascii=False).encode("utf-8")) > 3400:
+            msg.pop("zap"); _log("Aviso: a mensagem do WhatsApp ficou grande demais para ir na notificação (vai sem o botão).")
+    dados = json.dumps(msg, ensure_ascii=False)
     enviados = 0
     for email, sub in inscritos:
         try:
@@ -1673,7 +1678,7 @@ def arquivos_app():
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v2";
+const CACHE = "insanos-v3";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -1687,11 +1692,18 @@ self.addEventListener("fetch", e => {
 self.addEventListener("push", e => {
   let d = {};
   try { d = e.data.json(); } catch (_) { d = {title: "Insanos ADM", body: e.data ? e.data.text() : ""}; }
-  e.waitUntil(self.registration.showNotification(d.title || "Insanos ADM",
-    {body: d.body || "", icon: "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true, data: {url: d.url || "adm.html"}}));
+  const op = {body: d.body || "", icon: "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
+              data: {url: d.url || "adm.html", zap: d.zap || ""}};
+  if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
+  e.waitUntil(self.registration.showNotification(d.title || "Insanos ADM", op));
 });
 self.addEventListener("notificationclick", e => {
   e.notification.close();
+  const dd = e.notification.data || {};
+  // botão "Enviar no WhatsApp" (Android) ou toque na notificação no iPhone (que não mostra botões): abre o WhatsApp com a mensagem
+  if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
+    e.waitUntil(clients.openWindow("https://wa.me/?text=" + encodeURIComponent(dd.zap))); return;
+  }
   e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(ws => {
     for (const w of ws) if (w.url.includes("adm.html")) return w.focus();
     return clients.openWindow((e.notification.data && e.notification.data.url) || "adm.html");
