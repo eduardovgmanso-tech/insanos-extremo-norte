@@ -1,0 +1,35 @@
+name: Painel Insanos (nuvem)
+
+on:
+  workflow_dispatch:        # botão "Run workflow" (por enquanto só manual, para os testes)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: painel
+  cancel-in-progress: false
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar componentes
+        run: pip install --quiet openpyxl cryptography google-auth google-api-python-client pywebpush
+      - name: Gerar e publicar o painel
+        env:
+          TZ: America/Sao_Paulo
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          PLANILHA_ID: ${{ secrets.PLANILHA_ID }}
+          PUSH_VAPID_PEM: ${{ secrets.PUSH_VAPID_PEM }}
+          PUSH_VAPID_PUB: ${{ secrets.PUSH_VAPID_PUB }}
+          SENHA_COLETIVA: ${{ secrets.SENHA_COLETIVA }}
+          ACESSOS_URL: ${{ secrets.ACESSOS_URL }}
+          ACESSOS_CHAVE: ${{ secrets.ACESSOS_CHAVE }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python nuvem.py
