@@ -29,7 +29,6 @@ jobs:
         env:
           TZ: America/Sao_Paulo
           MODO: ${{ github.event_name }}
-          ORIGEM: ${{ github.event.client_payload.origem }}
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           PLANILHA_ID: ${{ secrets.PLANILHA_ID }}
           PUSH_VAPID_PEM: ${{ secrets.PUSH_VAPID_PEM }}
