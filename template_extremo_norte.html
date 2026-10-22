@@ -1146,6 +1146,7 @@ async function izSalvar(){const d=$("izData").value,n=$("izNum").value.trim();
   const marc={};M_FULL.forEach(m=>{const v=iz.marca[m.n];marc[m.n]=v===1?"Sim":v===0?"Não":v==="-"?"-":""});
   const dados={tipo:"lancamento_presenca",versao:2,aba:"Insights",atualizar:true,data:d,evento:n,marcacoes:marc,criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"insight";
+  if(await nuvemEnviar(dados,"Insight enviado para a planilha (aba Insights)."))return;
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_insights_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
   const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();
@@ -1498,6 +1499,7 @@ async function ezSalvar(){const d=$("ezData").value,n=$("ezTit").value.trim();
   const aba=ezTipo()==="ins"?"Insights":"Presenca";
   const dados={tipo:"lancamento_presenca",versao:2,aba,atualizar:true,data:d,evento:n,marcacoes:marc,criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
+  if(await nuvemEnviar(dados,`Evento enviado para a planilha (aba ${aba}).`))return;
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${aba.toLowerCase()}_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
   const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -2310,6 +2312,7 @@ function montarPagamentos(){montarAfastados();
   $("pagSalvar").onclick=async()=>{if(!Object.keys(pagPend).length)return;
     const dados={tipo:"pagamento_manual",versao:1,ciclo:P.venc,status:{...pagPend},criado:new Date().toISOString()};
     const d=new Date(),carimbo=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}`;
+    if(await nuvemEnviar(dados,"Compensação enviada para a planilha (aba PGTO)."))return;
     const arq=new File([JSON.stringify(dados,null,1)],`pagamento_manual_${carimbo}.json`,{type:"application/json"});
     if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
     const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();
@@ -2684,7 +2687,14 @@ const CAD_KEY="cad_lista";
 function cadLista(){try{return JSON.parse(localStorage.getItem(CAD_KEY)||"[]")}catch(e){return []}}
 function cadGuardar(l){try{localStorage.setItem(CAD_KEY,JSON.stringify(l))}catch(e){}}
 let cadAtual=null;
-async function cadArquivo(dados,nome){const arq=new File([JSON.stringify(dados,null,1)],nome,{type:"application/json"});
+// ---- nuvem: os lançamentos vão direto para a planilha do Google (se falhar, o painel baixa o arquivo como antes) ----
+async function nuvemEnviar(dados,msg){const N=DADOS.nuvem;if(!N||!N.url)return false;
+  let quem="";try{quem=sessionStorage.getItem("painel_email")||""}catch(e){}
+  try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,quem,dados})});
+    const j=await r.json().catch(()=>({}));if(!j.ok)throw new Error(j.erro||"recusado");
+    alert(`✅ ${msg||"Enviado para a planilha."}\n\nO painel é atualizado sozinho em uns 3 minutos (recarregue a página depois).`);return true}
+  catch(e){alert("Não consegui enviar para a planilha agora ("+(e.message||e)+"). Vou baixar o arquivo, como antes.");return false}}
+async function cadArquivo(dados,nome){if(await nuvemEnviar(dados,"Alteração enviada para a planilha."))return true;const arq=new File([JSON.stringify(dados,null,1)],nome,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return true}catch(e){if(e&&e.name==="AbortError")return false}}
   const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);return true}
 const cadSlug=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,30);
@@ -2949,6 +2959,7 @@ async function salvarLancamento(){
   if(EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Salvar mesmo assim?"))return;
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
+  if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="Salvar lançamento",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
   const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();

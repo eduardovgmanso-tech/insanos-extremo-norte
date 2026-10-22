@@ -45,6 +45,7 @@ ACESSOS_CHAVE = os.environ.get("ACESSOS_CHAVE", "")   # do cofre do GitHub
 # quem vê a tela "Acessos" no ADM (pelo e-mail da planilha). Os demais do comando não veem nem conseguem ler.
 ACESSOS_SOMENTE = ["Edu"]
 EMAIL_APELIDO = {}
+NUVEM = None      # na nuvem: {"url": recebedor, "chave": ...} -> os lançamentos vão direto para a planilha do Google
 EMAIL_APELIDO_INV = {}
 # Fotos espalhadas no fundo da tela de CPF do ADM: arquivos da pasta "fotos_login" (webp, jpg ou png, até 6)
 FOTOS_LOGIN = ""
@@ -2073,9 +2074,9 @@ def main():
         else:
             print("Aviso: e-mail de " + ", ".join(ACESSOS_SOMENTE) + " não encontrado: a tela Acessos não vai aparecer.")
     FLY = modelos_fly()
-    gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH}, "Painel ADM - Acesso restrito ao Comando.",
+    gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
-    dados_adm = {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH}
+    dados_adm = {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     # no link: com nome completo e CPF dos integrantes (decisão do Eduardo, ciente do risco), para a Solicitação kit/colete.
     # Para voltar a tirar do link, troque LINK_COM_NOME_E_CPF para False no começo deste arquivo.
     membros_link = membros if LINK_COM_NOME_E_CPF else \
