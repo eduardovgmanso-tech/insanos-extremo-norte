@@ -537,7 +537,19 @@ def main():
     planilha_id, cred = os.environ.get("PLANILHA_ID", "").strip(), os.environ.get("GOOGLE_CREDENTIALS", "")
     if not planilha_id or not cred:
         print("[ERRO] Faltam os segredos PLANILHA_ID e/ou GOOGLE_CREDENTIALS no GitHub."); sys.exit(1)
-    evento = os.environ.get("MODO", "")   # schedule (de hora em hora) · repository_dispatch (lançamento) · workflow_dispatch (botão)
+    evento = os.environ.get("MODO", "")   # schedule (horário) · repository_dispatch (lançamento/edição) · workflow_dispatch (botão)
+    # horários automáticos: na época de pagamentos (dia 1 ao vencimento) de meia em meia hora, das 7h às 18h;
+    # fora dela, só a rodada das 9h (avisos do dia). Modificações (painel ou planilha) atualizam na hora.
+    sys.argv = [sys.argv[0], "--publicar"]
+    import painel as g
+    agora = datetime.datetime.now(); hoje = agora.date()
+    ciclo = g.vencimento(hoje.year, hoje.month)
+    epoca_pag = hoje <= ciclo
+    if evento == "schedule":
+        h, mi = agora.hour, agora.minute
+        rodada_avisos = h in (9, 13, 19) and mi < 30          # avisos de aniversário: 9h, 13h e 19h
+        if not ((epoca_pag and 7 <= h <= 18) or rodada_avisos):
+            print(f"Nada a fazer agora ({agora:%H:%M}): fora da época de pagamentos e dos horários de aviso (9h, 13h e 19h)."); return
     api = api_google(cred)
     aba_estado = estado_carregar(api, planilha_id)
     feitos = processar_fila(api, planilha_id)
@@ -547,8 +559,6 @@ def main():
     xlsx = os.path.join(PASTA, "Insanos.xlsx")
     print("Lendo a planilha do Google...")
     montar_planilha(ler_google(planilha_id, cred, api), xlsx)
-    sys.argv = [sys.argv[0], "--publicar"]
-    import painel as g
     g.PLANILHA = xlsx
     g.ARQ_TOKEN = tok
     g.GITHUB_USUARIO, g.GITHUB_REPO = dono, repo
@@ -569,8 +579,7 @@ def main():
     else:
         print("Notificações: ligadas.")
     # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
-    hora = datetime.datetime.now().hour
-    if evento == "workflow_dispatch" or (evento == "schedule" and 8 <= hora <= 17):
+    if evento == "workflow_dispatch" or (evento == "schedule" and epoca_pag and 7 <= agora.hour <= 18):
         try:
             if verificar_boletos(api, planilha_id, g):
                 print("Relendo a planilha com os pagamentos atualizados...")

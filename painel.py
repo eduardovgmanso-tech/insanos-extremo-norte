@@ -1342,6 +1342,7 @@ ARQ_VAPID = os.path.join(PASTA_LANC, "push_vapid.json")          # chave secreta
 ARQ_VAPID_PEM = os.path.join(PASTA_LANC, "push_vapid_privada.pem")
 ARQ_AVISOS = os.path.join(PASTA_LANC, "notificacoes_enviadas.json")
 HORA_AVISOS = "09:00"
+HORAS_ANIVERSARIO = ["09:00", "13:00", "19:00"]   # aviso de aniversário amanhã: 3 vezes no dia
 
 def chave_push_publica():
     """Cria (uma vez) o par de chaves das notificações e devolve a parte pública (vai no app)."""
@@ -1446,9 +1447,14 @@ def avisos_diarios(so_depois_das_9=False):
         if isinstance(nasc, datetime.datetime):
             nasc = nasc.date()
         if (not sit or sit.startswith("ativo")) and isinstance(nasc, datetime.date) and (nasc.month, nasc.day) == (amanha.month, amanha.day):
-            chave = f"aniv:{amanha.isoformat()}:{ap}"
-            if chave not in feitos:
-                notificar("🎂 Aniversário amanhã", f"Amanhã ({amanha:%d/%m}) é aniversário de {ap}: faz {amanha.year - nasc.year} anos. Hora de preparar o fly!", "aniversario")
+            # aniversário amanhã: 3 avisos no dia (9h, 13h e 19h), cada um uma vez só
+            hm = agora.strftime("%H:%M")
+            horario = max((h for h in HORAS_ANIVERSARIO if h <= hm), default=None)
+            chave = f"aniv:{amanha.isoformat()}:{ap}:{horario}"
+            if horario and chave not in feitos:
+                titulo = {"09:00": "🎂 Aniversário amanhã", "13:00": "🎂 Lembrete: aniversário amanhã",
+                          "19:00": "🎂 Último lembrete: aniversário amanhã"}.get(horario, "🎂 Aniversário amanhã")
+                notificar(titulo, f"Amanhã ({amanha:%d/%m}) é aniversário de {ap}: faz {amanha.year - nasc.year} anos. Hora de preparar o fly!", "aniversario")
                 feitos[chave] = agora.isoformat(timespec="minutes")
         if sit.startswith("afast"):
             dd = r[c_des] if c_des is not None and c_des < len(r) else None
@@ -2062,7 +2068,7 @@ def main():
     pag["ultimo_pag"] = ULTIMO_PAG_TS
     global FOTOS_LOGIN
     FOTOS_LOGIN = fotos_login_html()
-    FOTOS_GAL = fotos_galeria()
+    FOTOS_GAL = []      # galeria de fotos removida do projeto
     PUSH = {"pub": chave_push_publica(), "url": ACESSOS_URL} if ACESSOS_URL else None
     ACESSOS = None
     if ACESSOS_URL:
