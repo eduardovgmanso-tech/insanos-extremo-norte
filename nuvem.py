@@ -168,6 +168,135 @@ def processar_fila(api, pid):
         print(f"Fila linha {i}: {sit} · {res}"); n += 1
     return n
 
+# ---------------------------------------------------------------------
+#  Memória entre execuções (na nuvem cada execução começa do zero):
+#  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
+# ---------------------------------------------------------------------
+ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "Lancamentos/notificacoes_enviadas.json"]
+
+def _aba_estado(api, pid):
+    aba = _aba_real(api, pid, "_estado")
+    if not aba:
+        api.spreadsheets().batchUpdate(spreadsheetId=pid, body={"requests": [
+            {"addSheet": {"properties": {"title": "_estado", "hidden": True}}}]}).execute()
+        aba = "_estado"
+    return aba
+
+def estado_carregar(api, pid):
+    aba = _aba_estado(api, pid)
+    for row in _ler(api, pid, f"'{aba}'!A1:B20"):
+        row = list(row) + ["", ""]
+        if row[0] in ESTADO and str(row[1]).strip():
+            destino = os.path.join(PASTA, row[0]); os.makedirs(os.path.dirname(destino), exist_ok=True)
+            with open(destino, "w", encoding="utf-8") as f:
+                f.write(str(row[1]))
+    return aba
+
+def estado_salvar(api, pid, aba):
+    linhas = []
+    for nome in ESTADO:
+        caminho = os.path.join(PASTA, nome)
+        if os.path.exists(caminho):
+            with open(caminho, encoding="utf-8") as f:
+                linhas.append([nome, f.read()[:49000]])
+    if linhas:
+        api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1:B{len(linhas)}",
+            valueInputOption="RAW", body={"values": linhas}).execute()
+
+# ---------------------------------------------------------------------
+#  Verificação dos boletos da Iugu (mesma regra do PC), gravando na aba PGTO da planilha do Google
+# ---------------------------------------------------------------------
+def verificar_boletos(api, pid, g):
+    hoje = datetime.date.today()
+    ciclo = g.vencimento(hoje.year, hoje.month)
+    if hoje > ciclo:
+        print(f"Verificação de pagamentos: fora do período (vencimento foi {ciclo:%d/%m}). Nada a fazer.")
+        return False
+    aba = _aba_real(api, pid, "PGTO")
+    if not aba:
+        print("Verificação de pagamentos: aba PGTO não encontrada."); return False
+    print(f"Verificando pagamentos (ciclo com vencimento em {ciclo:%d/%m/%Y})...")
+    v = _ler(api, pid, f"'{aba}'!A1:J400")
+    manual = g._manual_carregar(ciclo)
+    inativos = g.inativos_planilha()
+    itens, grav, novos_pagos = [], [], 0
+    for r, row in enumerate(v[1:], start=2):
+        row = list(row) + [""] * 10
+        link = str(row[9]).strip()
+        if not link.startswith("http"):
+            continue
+        rotulo, atual = str(row[1]).strip(), str(row[2]).strip()
+        if any(rotulo.lower().endswith(ap) for ap in inativos):
+            print(f"  {rotulo}: afastado/excluído (não verificado)"); continue
+        item = {"rotulo": rotulo, "selo": None, "venc_boleto": None, "status": atual, "obs": ""}
+        try:
+            selo, vb = g._ler_boleto(link)
+        except Exception as e:
+            item["obs"] = "não consegui abrir o boleto"; itens.append(item); print(f"  {rotulo}: não abriu ({e})"); continue
+        item["selo"], item["venc_boleto"] = selo, (vb.isoformat() if vb else None)
+        boleto_do_mes = not vb or (vb.year, vb.month) == (ciclo.year, ciclo.month)
+        if boleto_do_mes and selo and "pag" in selo.lower():
+            novo = "Pago em Dia"
+        else:
+            novo = "Em aberto"
+            if not boleto_do_mes:
+                item["obs"] = f"boleto com vencimento {vb:%d/%m/%Y}: o boleto deste mês ainda não foi cadastrado"
+            elif selo:
+                item["obs"] = f"selo da Iugu: {selo}"
+        ap_man = g._manual_de(rotulo, manual)
+        if not ap_man and novo != "Pago em Dia" and atual.lower().startswith("aguard"):
+            ap_man = rotulo.split()[-1] if rotulo else rotulo
+            manual[ap_man] = "Aguardando Compensação"
+        if novo == "Pago em Dia":
+            if ap_man:
+                manual.pop(ap_man, None)
+            item["boleto_pago"] = True
+        elif ap_man:
+            novo = manual[ap_man]
+            item["obs"] = (item.get("obs") + " · " if item.get("obs") else "") + "marcado à mão"
+        item["status"] = novo
+        if novo != atual:
+            grav.append((f"'{aba}'!C{r}", novo)); print(f"  {rotulo}: {atual or '(vazio)'} -> {novo}")
+            if novo == "Pago em Dia":
+                novos_pagos += 1; item["novo_pago"] = True
+        itens.append(item)
+    _gravar(api, pid, grav)
+    g._manual_salvar(ciclo, manual)
+    quando = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M")
+    ultimo, pagos_em = None, {}
+    try:
+        with open(g.ARQ_VERIF, encoding="utf-8") as f:
+            ant = json.load(f)
+        ultimo = ant.get("ultimo_pagamento")
+        if str(ant.get("ciclo") or "")[:7] == ciclo.isoformat()[:7]:
+            pagos_em = dict(ant.get("pagos_em") or {})
+    except Exception:
+        pass
+    agora_ts = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    for it in itens:
+        rot = it.get("rotulo", "")
+        if it.get("status") == "Pago em Dia":
+            pagos_em.setdefault(rot, agora_ts if it.get("novo_pago") else "")
+        else:
+            pagos_em.pop(rot, None)
+    if novos_pagos:
+        ultimo = {"ts": agora_ts, "hora": datetime.datetime.now().strftime("%d/%m às %H:%M")}
+    with open(g.ARQ_VERIF, "w", encoding="utf-8") as f:
+        json.dump({"quando": quando, "ciclo": ciclo.isoformat(), "novos_pagos": novos_pagos, "ultimo_pagamento": ultimo,
+                   "pagos_em": pagos_em, "itens": itens}, f, ensure_ascii=False, indent=1)
+    print(f"Verificação concluída: {len(itens)} boletos lidos, {len(grav)} status alterado(s).")
+    novos = [str(it.get("rotulo", "")).split(" - ")[-1].strip() for it in itens if it.get("novo_pago")]
+    if novos:
+        hora = datetime.datetime.now().strftime("%d/%m às %H:%M")
+        try:
+            if len(novos) == 1:
+                g.notificar("💰 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora}).", "pagamento")
+            else:
+                g.notificar(f"💰 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora}).", "pagamento")
+        except Exception as e:
+            print(f"Aviso: notificação não enviada ({e}).")
+    return bool(grav)
+
 def preparar_ambiente():
     """Chaves do cofre -> arquivos temporários que o painel espera."""
     lanc = os.path.join(PASTA, "Lancamentos"); os.makedirs(lanc, exist_ok=True)
@@ -188,16 +317,16 @@ def main():
     planilha_id, cred = os.environ.get("PLANILHA_ID", "").strip(), os.environ.get("GOOGLE_CREDENTIALS", "")
     if not planilha_id or not cred:
         print("[ERRO] Faltam os segredos PLANILHA_ID e/ou GOOGLE_CREDENTIALS no GitHub."); sys.exit(1)
+    evento = os.environ.get("MODO", "")   # schedule (de hora em hora) · repository_dispatch (lançamento) · workflow_dispatch (botão)
     api = api_google(cred)
+    aba_estado = estado_carregar(api, planilha_id)
     feitos = processar_fila(api, planilha_id)
     if feitos:
         print(f"Fila: {feitos} lançamento(s) aplicado(s) na planilha.")
-    print("Lendo a planilha do Google...")
-    dados = ler_google(planilha_id, cred, api)
-    print("Abas lidas:", ", ".join(f"{a} ({len(v)} linhas)" for a, v in dados.items()))
-    xlsx = os.path.join(PASTA, "Insanos.xlsx")
-    montar_planilha(dados, xlsx)
     tok, dono, repo = preparar_ambiente()
+    xlsx = os.path.join(PASTA, "Insanos.xlsx")
+    print("Lendo a planilha do Google...")
+    montar_planilha(ler_google(planilha_id, cred, api), xlsx)
     sys.argv = [sys.argv[0], "--publicar"]
     import painel as g
     g.PLANILHA = xlsx
@@ -207,7 +336,22 @@ def main():
     g.limpar_historico_github = lambda: True       # na nuvem o histórico fica (sem limpeza forçada)
     if os.environ.get("LANC_URL") and os.environ.get("LANC_CHAVE"):
         g.NUVEM = {"url": os.environ["LANC_URL"], "chave": os.environ["LANC_CHAVE"]}   # o painel manda os lançamentos direto
-    g.main()
+    # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
+    hora = datetime.datetime.now().hour
+    if evento == "workflow_dispatch" or (evento == "schedule" and 8 <= hora <= 17):
+        try:
+            if verificar_boletos(api, planilha_id, g):
+                print("Relendo a planilha com os pagamentos atualizados...")
+                montar_planilha(ler_google(planilha_id, cred, api), xlsx)
+        except Exception as e:
+            print(f"Aviso: verificação de pagamentos falhou ({type(e).__name__}: {e}). O painel é gerado mesmo assim.")
+    try:
+        g.main()
+    finally:
+        try:
+            estado_salvar(api, planilha_id, aba_estado)
+        except Exception as e:
+            print(f"Aviso: não consegui guardar a memória na aba _estado ({e}).")
 
 if __name__ == "__main__":
     main()
