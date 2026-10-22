@@ -1,7 +1,9 @@
 name: Painel Insanos (nuvem)
 
 on:
-  workflow_dispatch:        # botão "Run workflow" (por enquanto só manual, para os testes)
+  workflow_dispatch:        # botão "Run workflow"
+  repository_dispatch:      # a planilha avisa quando chega um lançamento
+    types: [lancamento]
 
 permissions:
   contents: write
@@ -31,5 +33,7 @@ jobs:
           SENHA_COLETIVA: ${{ secrets.SENHA_COLETIVA }}
           ACESSOS_URL: ${{ secrets.ACESSOS_URL }}
           ACESSOS_CHAVE: ${{ secrets.ACESSOS_CHAVE }}
+          LANC_URL: ${{ secrets.LANC_URL }}
+          LANC_CHAVE: ${{ secrets.LANC_CHAVE }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python nuvem.py
