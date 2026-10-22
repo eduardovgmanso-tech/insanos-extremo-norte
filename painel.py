@@ -33,6 +33,7 @@ ITERACOES = 600_000
 # HTMLs individuais (pasta Individuais): substituídos pela imagem gerada no ADM. True volta a gerar os arquivos.
 GERAR_INDIVIDUAIS = False
 INFO_LOGIN = ""   # linha da tela de CPF: última atualização e última verificação dos pagamentos
+ULTIMA_ALTERACAO_TXT = ""   # na nuvem: "o que foi alterado · por quem · quando" (sem dados pessoais de outros irmãos)
 # Aviso de manutenção: aparece no site enquanto existir o arquivo MANUTENCAO.txt nesta pasta
 # (LigarManutencao.bat cria o arquivo; DesligarManutencao.bat apaga)
 AVISO_MANUTENCAO = ('<div class="manut" role="status">🛠️ <b>Site em manutenção</b>: os dados estão sendo analisados '
@@ -1987,6 +1988,9 @@ def main():
     except Exception:
         _v = {}
     INFO_LOGIN = f"Última atualização: {gerado}"
+    if ULTIMA_ALTERACAO_TXT:
+        import html as _h
+        INFO_LOGIN += f"<br>Última alteração: {_h.escape(ULTIMA_ALTERACAO_TXT)}"
     if _v.get("quando"):
         INFO_LOGIN += f"<br>Pagamentos verificados: {_v['quando']}"
     # tela de CPF do ADM: ponto verde quando há pagamento novo que você ainda não viu (some ao abrir a tela Pagamentos)

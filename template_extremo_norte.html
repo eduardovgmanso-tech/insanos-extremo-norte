@@ -352,7 +352,6 @@ body.adm[data-view="lancar"] #lancar summary{pointer-events:none}body.adm[data-v
   body.adm .wrap{margin-left:0;padding-bottom:96px}
   .pag-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-body.adm #fotosView{display:none}
 body.adm #acessosView{display:none}
 body.adm #dashView{display:none}body.adm[data-view="dash"] #dashView{display:block}
 body.adm[data-view="dash"] .v-painel{display:none!important}
@@ -383,7 +382,6 @@ body.adm[data-view="acessos"] header h1,body.adm[data-view="acessos"] .periodo{d
 .ac-l .r{font-size:12px;font-weight:800;border-radius:20px;padding:3px 10px;white-space:nowrap}
 .ac-l .r.ok{background:rgba(76,175,106,.2);color:#8FD9A3}.ac-l .r.no{background:rgba(210,90,87,.2);color:#F2A3A3}
 @media (max-width:600px){.ac-l{grid-template-columns:minmax(0,1fr) auto}.ac-l .q{grid-column:1/-1}}
-body.adm[data-view="fotos"] #fotosView{display:block}
 body.adm[data-view="fotos"] .v-painel{display:none!important}
 body.adm[data-view="fotos"] header h1,body.adm[data-view="fotos"] .periodo{display:none}
 .galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
@@ -582,7 +580,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <label class="lw-check anal-cmd" id="analCmd" hidden><span><input type="checkbox" id="semCmd"> <b id="analCmdTxt">Sem o comando</b></span></label>
   </section>
   <section class="painel js so-adm" id="insZap" hidden>
-    <div class="pag-cab"><div><h2 style="margin:0">Lista do insight</h2><p class="sub" style="margin:4px 0 0">Marque quem respondeu, salve no Excel e envie a lista para o WhatsApp.</p></div></div>
+    <div class="pag-cab"><div><h2 style="margin:0">Lista do insight</h2><p class="sub" style="margin:4px 0 0">Marque quem respondeu, salve na nuvem e envie a lista para o WhatsApp.</p></div></div>
     <div class="lw-campos" id="izCampos">
       <label class="inteiro">Insight<select id="izEv"></select></label>
       <label>Nº do insight<input type="text" id="izNum" placeholder="Ex.: Insight 011"></label>
@@ -603,7 +601,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     </div>
     <div id="izLista"></div>
     <div class="lw-bts" style="margin-top:16px">
-      <button type="button" class="btn" id="izSalvar">💾 Salvar no Excel</button>
+      <button type="button" class="btn" id="izSalvar">💾 Salvar na nuvem</button>
       <button type="button" class="btn zap" id="izCopiar">Copiar para o WhatsApp</button>
       <a class="btn" id="izZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
     </div>
@@ -690,7 +688,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="lw-bts" style="margin-top:16px">
       <label class="lw-check" style="margin:0 8px 0 0"><input type="checkbox" id="ezComLista"> Mostrar a lista de irmãos no fly</label>
       <button type="button" class="btn" id="ezImg">📸 Gerar imagem do evento</button>
-      <button type="button" class="btn" id="ezSalvar">💾 Salvar no Excel</button>
+      <button type="button" class="btn" id="ezSalvar">💾 Salvar na nuvem</button>
       <button type="button" class="btn zap" id="ezCopiar">Copiar para o WhatsApp</button>
       <a class="btn" id="ezZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
     </div>
@@ -847,19 +845,8 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div id="acLista"></div>
   </section>
 
-  <section class="painel js so-adm" id="fotosView">
-    <div class="pag-cab"><div><h2 style="margin:0">Fotos</h2><p class="sub" style="margin:4px 0 0">Toque numa foto para ver em tamanho grande e baixar.</p></div></div>
-    <div class="galeria" id="galeria"></div>
-  </section>
-  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Foto">
-    <img id="lbImg" alt="">
-    <div class="lb-bts">
-      <button type="button" class="btn" id="lbAnt" aria-label="Foto anterior">‹</button>
-      <a class="btn zap" id="lbBaixar" download>⬇️ Baixar</a>
-      <button type="button" class="btn" id="lbFechar">Fechar</button>
-      <button type="button" class="btn" id="lbProx" aria-label="Próxima foto">›</button>
-    </div>
-  </div>
+  
+  
 
   <section class="painel js so-adm" id="pagView">
     <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div>
@@ -1090,7 +1077,7 @@ async function izLerConversa(f){
   const fmt=d=>`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`,ok=Object.keys(resp).length;
   $("izLido").innerHTML=`✅ Conversa lida: período <b>${fmt(ini)} a ${fmt(fim)}</b> · ${per.length} mensagens no período (${deles} de irmãos da divisão) · <b>${ok} responderam</b>. Confira as marcações antes de salvar.`;
   izListaUI();izAtualiza()}
-// ---- lista do insight: marcar no painel, salvar no Excel (aba Insights) e enviar para o WhatsApp ----
+// ---- lista do insight: marcar no painel, salvar na nuvem (aba Insights) e enviar para o WhatsApp ----
 const iz={k:null,marca:{}};   // marca: 1 = respondeu, 0 = não respondeu, "-" = não conta, null = vazio
 function izEventos(){return (EV_SETS.ins||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k)}
 function izMarca(m,v){if(v===1)return "✅";if(v==="-")return "";if(v===0)return "❌";return grupoDe(m)==="Comando"?"":"❌"}
@@ -1490,7 +1477,7 @@ async function lerImagemEvento(f){const stEl=$("ezLidoGeral");stEl.textContent="
     const m=M_FULL.find(x=>zNorm(x.n)===zNorm(ap));if(!m){naoAchei.push(ap);return}
     ez.marca[m.n]=cd==="1"?1:cd==="S"?"S":cd==="0"?0:cd==="-"?"-":null});
   $("ezTit").value=nome;$("ezData").value=data;$("ezObs").value="";$("evZap").hidden=false;ezListaUI();ezAtualiza();
-  $("ezLido").innerHTML=`📷 <b>Imagem lida:</b> ${tipo==="ins"?"Insights":"Presença"} · ${lwBR(data)} · ${esc(nome)}.${naoAchei.length?` Não reconheci: ${esc(naoAchei.join(", "))}.`:""} Confira as marcações. Para gravar na planilha, use <b>💾 Salvar no Excel</b>.`;
+  $("ezLido").innerHTML=`📷 <b>Imagem lida:</b> ${tipo==="ins"?"Insights":"Presença"} · ${lwBR(data)} · ${esc(nome)}.${naoAchei.length?` Não reconheci: ${esc(naoAchei.join(", "))}.`:""} Confira as marcações. Para gravar na planilha, use <b>💾 Salvar na nuvem</b>.`;
   stEl.innerHTML="✅ Código encontrado. O evento foi aberto no quadro do evento, no fim da página.";
   $("evZap").scrollIntoView({behavior:"smooth",block:"start"})}
 async function ezSalvar(){const d=$("ezData").value,n=$("ezTit").value.trim();
@@ -2174,7 +2161,7 @@ function montarMenu(){
   if(MODO!=="adm")return;
   document.body.classList.add("adm");document.body.dataset.view="painel";
   const w=document.querySelector(".wrap");
-  [...w.children].forEach(el=>{if(!["HEADER","FOOTER"].includes(el.tagName)&&!["pagView","lancar","listasView","fichaView","kitView","fotosView","lightbox","acessosView","dashView"].includes(el.id))el.classList.add("v-painel")});
+  [...w.children].forEach(el=>{if(!["HEADER","FOOTER"].includes(el.tagName)&&!["pagView","lancar","listasView","fichaView","kitView","lightbox","acessosView","dashView"].includes(el.id))el.classList.add("v-painel")});
   const abertos=Object.values((DADOS.pag||{}).status||{}).filter(s=>!/pago/i.test(s)).length;
   const nav=document.createElement("nav");nav.className="lateral";nav.setAttribute("aria-label","Menu");
   nav.innerHTML=`<div class="marca"><img alt="" src="${LOGO}"><div><b>Extremo Norte</b><small>Painel ADM</small></div></div>
@@ -2184,11 +2171,10 @@ function montarMenu(){
     <button type="button" data-v="ficha"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.8 16.5c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M14 10h4M14 13.5h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Cadastro</span></button>
     <button type="button" data-v="kit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l4 3 4-3 5 4-3 4v10H6V11L3 7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 6v15" stroke="currentColor" stroke-width="2"/></svg><span>Kit/colete</span></button>
     <button type="button" data-v="acessos"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Acessos</span></button>
-    <button type="button" data-v="fotos"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12.5" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 5l1.5-2h5L16 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>Fotos</span></button>
     <button type="button" data-v="listas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 12h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Lista Whatsapp</span></button>`;
   document.body.prepend(nav);
   nav.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(b)irPara(b.dataset.v)});
-  montarPagamentos();montarListas();montarFicha();montarKit();montarFotos();montarAcessos();montarCadastro();montarDash();
+  montarPagamentos();montarListas();montarFicha();montarKit();montarAcessos();montarCadastro();montarDash();if(DADOS.nuvem){const c=document.querySelector('[data-cad="cpf"]');if(c&&c.closest("label"))c.closest("label").hidden=true}
 }
 function irPara(v){
   document.body.dataset.view=v;
@@ -2750,7 +2736,7 @@ function montarCadastro(){if(!$("cadCampos"))return;
     const ap=v.slice(2),acao=$("sitAcao").value,d={tipo:"integrante",acao,apelido:ap};
     if(acao==="afastar"){if(!$("sitDesde").value){alert("Informe a data do pedido de afastamento.");return}d.desde=$("sitDesde").value}
     if(acao==="reativar"){if(!$("sitApos").value){alert("Escolha depois de quem ele volta na lista.");return}d.apos=$("sitApos").value}
-    const txt={afastar:`Afastar ${ap} a partir de ${lwBR(d.desde||"")}? Ele sai das listas e dos pagamentos.`,excluir:`EXCLUIR ${ap} DEFINITIVAMENTE?\n\nTodos os dados dele serão apagados da planilha: linha na Dados Integrantes, colunas na Presenca, Insights e Staff (com o histórico de presenças) e linha na PGTO. A numeração dos irmãos abaixo dele sobe.\n\nO GerarPainel faz um backup da planilha antes (pasta Lancamentos\\backup).`,reativar:`Reativar ${ap}, voltando depois de ${d.apos}?`}[acao];
+    const txt={afastar:`Afastar ${ap} a partir de ${lwBR(d.desde||"")}? Ele sai das listas e dos pagamentos.`,excluir:`EXCLUIR ${ap} DEFINITIVAMENTE?\n\nTodos os dados dele serão apagados da planilha: linha na Dados Integrantes, colunas na Presenca, Insights e Staff (com o histórico de presenças) e linha na PGTO. A numeração dos irmãos abaixo dele sobe.\n\n${DADOS.nuvem?"Se precisar desfazer: na planilha do Google, Arquivo > Histórico de versões.":"O GerarPainel faz um backup da planilha antes (pasta Lancamentos\\backup)."}`,reativar:`Reativar ${ap}, voltando depois de ${d.apos}?`}[acao];
     if(!confirm(txt))return;
     if(await cadArquivo(d,`integrante_${acao}_${cadSlug(ap)}_${Date.now()}.json`))$("sitAviso").innerHTML=`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para aplicar na planilha.`}}
 const FC_CAMPOS=["Nome Da Tarjeta Do Colete","Nome Completo","Cpf","Rg","Nascimento","Cep","Rua","Bairro","Cidade","Tel. com Whatssapp","Email",

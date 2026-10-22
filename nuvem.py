@@ -387,8 +387,51 @@ def processar_fila(api, pid):
         _gravar(api, pid, [(f"'{aba}'!E{i}", sit), (f"'{aba}'!F{i}", f"{datetime.datetime.now():%d/%m/%Y %H:%M} · {res}")])
         print(f"Fila linha {i}: {sit} · {res}"); n += 1
         if sit == "feito":
-            resumo.append((_resumo_item(d), str(row[1]).strip().lower()))
+            resumo.append((_resumo_item(d), str(row[1]).strip().lower(), d))
     return resumo
+
+def _resumo_publico(itens_d):
+    """Para a tela de entrada (que fica aberta): eventos com o nome; pagamento e cadastro sem dizer de quem."""
+    eventos, comp, cad = [], 0, 0
+    for d in itens_d:
+        tp = d.get("tipo")
+        if tp == "lancamento_presenca":
+            try:
+                eventos.append(f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({datetime.datetime.strptime(d['data'], '%Y-%m-%d'):%d/%m})")
+            except Exception:
+                eventos.append(f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')}")
+        elif tp == "pagamento_manual":
+            comp += len([1 for v in (d.get("status") or {}).values() if v])
+        elif tp == "integrante":
+            cad += 1
+    partes = eventos[:2] + ([f"e mais {len(eventos) - 2} evento(s)"] if len(eventos) > 2 else [])
+    if comp:
+        partes.append(f"compensação de pagamento ({comp} irmão{'s' if comp > 1 else ''})")
+    if cad:
+        partes.append(f"cadastro ({cad} alteraç{'ões' if cad > 1 else 'ão'})")
+    return " · ".join(partes)
+
+def _quem(emails, xlsx, g):
+    """Apelido (como está escrito na planilha) de quem fez os lançamentos."""
+    ap_de = {str(k).strip().lower(): v for k, v in g.EMAIL_APELIDO.items()}
+    try:
+        import openpyxl
+        _wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
+        bonito = {str(r[1]).strip().lower(): str(r[1]).strip() for r in _wb["Dados Integrantes"].iter_rows(min_row=2, max_col=2, values_only=True) if r[1]}
+        _wb.close()
+    except Exception:
+        bonito = {}
+    if not ap_de:      # a lista e-mail -> apelido ainda não foi montada: lê da planilha
+        try:
+            import openpyxl
+            _wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
+            linhas = list(_wb["Dados Integrantes"].iter_rows(min_row=1, max_col=60, values_only=True)); _wb.close()
+            ce = next((k for k, v in enumerate(linhas[0]) if _sa(v).replace("-", "").startswith("email")), None)
+            if ce is not None:
+                ap_de = {str(r[ce]).strip().lower(): str(r[1]).strip().lower() for r in linhas[1:] if r[1] and ce < len(r) and r[ce]}
+        except Exception:
+            pass
+    return sorted({bonito.get(ap_de.get(e, ""), ap_de.get(e, "")) for e in emails if e} - {""})
 
 def _resumo_item(d):
     """Texto curto do lançamento, para a notificação."""
@@ -409,7 +452,8 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json"]
+ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+          "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
     aba = _aba_real(api, pid, "_estado")
@@ -592,6 +636,23 @@ def main():
     g.GITHUB_USUARIO, g.GITHUB_REPO = dono, repo
     g.SITE_URL = f"https://{dono}.github.io/{repo}/"
     g.limpar_historico_github = lambda: True       # na nuvem o histórico fica (sem limpeza forçada)
+    arq_alt = os.path.join(PASTA, "Lancamentos", "ultima_alteracao.json")
+    agora_txt = datetime.datetime.now().strftime("%d/%m às %H:%M")
+    quem_lancou = _quem([e for _, e, _d in resumo_fila], xlsx, g) if resumo_fila else []
+    alt = None
+    if resumo_fila:
+        alt = _resumo_publico([d for _, _, d in resumo_fila]) + (f" · por {', '.join(quem_lancou)}" if quem_lancou else "") + f" · {agora_txt}"
+    elif evento == "repository_dispatch" and not lanc_recente:
+        alt = f"planilha editada diretamente · {agora_txt}"
+    if alt:
+        os.makedirs(os.path.dirname(arq_alt), exist_ok=True)
+        with open(arq_alt, "w", encoding="utf-8") as f:
+            json.dump({"txt": alt}, f, ensure_ascii=False)
+    try:
+        with open(arq_alt, encoding="utf-8") as f:
+            g.ULTIMA_ALTERACAO_TXT = json.load(f).get("txt", "")
+    except Exception:
+        pass
     if os.environ.get("LANC_URL") and os.environ.get("LANC_CHAVE"):
         g.NUVEM = {"url": os.environ["LANC_URL"], "chave": os.environ["LANC_CHAVE"]}   # o painel manda os lançamentos direto
     # partes que só existem no PC (arquivos de lançamento, Excel pelo Windows, tarefa agendada): desligadas na nuvem
@@ -619,16 +680,8 @@ def main():
         # notificação para o comando: o site já foi publicado com a alteração
         try:
             if resumo_fila:
-                ap_de = {str(k).strip().lower(): v for k, v in g.EMAIL_APELIDO.items()}
-                try:      # apelido como está escrito na planilha ("Edu", e não "edu")
-                    import openpyxl
-                    _wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
-                    bonito = {str(r[1]).strip().lower(): str(r[1]).strip() for r in _wb["Dados Integrantes"].iter_rows(min_row=2, max_col=2, values_only=True) if r[1]}
-                    _wb.close()
-                except Exception:
-                    bonito = {}
-                quem = sorted({bonito.get(ap_de.get(e, ""), ap_de.get(e, "")) for _, e in resumo_fila if e} - {""})
-                itens = [r for r, _ in resumo_fila]
+                quem = _quem([e for _, e, _d in resumo_fila], xlsx, g)
+                itens = [r for r, _, _d in resumo_fila]
                 corpo = " · ".join(itens[:3]) + (f" · e mais {len(itens) - 3}" if len(itens) > 3 else "")
                 g.notificar("✅ Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao")
             elif evento == "repository_dispatch" and not lanc_recente:
