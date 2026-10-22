@@ -336,6 +336,17 @@ def main():
     g.limpar_historico_github = lambda: True       # na nuvem o histórico fica (sem limpeza forçada)
     if os.environ.get("LANC_URL") and os.environ.get("LANC_CHAVE"):
         g.NUVEM = {"url": os.environ["LANC_URL"], "chave": os.environ["LANC_CHAVE"]}   # o painel manda os lançamentos direto
+    # partes que só existem no PC (arquivos de lançamento, Excel pelo Windows, tarefa agendada): desligadas na nuvem
+    for nome in ("migrar_staff", "importar_lancamentos", "importar_integrantes", "importar_pagamentos_manuais",
+                 "importar_acessos", "garantir_tarefa_avisos"):
+        setattr(g, nome, lambda *a, **k: None)
+    # notificações no celular: só com o segredo NOTIFICAR = sim (ligado na virada, para não chegarem em dobro com o PC)
+    if os.environ.get("NOTIFICAR", "").strip().lower() not in ("sim", "s", "1", "true"):
+        g.notificar = lambda titulo, corpo, tag="aviso": print(f"(notificações desligadas na nuvem) teria enviado: {titulo} · {corpo}")
+        g.avisos_diarios = lambda *a, **k: None
+        print("Notificações: desligadas na nuvem (segredo NOTIFICAR não está como 'sim').")
+    else:
+        print("Notificações: ligadas.")
     # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
     hora = datetime.datetime.now().hour
     if evento == "workflow_dispatch" or (evento == "schedule" and 8 <= hora <= 17):
