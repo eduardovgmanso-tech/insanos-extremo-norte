@@ -636,6 +636,7 @@ def main():
     g.GITHUB_USUARIO, g.GITHUB_REPO = dono, repo
     g.SITE_URL = f"https://{dono}.github.io/{repo}/"
     g.limpar_historico_github = lambda: True       # na nuvem o histórico fica (sem limpeza forçada)
+    g.PLANILHA_URL = f"https://docs.google.com/spreadsheets/d/{planilha_id}/edit"   # atalho 📗 Planilha (só para quem vê a tela Acessos)
     arq_alt = os.path.join(PASTA, "Lancamentos", "ultima_alteracao.json")
     agora_txt = datetime.datetime.now().strftime("%d/%m às %H:%M")
     quem_lancou = _quem([e for _, e, _d in resumo_fila], xlsx, g) if resumo_fila else []

@@ -264,7 +264,7 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .site18 img{width:44px;height:auto;display:block}
 .site18 span{font-weight:600;font-size:14px;line-height:1.2}
 .site18 small{display:block;font-weight:500;font-size:12px;color:var(--presente)}
-@media (min-width:901px){header{position:relative;padding-right:250px;min-height:226px}body.adm header{min-height:286px}.site18{position:absolute;top:0;right:0;width:230px}.doc18{top:74px}.man18{top:133px}.dash18{top:192px}}
+@media (min-width:901px){header{position:relative;padding-right:250px;min-height:226px}body.adm header{min-height:286px}.site18{position:absolute;top:0;right:0;width:230px}.doc18{top:74px}.man18{top:133px}.dash18{top:192px}.plan18{top:251px}}
 .doc-ico{width:34px;height:auto;flex:0 0 34px;margin:0 5px}
 @media (max-width:900px){.site18{width:250px;max-width:100%}}
 body.individual header{padding-right:0}
@@ -356,7 +356,8 @@ body.adm #acessosView{display:none}
 body.adm #dashView{display:none}body.adm[data-view="dash"] #dashView{display:block}
 body.adm[data-view="dash"] .v-painel{display:none!important}
 body.adm[data-view="dash"] header h1,body.adm[data-view="dash"] .periodo{display:none}
-body.adm a.site18.dash18{display:flex}
+body.adm a.site18.dash18{display:flex}body.adm a.site18.plan18:not([hidden]){display:flex}#plan18[hidden]{display:none!important}
+body.adm header:has(#plan18:not([hidden])){min-height:345px}
 body:not(.adm) #dash18,body:not(.adm) #dashView{display:none!important}
 .dash-mes{display:block;max-width:420px;margin:12px 0 4px;font-size:13px;color:var(--osso2)}.dash-mes .multi{margin-top:6px}
 #dashView{position:relative;z-index:2}
@@ -568,6 +569,9 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       <a class="site18 doc18 dash18 so-adm" id="dash18" href="#dashboard" title="Abrir o Dashboard (comparativo entre meses)">
         <svg class="doc-ico" viewBox="0 0 48 56" aria-hidden="true"><rect x="5" y="8" width="38" height="40" rx="5" fill="#1d1d1d" stroke="#B8942F" stroke-width="2"/><rect x="12" y="30" width="6" height="12" rx="1.5" fill="#4CAF6A"/><rect x="21" y="22" width="6" height="20" rx="1.5" fill="#D9B26A"/><rect x="30" y="16" width="6" height="26" rx="1.5" fill="#4CAF6A"/><path d="M11 24l9-7 8 4 10-8" fill="none" stroke="#ECE7DC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>Dashboard<small>Abrir ↗</small></span></a>
+      <a class="site18 doc18 plan18 so-adm" id="plan18" hidden target="_blank" rel="noopener" title="Abrir a planilha do Google (só você vê este atalho)">
+        <svg class="doc-ico" viewBox="0 0 48 56" aria-hidden="true"><rect x="6" y="6" width="36" height="44" rx="5" fill="#1d1d1d" stroke="#34A853" stroke-width="2"/><rect x="12" y="16" width="24" height="26" rx="2" fill="none" stroke="#34A853" stroke-width="2"/><path d="M12 25h24M12 33h24M22 16v26" stroke="#34A853" stroke-width="2"/></svg>
+        <span>Planilha<small>Abrir ↗</small></span></a>
       <div class="periodo" id="periodo"></div><div id="selo"></div>
     </div>
   </header>
@@ -2919,6 +2923,7 @@ async function acAbrir(){const P=(DADOS.acessos||{}).cifrado;if(!P)return null;
 let ACX=null;
 async function montarAcessos(){const bt=document.querySelector('.lateral button[data-v="acessos"]');if(bt)bt.hidden=true;
   ACX=await acAbrir();if(!ACX)return;if(bt)bt.hidden=false;const A=ACX;acRegs=A.regs||[];
+  if(A.planilha&&$("plan18")){$("plan18").href=A.planilha;$("plan18").hidden=false}   // atalho da planilha: só para quem vê a tela Acessos
   $("acAtualizar").onclick=()=>acBuscar(true);
   $("acFiltro").onclick=ev=>{const b=ev.target.closest("[data-acf]");if(!b)return;acFiltro=b.dataset.acf;
     $("acFiltro").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",x===b));acDesenhar()};

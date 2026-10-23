@@ -45,6 +45,7 @@ ACESSOS_URL = os.environ.get("ACESSOS_URL", "")       # do cofre do GitHub
 ACESSOS_CHAVE = os.environ.get("ACESSOS_CHAVE", "")   # do cofre do GitHub
 # quem vê a tela "Acessos" no ADM (pelo e-mail da planilha). Os demais do comando não veem nem conseguem ler.
 ACESSOS_SOMENTE = ["Edu"]
+PLANILHA_URL = ""      # na nuvem: link da planilha do Google (atalho 📗 Planilha, trancado como a tela Acessos)
 EMAIL_APELIDO = {}
 NUVEM = None      # na nuvem: {"url": recebedor, "chave": ...} -> os lançamentos vão direto para a planilha do Google
 EMAIL_APELIDO_INV = {}
@@ -2097,7 +2098,7 @@ def main():
         _so = [e for e in _so if "@" in e]
         if _so:
             ACESSOS = {"cifrado": cifrar_para({"url": ACESSOS_URL, "chave": ACESSOS_CHAVE, "mapa": dict(EMAIL_APELIDO),
-                                              "regs": (buscar_acessos() or [])[1:]}, _so)}
+                                              "regs": (buscar_acessos() or [])[1:], "planilha": PLANILHA_URL}, _so)}
         else:
             print("Aviso: e-mail de " + ", ".join(ACESSOS_SOMENTE) + " não encontrado: a tela Acessos não vai aparecer.")
     FLY = {}      # "Gerar fly" removido: o fly oficial é feito no site do clube
