@@ -1678,7 +1678,7 @@ def arquivos_app():
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v5";
+const CACHE = "insanos-v6";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -1703,7 +1703,7 @@ self.addEventListener("notificationclick", e => {
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
-    e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(dd.zap)))
+    e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap})))))
       .then(() => clients.matchAll({type: "window", includeUncontrolled: true}))
       .then(ws => { for (const w of ws) if (w.url.includes("adm.html")) { w.postMessage({zap: 1}); return w.focus(); }
                     return clients.openWindow("adm.html#zap"); }));

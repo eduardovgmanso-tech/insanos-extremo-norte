@@ -2985,7 +2985,8 @@ async function salvarLancamento(){
     aviso(ok?(fone?"Mensagem copiada. No WhatsApp, cole na conversa (Ctrl+V) e envie.":"Mensagem copiada. No WhatsApp, escolha a conversa, cole (Ctrl+V) e envie.")
            :"Não consegui copiar. Use o botão Copiar e cole no WhatsApp.")})})();
 // mensagem do WhatsApp que veio pela notificação, no computador: caixa para copiar (emojis certos) e colar no WhatsApp
-async function zapPendente(){let txt="";try{const c=await caches.open("insanos-zap"),r=await c.match("zap");if(!r)return;txt=await r.text();await c.delete("zap")}catch(e){return}
+async function zapPendente(){let txt="";try{const c=await caches.open("insanos-zap"),r=await c.match("zap");if(!r)return;txt=await r.text();await c.delete("zap");
+    try{const o=JSON.parse(txt);if(o&&typeof o.txt==="string"){if(Date.now()-(o.ts||0)>864e5)return;txt=o.txt}}catch(_){} }catch(e){return}
   if(!txt)return;const cel=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);let cx=document.getElementById("zapCaixa");if(cx)cx.remove();cx=document.createElement("div");cx.id="zapCaixa";
   cx.style.cssText="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px";
   cx.innerHTML=`<div style="background:#141414;border:1px solid var(--linha);border-radius:16px;max-width:560px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)">
@@ -2999,7 +3000,9 @@ async function zapPendente(){let txt="";try{const c=await caches.open("insanos-z
   // celular: abre o app do WhatsApp direto (sem passar pelo site, que quebra os emojis)
   const ab=cx.querySelector("#zapAbrir");if(ab)ab.onclick=()=>{location.href="whatsapp://send?text="+encodeURIComponent(txt)}}
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",ev=>{if(ev.data&&ev.data.zap)zapPendente()});
-if(location.hash==="#zap"){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}zapPendente()}
+// sempre confere ao abrir (o painel pode ter pedido o e-mail e recarregado, perdendo o "#zap" do endereço)
+if(location.hash==="#zap"){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}
+if(window.caches)zapPendente()
 montarAnalises();montarRoda();render();proximosAniversarios();montarLancamento();montarMenu();izMontar();ezMontar();ezChecar();
 if(MODO!=="individual"){let _agend=0;new MutationObserver(()=>{if(_trocando||_agend)return;_agend=requestAnimationFrame(()=>{_agend=0;aplicarTermos()})})
   .observe(document.querySelector(".wrap"),{childList:true,subtree:true,characterData:true});aplicarTermos()}
