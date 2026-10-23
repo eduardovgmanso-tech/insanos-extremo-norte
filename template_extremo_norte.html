@@ -1133,7 +1133,6 @@ async function izSalvar(){const d=$("izData").value,n=$("izNum").value.trim();
   const marc={};M_FULL.forEach(m=>{const v=iz.marca[m.n];marc[m.n]=v===1?"Sim":v===0?"Não":v==="-"?"-":""});
   const dados={tipo:"lancamento_presenca",versao:2,aba:"Insights",atualizar:true,data:d,evento:n,marcacoes:marc,criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"insight";
-  try{dados.zap=izTexto()}catch(e){}
   if(await nuvemEnviar(dados,"Insight enviado para a planilha (aba Insights)."))return;
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_insights_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
@@ -1487,7 +1486,6 @@ async function ezSalvar(){const d=$("ezData").value,n=$("ezTit").value.trim();
   const aba=ezTipo()==="ins"?"Insights":"Presenca";
   const dados={tipo:"lancamento_presenca",versao:2,aba,atualizar:true,data:d,evento:n,marcacoes:marc,criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
-  try{dados.zap=ezTexto()}catch(e){}
   if(await nuvemEnviar(dados,`Evento enviado para a planilha (aba ${aba}).`))return;
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${aba.toLowerCase()}_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
@@ -2955,7 +2953,6 @@ async function salvarLancamento(){
   if(EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Salvar mesmo assim?"))return;
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
-  try{dados.zap=lancTexto(d,n,lanc)}catch(e){}
   if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="Salvar lançamento",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
