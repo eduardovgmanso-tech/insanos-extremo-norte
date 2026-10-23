@@ -2543,8 +2543,8 @@ async function lwLerFly(f){
     // data e hora: relê só a faixa onde está o mês, aceitando só números, meses e ":"
     let dia=null,mes=null,hora=null;
     // o leitor confunde letras e números (O/0, D/0, I/1, S/5…): o mês e a hora são lidos com tolerância
-    const MESX="JAN|FEV|MAR|ABR|MA[I1L]|JUN|JUL|AG[O0]|SET|[O0Q]UT|N[O0]V|DEZ";
-    const mesDe=x=>FLY_MESES_N[x.replace(/[0Q]/g,"O").replace(/[1L]/g,"I")];
+    const MESX="JAN|FEV|MAR|ABR|MA[I1L]|JUN|JUL|AG[O0]|SE[T7]|[O0Q]U[T7]|N[O0]V|DEZ";
+    const mesDe=x=>FLY_MESES_N[x.replace(/[0Q]/g,"O").replace(/[1L]/g,"I").replace(/7/g,"T")];
     const num=x=>x.replace(/[OQD]/g,"0").replace(/[IL|!]/g,"1").replace(/S/g,"5").replace(/B/g,"8").replace(/Z/g,"2");
     const lm=lin.find(l=>new RegExp(`(^|[^A-Z])(${MESX})([^A-Z]|$)`).test(N(l.t)));
     const dh=s=>{const m=N(s).match(new RegExp(`([0-9OQDIL]{1,2})\\s*(${MESX})[\\s\\-–—·.,]*([0-9OQDILSBZ]{1,2})\\s*[:.H]\\s*([0-9OQDILSBZ]{2})`));
@@ -2559,7 +2559,7 @@ async function lwLerFly(f){
     const r3=await w.recognize(flyEngrossar(bw,1));const lin3=(r3.data.lines||[]).map(l=>({t:l.text.replace(/\s+/g," ").trim(),b:l.bbox})).filter(l=>l.t.length>2);
     // tipo de lista pelo título
     const tudo=N(lin.concat(lin3).map(l=>l.t).join(" | "));
-    const tipo=/ACAO.?SOCIAL/.test(tudo)?"social":/\bPUB\b/.test(tudo)?"pub":/REUNIAO/.test(tudo)?"reuniao":/BONDE|EVENTO/.test(tudo)?"evento":lw.tipo;
+    const tipo=/ACAO.?SOCIAL/.test(tudo)?"social":/\bPUB/.test(tudo)?"pub":/REUNIAO/.test(tudo)?"reuniao":/BONDE|EVENTO/.test(tudo)?"evento":lw.tipo;
     if(tipo!==lw.tipo){const b=document.querySelector(`#lwTipos [data-lwt="${tipo}"]`);if(b)b.click()}
     const F=lw.f[lw.tipo]=lw.f[lw.tipo]||{},usados=new Set();
     // tira pedacinhos soltos do começo e do fim (sujeira do desenho lida como letra: "Sá À", "x", "=")
@@ -2576,15 +2576,22 @@ async function lwLerFly(f){
     // informações depois da data: local, endereço, concentração, P.E.
     const ini=lm?lin.indexOf(lm)+1:0,info=lin.slice(ini).map(l=>l.t).filter(t=>!/SOMOS|INSANOSMC|WWW|RADIO/i.test(N(t)));
     const ehEnd=t=>/^(RUA|R\.|AV|AVENIDA|ESTRADA|ESTR|AL\.|ALAMEDA|PRACA|ROD|RODOVIA|TRAVESSA|TV\.)\b/.test(N(t));
-    const ie=info.findIndex(ehEnd);
-    const nomeLocal=ie>0?info[ie-1]:(info[0]&&!/CONCENTR|P\.?E\.?|INFORMA/.test(N(info[0]))?info[0]:"");
-    const endereco=ie>=0?info[ie]:"";
+    let ie=info.findIndex(ehEnd),nomeLocal,endereco;
+    // local e endereço na mesma linha: "SEDE DA REG SP3 - RUA JOÃO BIZARRO DA NAVE, 280"
+    const ij=ie<0?info.findIndex(t=>/\s[-–]\s*(RUA|R\.|AV\.?|AVENIDA|ESTRADA|ALAMEDA|PRACA|RODOVIA|TRAVESSA)\s/.test(N(t))):-1;
+    if(ij>=0){const pt=info[ij].split(/\s[-–]\s*(?=(?:RUA|R\.|AV\.?|AVENIDA|ESTRADA|ALAMEDA|PRA[CÇ]A|RODOVIA|TRAVESSA)\s)/i);nomeLocal=pt[0];endereco=pt.slice(1).join(" - ");ie=ij}
+    else{nomeLocal=ie>0?info[ie-1]:(info[0]&&!/CONCENTR|P\.?E\.?|INFORMA/.test(N(info[0]))?info[0]:"");endereco=ie>=0?info[ie]:""}
     const conc=info.find(t=>/CONCENTR/.test(N(t))),pe=info.find(t=>/^P\.?\s?E\.?\s*[:\-]/.test(N(t)));
     const ch=conc?N(conc).match(/(\d{1,2})[:.H](\d{2})\D+(\d{1,2})[:.H](\d{2})/):null;
     if(lw.tipo==="social"){por("nome",flyTitulo(nomeLocal));por("local",flyTitulo(endereco));
       if(ch){por("pe_hora",`${ch[1].padStart(2,"0")}:${ch[2]}`);por("pe_saida",`${ch[3].padStart(2,"0")}:${ch[4]}`)}}
     else{por("local",flyTitulo(nomeLocal));por("endereco",flyTitulo(endereco));
       if(ch){por("pe_chegada",`${ch[1].padStart(2,"0")}:${ch[2]}`);por("pe_saida",`${ch[3].padStart(2,"0")}:${ch[4]}`);por("conc_cheg",`${ch[1].padStart(2,"0")}:${ch[2]}`);por("conc_saida",`${ch[3].padStart(2,"0")}:${ch[4]}`)}}
+    // PUB: título do próprio fly ("PUB INSANO"; o leitor às vezes junta e troca letras: "PUBIRSANO")
+    if(lw.tipo==="pub"){const lt=lin.concat(lin3).map(l=>N(l.t).replace(/^[^A-Z]+/,"")).find(x=>/^PUB/.test(x));
+      if(lt)por("titulo",/^PUB\s*I?[NR]S?A?N/.test(lt)?"PUB INSANO":lt.replace(/^PUB(?=\S)/,"PUB ").replace(/[^A-Z0-9 ÇÃÕÁÉÍÓÚ-]/g,"").trim())}
+    // PUB: a linha entre a data e o local (ex.: "Aniversariantes do mês - Churras 0500") vai para o Convite
+    if(lw.tipo==="pub"&&ie>0){const cv=info.slice(0,ij>=0?ij:ie-1).filter(t=>!/^[\W\d]*$/.test(t)&&t.length>6).join(" · ");if(cv)por("convite",flyTitulo(cv))}
     if(pe){const tx=pe.replace(/^P\.?\s?E\.?\s*[:\-]\s*/i,"").trim(),pa=tx.split(/\s[-–]\s/);por("pe",flyTitulo(pa[0]||""));por("pe_end",flyTitulo(pa.slice(1).join(" - ")))}
     lwFlyCampos=usados;lwGuardar();lwCampos();lwAtualiza();
     const lido=lin.concat(lin3.filter(x=>!lin.some(y=>y.t===x.t))).map(l=>l.t).join("\n");
