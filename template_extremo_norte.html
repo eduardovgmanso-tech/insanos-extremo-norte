@@ -1010,8 +1010,8 @@ function ezListaUI(){const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
     return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lw-col">${ms.map(m=>{const v=ez.marca[m.n];
       return `<div class="lw-l"><div class="lw-lin"><span>${esc(lwNome(m))}</span><div class="seg">${(ezTipo()==="pres"?[["1","✅",1],["S","🛠️","S"],["0","❌",0],["-","–","-"]]:[["1","✅",1],["0","❌",0],["-","–","-"]]).map(([dv,rot,val])=>
         `<button type="button" data-n="${esc(m.n)}" data-v="${dv}" title="${dv==="S"?"Fez staff (conta como presença)":""}" aria-pressed="${v===val}" style="${v===val?(val===0?"background:var(--sangue)":val===1?"background:var(--presente)":val==="S"?"background:#B8942F":"background:#555"):""}">${rot}</button>`).join("")}</div></div></div>`}).join("")}</div>`}).join("")}
-function ezPct(){const base=M_FULL.filter(m=>!(ezTipo()==="ins"&&SEM_CMD&&grupoDe(m)==="Comando")),v=base.map(m=>ez.marca[m.n]),s=v.filter(ezPres).length,den=base.length-v.filter(x=>x==="-").length;
-  return den?Math.round(s*100/den):0}   // % do evento: SIM ÷ (todos − "não conta"); quem está sem marcação conta como "ainda não"
+function ezPct(){const base=M_FULL.filter(m=>!(ezTipo()==="ins"&&SEM_CMD&&grupoDe(m)==="Comando")),v=base.map(m=>ez.marca[m.n]),s=v.filter(ezPres).length,den=base.length;
+  return den?Math.round(s*100/den):0}   // % do evento: SIM ÷ todos (sem marcação e "–" contam como "não respondeu")
 function ezTexto(){const SEPR="-----------------------------------",tit=$("ezTit").value.trim()||"Evento",obs=$("ezObs").value.trim();
   const cab=[`*💀 ${tit} 💀*`,$("ezBase").value.trim()?`*${$("ezBase").value.trim()}*`:"",SEPR,`*🗓️ Data: ${lwBR($("ezData").value)}*`,SEPR];
   if(obs)cab.push(`*Obs: ${obs}*`,SEPR);
@@ -1024,7 +1024,7 @@ function ezTexto(){const SEPR="-----------------------------------",tit=$("ezTit
   return zapFormatar(cab.filter(x=>x!=="").join("\n")+"\n\n"+blocos.join(ENTRE_GRAUS)+assin)}
 function ezAtualiza(){if(!$("evZap"))return;const txt=ezTexto();$("ezPrev").textContent=txt;$("ezZap").href="https://wa.me/?text="+encodeURIComponent(txt);
   const v=M_FULL.map(m=>ez.marca[m.n]);
-  const TT=EZ_T[ezTipo()],nS=v.filter(x=>x==="S").length;$("ezCont").innerHTML=`<b>${v.filter(ezPres).length}</b> ✅ ${TT.sim}${nS?` (${nS} 🛠️ no staff)`:""} · ${v.filter(x=>x===0).length} ❌ ${TT.nao} · ${ezPct()}% ${TT.pc}`;
+  const TT=EZ_T[ezTipo()],nS=v.filter(x=>x==="S").length;$("ezCont").innerHTML=`<b>${v.filter(ezPres).length}</b> ✅ ${TT.sim}${nS?` (${nS} 🛠️ no staff)`:""} · ${v.filter(x=>x===0).length} ❌ ${TT.nao}${v.filter(x=>x==="-").length?` · ${v.filter(x=>x==="-").length} sem resposta (–)`:""} · ${ezPct()}% ${TT.pc}`;
   const sa=!$("ezAssin").value;$("ezCopiar").classList.toggle("sem-assin",sa);$("ezZap").classList.toggle("sem-assin",sa);$("ezAssin").classList.toggle("obrig",sa);
   $("ezAviso").innerHTML=sa?'<span style="color:#E07472;font-weight:600">Escolha a Assinatura para liberar o envio.</span>':""}
 // ---- leitura da conversa exportada do WhatsApp (tudo no aparelho, nada é enviado) ----
@@ -1159,7 +1159,7 @@ function aplicarAnalise(){
     const pres={};(EV_SETS.pres||[]).forEach(e=>{const a=pres[e.d]=pres[e.d]||new Set();e.p.forEach((v,k)=>{if(v===1)a.add(k)})});
     evs=base.map(e=>{const a=pres[e.d];if(!a)return e;return {...e,p:e.p.map((v,k)=>a.has(k)?(v===1?1:0):"-")}});
   }
-  M=ids.map(i=>M_FULL[i]);EV=evs.map((e,k)=>({...e,i:k,p:ids.map(i=>e.p[i])}));
+  M=ids.map(i=>M_FULL[i]);EV=evs.map((e,k)=>({...e,i:k,p:ids.map(i=>e.p[i]==="-"?0:e.p[i])}));   // "–" = não respondeu: conta como NÃO
   if(st.nome&&!M.some(m=>m.n===st.nome))st.nome="";
   if(ANAL==="ins"&&SEM_CMD)st.cargos=st.cargos.filter(c=>c!=="Comando");
   const h=document.querySelector("header h1");if(h&&h.firstChild)h.firstChild.nodeValue=ANAL_TIT[ANAL];
@@ -1524,19 +1524,19 @@ async function imagemEvento(){
   T(`🗓️ ${lwBR($("ezData").value)}`,60,y,34,"#D9B26A",700);
   // números
   const semCmdC=ezTipo()==="ins"&&SEM_CMD,MC=M_FULL.filter(m=>!(semCmdC&&grupoDe(m)==="Comando")),comLista=ezComLista();
-  const v=MC.map(m=>ez.marca[m.n]),pres=v.filter(ezPres).length,aus=v.filter(x=>x===0).length,nc=v.filter(x=>x==="-").length;
-  const pc=MC.length-nc?Math.round(pres*100/(MC.length-nc)):null;   // SIM ÷ (todos − "não conta")
+  const v=MC.map(m=>ez.marca[m.n]),pres=v.filter(ezPres).length,aus=v.filter(x=>x===0||x==="-").length,nc=v.filter(x=>x!==1&&x!=="S"&&x!==0&&x!=="-").length;
+  const pc=MC.length?Math.round(pres*100/MC.length):null;   // SIM ÷ todos ("–" = não respondeu)
   let tp=0,tt=0;const ehIns=ezTipo()==="ins";
-  (EV_SETS[ezTipo()]||[]).forEach(e=>e.p.forEach((x,i)=>{if(semCmdC&&M_FULL[i]&&grupoDe(M_FULL[i])==="Comando")return;if(x===1){tp++;tt++}else if(x===0||(ehIns&&x==null&&M_FULL[i]&&grupoDe(M_FULL[i])!=="Comando"))tt++}));const media=tt?Math.round(tp*100/tt):null;
+  (EV_SETS[ezTipo()]||[]).forEach(e=>e.p.forEach((x,i)=>{if(semCmdC&&M_FULL[i]&&grupoDe(M_FULL[i])==="Comando")return;if(x===1){tp++;tt++}else if(x===0||x==="-"||(ehIns&&x==null&&M_FULL[i]&&grupoDe(M_FULL[i])!=="Comando"))tt++}));const media=tt?Math.round(tp*100/tt):null;
   const topo=y+40,cx=270;const cor=await desenharCaveira(g,cx,topo,290,pc);
   T(pc==null?"–":pc+"%",cx,topo+372,92,cor[1],800,tit,"center");T(TT.pc,cx,topo+412,28,"#B8B2A6",500,null,"center");
-  const kx=500,kw=520,lin=[[`${pres}`,TT.sim],[`${aus}`,TT.nao],[`${nc}`,"não contam"],[media==null?"–":media+"%","média dos eventos"]];
+  const kx=500,kw=520,lin=[[`${pres}`,TT.sim],[`${aus}`,TT.nao],[`${nc}`,"sem marcação"],[media==null?"–":media+"%","média dos eventos"]];
   lin.forEach(([val,r],k)=>{const yy=topo+30+k*76;caixa(kx,yy,kw,64,12,"rgba(236,231,220,.06)","rgba(236,231,220,.12)");
     T(val,kx+22,yy+46,38,k===0?"#4CAF6A":k===1?"#D25A57":"#ECE7DC",800,tit);T(r,kx+kw-22,yy+42,26,"#B8B2A6",500,null,"right")});
   // adesão por função
   let fy=topo+480;T(TT.func+(semCmdC?" · sem o comando":""),60,fy,34,"#ECE7DC",700,tit);fy+=28;
-  GRUPOS.forEach(gp=>{const ms=MC.filter(m=>grupoDe(m)===gp);if(!ms.length)return;const s=ms.filter(m=>ezPres(ez.marca[m.n])).length,n=ms.length-ms.filter(m=>ez.marca[m.n]==="-").length-s;
-    const p2=s+n?Math.round(s*100/(s+n)):null;   // por função também: SIM ÷ (todos do grupo − "não conta")T(gp,60,fy+30,26,"#B8B2A6",600);
+  GRUPOS.forEach(gp=>{const ms=MC.filter(m=>grupoDe(m)===gp);if(!ms.length)return;const s=ms.filter(m=>ezPres(ez.marca[m.n])).length,n=ms.length-s;
+    const p2=s+n?Math.round(s*100/(s+n)):null;   // por função também: SIM ÷ todos do grupoT(gp,60,fy+30,26,"#B8B2A6",600);
     caixa(240,fy+10,560,26,8,"rgba(236,231,220,.08)");if(p2){caixa(240,fy+10,560*p2/100,26,8,corFaixa(p2)[0])}
     T(p2==null?"–":`${p2}% · ${s} de ${s+n}`,W-60,fy+31,24,"#ECE7DC",700,null,"right");fy+=44});
   // observação
@@ -1588,6 +1588,7 @@ function dashCalc(ym){
   const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?i:-1).filter(i=>i>=0));
   const tipo=(k,semCmd)=>{const evs=(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym));let p=0,a=0;const porM={},porG={},evPc=[];
     evs.forEach(e=>{let ep=0,ea=0;e.p.forEach((v,i)=>{if(semCmd&&cmd.has(i))return;const m=M_FULL[i];if(!m)return;
+      if(v==="-")v=0;   // "–" = não respondeu
       if(v===1||v===0){const g=grupoDe(m);porM[i]=porM[i]||{p:0,a:0};porG[g]=porG[g]||{p:0,a:0};if(v===1){p++;ep++;porM[i].p++;porG[g].p++}else{a++;ea++;porM[i].a++;porG[g].a++}}});
       if(ep+ea)evPc.push({e,pc:pct(ep,ea)})});
     return {p,a,pc:pct(p,a),n:evPc.length,porM,porG,evPc}};
@@ -1654,7 +1655,7 @@ function dashPorIntegrante(cs,ant){const L=dashLinhasInt(cs);
 // ---- fly mensal para o Comando VIII: resumo pequeno, com TUDO do mês dentro do QR (compactado) ----
 // QR: "C8Z1" + JSON compactado {v,d:divisão,r:regional,m:"aaaa-mm",e:[[dia,nome,presentes,ausentes]],i:[[dia,nome,responderam,não]]}
 function c8Dados(ym){const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?i:-1).filter(i=>i>=0));
-  const lista=(k,semCmd)=>(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym)).map(e=>{let p=0,a=0;e.p.forEach((v,i)=>{if(semCmd&&cmd.has(i))return;if(v===1)p++;else if(v===0)a++});return [+e.d.slice(8,10),String(e.e).slice(0,40),p,a]}).filter(x=>x[2]+x[3]);
+  const lista=(k,semCmd)=>(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym)).map(e=>{let p=0,a=0;e.p.forEach((v,i)=>{if(semCmd&&cmd.has(i))return;if(v===1)p++;else if(v===0||v==="-")a++});return [+e.d.slice(8,10),String(e.e).slice(0,40),p,a]}).filter(x=>x[2]+x[3]);
   return {v:1,d:DIV_NOME,r:DIV_REG,m:ym,e:lista("pres"),i:lista("ins",true)}}
 async function c8Compactar(obj){const bytes=new TextEncoder().encode(JSON.stringify(obj));
   const s=new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));const z=new Uint8Array(await new Response(s).arrayBuffer());
@@ -2962,7 +2963,7 @@ function montarLancamento(){
   $("lSalvar").addEventListener("click",salvarLancamento);
 }
 function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
-  const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} não contam`+
+  const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
     (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
   document.querySelectorAll("#lLista .lanc-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])})}
 async function salvarLancamento(){
