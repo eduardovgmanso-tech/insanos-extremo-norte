@@ -1962,7 +1962,7 @@ function render(){
   let P=0,A=0;
   const stats=mem.map(m=>{let p=0,a=0;evs.forEach(e=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});P+=p;A+=a;return {...m,p,a,pc:pct(p,a)}});
   let semMarca=0;
-  if(st.data&&evs.length===1)semMarca=mem.filter(m=>{const v=evs[0].p[m.i];return v!==1&&v!==0&&v!=="-"}).length;
+  if(st.data)evs.forEach(e=>{semMarca+=mem.filter(m=>{const v=e.p[m.i];return v!==1&&v!==0&&v!=="-"}).length});
   const tx=pct(P,A+semMarca);atualizarRoda(P,A,tx,semMarca);   // um evento: SIM ÷ (todos − "não conta")
   // eventos com mais de 50% de adesão (considera o cargo filtrado, não o integrante selecionado)
   const alvoU=MODO==="individual"?M[0]:(st.nome?M.find(m=>m.n===st.nome):null);
@@ -2963,7 +2963,7 @@ function montarLancamento(){
 }
 function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} não contam`+
-    (sem?` · <span style="color:#E07472;font-weight:600">${sem} sem status</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
+    (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
   document.querySelectorAll("#lLista .lanc-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])})}
 async function salvarLancamento(){
   const d=$("lData").value,n=$("lNome").value.trim();
@@ -2971,8 +2971,8 @@ async function salvarLancamento(){
   if(!n){alert("Informe o nome do evento.");$("lNome").focus();return}
   const faltam=[...M].sort((a,b)=>a.o-b.o).filter(m=>!lanc[m.n]).map(m=>m.n);
   if(faltam.length){document.getElementById("lancar").classList.add("mostrar-falta");atualizaLanc();
-    alert(`Não é possível gerar o arquivo: ${faltam.length} ${faltam.length===1?"irmão está":"irmãos estão"} sem status (Sim, Não ou –):\n\n${faltam.join("\n")}\n\nMarque todos e salve de novo.`);
-    const x=document.querySelector("#lLista .lanc-l.sem-status");if(x)x.scrollIntoView({block:"center"});return}
+    if(!confirm(`${faltam.length} ${faltam.length===1?"irmão ficou":"irmãos ficaram"} sem marcação:\n\n${faltam.join(", ")}\n\nEles ficam em branco na planilha e contam como "ainda não" na % do evento. Você pode completar depois pelo quadro do evento.\n\nSalvar assim mesmo?`)){
+      const x=document.querySelector("#lLista .lanc-l.sem-status");if(x)x.scrollIntoView({block:"center"});return}}
   if(EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Salvar mesmo assim?"))return;
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
