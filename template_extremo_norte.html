@@ -577,7 +577,6 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="lw-tipos" role="tablist" id="analSel"></div>
     <div class="lw-tipos iz-modos" role="tablist" id="izModos" hidden>
       <button type="button" role="tab" data-izm="analise" aria-selected="true">📊 Análise</button>
-      <button type="button" role="tab" data-izm="preencher" aria-selected="false">✍️ Preencher lista</button>
     </div>
     <div class="ez-ler so-adm" id="ezLerBox" hidden><button type="button" class="btn" id="ezLerImg">📷 Ler imagem (card com QR)</button><input type="file" id="ezLerArq" accept="image/*" hidden><span class="nota" id="ezLidoGeral"></span></div>
     <label class="lw-check anal-cmd" id="analCmd" hidden><span><input type="checkbox" id="semCmd"> <b id="analCmdTxt">Sem o comando</b></span></label>
@@ -1011,7 +1010,8 @@ function ezListaUI(){const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
     return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lw-col">${ms.map(m=>{const v=ez.marca[m.n];
       return `<div class="lw-l"><div class="lw-lin"><span>${esc(lwNome(m))}</span><div class="seg">${(ezTipo()==="pres"?[["1","✅",1],["S","🛠️","S"],["0","❌",0],["-","–","-"]]:[["1","✅",1],["0","❌",0],["-","–","-"]]).map(([dv,rot,val])=>
         `<button type="button" data-n="${esc(m.n)}" data-v="${dv}" title="${dv==="S"?"Fez staff (conta como presença)":""}" aria-pressed="${v===val}" style="${v===val?(val===0?"background:var(--sangue)":val===1?"background:var(--presente)":val==="S"?"background:#B8942F":"background:#555"):""}">${rot}</button>`).join("")}</div></div></div>`}).join("")}</div>`}).join("")}
-function ezPct(){const v=M_FULL.map(m=>ez.marca[m.n]),s=v.filter(ezPres).length,n=v.filter(x=>x===0).length;return s+n?Math.round(s*100/(s+n)):0}
+function ezPct(){const base=M_FULL.filter(m=>!(ezTipo()==="ins"&&SEM_CMD&&grupoDe(m)==="Comando")),v=base.map(m=>ez.marca[m.n]),s=v.filter(ezPres).length,den=base.length-v.filter(x=>x==="-").length;
+  return den?Math.round(s*100/den):0}   // % do evento: SIM ÷ (todos − "não conta"); quem está sem marcação conta como "ainda não"
 function ezTexto(){const SEPR="-----------------------------------",tit=$("ezTit").value.trim()||"Evento",obs=$("ezObs").value.trim();
   const cab=[`*💀 ${tit} 💀*`,$("ezBase").value.trim()?`*${$("ezBase").value.trim()}*`:"",SEPR,`*🗓️ Data: ${lwBR($("ezData").value)}*`,SEPR];
   if(obs)cab.push(`*Obs: ${obs}*`,SEPR);
@@ -1167,7 +1167,8 @@ function aplicarAnalise(){
   if($("ezLerBox"))$("ezLerBox").hidden=!(MODO==="adm"&&(ANAL==="pres"||ANAL==="ins"));
   if(typeof ez!=="undefined"&&!aplicarAnalise._lendo){ez.d=null}
   const izOn=MODO==="adm"&&ANAL==="ins";
-  if($("izModos")){$("izModos").hidden=!izOn;$("izModos").querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",b.dataset.izm===IZ_MODO))}
+  IZ_MODO="analise";
+  if($("izModos")){$("izModos").hidden=true;$("izModos").querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",b.dataset.izm===IZ_MODO))}
   const preencher=izOn&&IZ_MODO==="preencher";
   if($("insZap"))$("insZap").hidden=!preencher;
   document.body.classList.toggle("iz-preencher",preencher&&document.body.dataset.view!=="pag"&&(!document.body.dataset.view||document.body.dataset.view==="painel"));
@@ -1524,7 +1525,7 @@ async function imagemEvento(){
   // números
   const semCmdC=ezTipo()==="ins"&&SEM_CMD,MC=M_FULL.filter(m=>!(semCmdC&&grupoDe(m)==="Comando")),comLista=ezComLista();
   const v=MC.map(m=>ez.marca[m.n]),pres=v.filter(ezPres).length,aus=v.filter(x=>x===0).length,nc=v.filter(x=>x==="-").length;
-  const pc=pres+aus?Math.round(pres*100/(pres+aus)):null;
+  const pc=MC.length-nc?Math.round(pres*100/(MC.length-nc)):null;   // SIM ÷ (todos − "não conta")
   let tp=0,tt=0;const ehIns=ezTipo()==="ins";
   (EV_SETS[ezTipo()]||[]).forEach(e=>e.p.forEach((x,i)=>{if(semCmdC&&M_FULL[i]&&grupoDe(M_FULL[i])==="Comando")return;if(x===1){tp++;tt++}else if(x===0||(ehIns&&x==null&&M_FULL[i]&&grupoDe(M_FULL[i])!=="Comando"))tt++}));const media=tt?Math.round(tp*100/tt):null;
   const topo=y+40,cx=270;const cor=await desenharCaveira(g,cx,topo,290,pc);
@@ -1534,8 +1535,8 @@ async function imagemEvento(){
     T(val,kx+22,yy+46,38,k===0?"#4CAF6A":k===1?"#D25A57":"#ECE7DC",800,tit);T(r,kx+kw-22,yy+42,26,"#B8B2A6",500,null,"right")});
   // adesão por função
   let fy=topo+480;T(TT.func+(semCmdC?" · sem o comando":""),60,fy,34,"#ECE7DC",700,tit);fy+=28;
-  GRUPOS.forEach(gp=>{const ms=MC.filter(m=>grupoDe(m)===gp);if(!ms.length)return;const s=ms.filter(m=>ezPres(ez.marca[m.n])).length,n=ms.filter(m=>ez.marca[m.n]===0).length;
-    const p2=s+n?Math.round(s*100/(s+n)):null;T(gp,60,fy+30,26,"#B8B2A6",600);
+  GRUPOS.forEach(gp=>{const ms=MC.filter(m=>grupoDe(m)===gp);if(!ms.length)return;const s=ms.filter(m=>ezPres(ez.marca[m.n])).length,n=ms.length-ms.filter(m=>ez.marca[m.n]==="-").length-s;
+    const p2=s+n?Math.round(s*100/(s+n)):null;   // por função também: SIM ÷ (todos do grupo − "não conta")T(gp,60,fy+30,26,"#B8B2A6",600);
     caixa(240,fy+10,560,26,8,"rgba(236,231,220,.08)");if(p2){caixa(240,fy+10,560*p2/100,26,8,corFaixa(p2)[0])}
     T(p2==null?"–":`${p2}% · ${s} de ${s+n}`,W-60,fy+31,24,"#ECE7DC",700,null,"right");fy+=44});
   // observação
@@ -1960,7 +1961,9 @@ function render(){
   const comReg=evs.filter(e=>mem.some(m=>e.p[m.i]!==null));
   let P=0,A=0;
   const stats=mem.map(m=>{let p=0,a=0;evs.forEach(e=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});P+=p;A+=a;return {...m,p,a,pc:pct(p,a)}});
-  const tx=pct(P,A);atualizarRoda(P,A,tx);
+  let semMarca=0;
+  if(st.data&&evs.length===1)semMarca=mem.filter(m=>{const v=evs[0].p[m.i];return v!==1&&v!==0&&v!=="-"}).length;
+  const tx=pct(P,A+semMarca);atualizarRoda(P,A,tx);   // um evento: SIM ÷ (todos − "não conta")
   // eventos com mais de 50% de adesão (considera o cargo filtrado, não o integrante selecionado)
   const alvoU=MODO==="individual"?M[0]:(st.nome?M.find(m=>m.n===st.nome):null);
   // com integrante selecionado: as metas dão lugar aos 3 últimos eventos em que ele esteve presente
