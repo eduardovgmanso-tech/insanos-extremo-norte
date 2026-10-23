@@ -2984,6 +2984,22 @@ async function salvarLancamento(){
     location.href=fone?`whatsapp://send?phone=${fone}`:"whatsapp://";
     aviso(ok?(fone?"Mensagem copiada. No WhatsApp, cole na conversa (Ctrl+V) e envie.":"Mensagem copiada. No WhatsApp, escolha a conversa, cole (Ctrl+V) e envie.")
            :"Não consegui copiar. Use o botão Copiar e cole no WhatsApp.")})})();
+// mensagem do WhatsApp que veio pela notificação, no computador: caixa para copiar (emojis certos) e colar no WhatsApp
+async function zapPendente(){let txt="";try{const c=await caches.open("insanos-zap"),r=await c.match("zap");if(!r)return;txt=await r.text();await c.delete("zap")}catch(e){return}
+  if(!txt)return;const cel=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);let cx=document.getElementById("zapCaixa");if(cx)cx.remove();cx=document.createElement("div");cx.id="zapCaixa";
+  cx.style.cssText="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px";
+  cx.innerHTML=`<div style="background:#141414;border:1px solid var(--linha);border-radius:16px;max-width:560px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+    <h3 style="margin:0 0 6px">📲 Mensagem para o WhatsApp</h3><p class="nota" style="margin:0 0 10px">${cel?"Toque em Abrir no WhatsApp e escolha o grupo.":"Copie, escolha o grupo no WhatsApp e cole (Ctrl+V)."}</p>
+    <pre style="white-space:pre-wrap;max-height:46vh;overflow:auto;background:#0b0b0b;border:1px solid var(--linha);border-radius:10px;padding:10px;font:13px/1.45 inherit;margin:0 0 12px"></pre>
+    <div class="lw-bts">${cel?'<button type="button" class="btn zap" id="zapAbrir">📲 Abrir no WhatsApp</button><button type="button" class="btn" id="zapCopiar">📋 Copiar</button>':'<button type="button" class="btn zap" id="zapCopiar">📋 Copiar e abrir o WhatsApp</button>'}<button type="button" class="btn" id="zapFechar">Fechar</button></div></div>`;
+  cx.querySelector("pre").textContent=txt;document.body.appendChild(cx);
+  cx.querySelector("#zapFechar").onclick=()=>cx.remove();
+  cx.querySelector("#zapCopiar").onclick=async()=>{let ok=false;try{await navigator.clipboard.writeText(txt);ok=true}catch(e){const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{ok=document.execCommand("copy")}catch(_){}ta.remove()}
+    cx.querySelector("#zapCopiar").textContent=ok?(cel?"✅ Copiada!":"✅ Copiada! Cole no WhatsApp (Ctrl+V)"):"Não consegui copiar: selecione o texto e copie";if(ok&&!cel)location.href="whatsapp://"};
+  // celular: abre o app do WhatsApp direto (sem passar pelo site, que quebra os emojis)
+  const ab=cx.querySelector("#zapAbrir");if(ab)ab.onclick=()=>{location.href="whatsapp://send?text="+encodeURIComponent(txt)}}
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",ev=>{if(ev.data&&ev.data.zap)zapPendente()});
+if(location.hash==="#zap"){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}zapPendente()}
 montarAnalises();montarRoda();render();proximosAniversarios();montarLancamento();montarMenu();izMontar();ezMontar();ezChecar();
 if(MODO!=="individual"){let _agend=0;new MutationObserver(()=>{if(_trocando||_agend)return;_agend=requestAnimationFrame(()=>{_agend=0;aplicarTermos()})})
   .observe(document.querySelector(".wrap"),{childList:true,subtree:true,characterData:true});aplicarTermos()}
