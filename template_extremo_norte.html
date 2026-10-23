@@ -427,6 +427,9 @@ body.adm[data-view="listas"] header h1,body.adm[data-view="listas"] .periodo{dis
 .cad-bloco{border-top:1px solid var(--linha);margin-top:22px;padding-top:18px}
 .cad-bloco h2{margin:0 0 4px}
 #cadColar{width:100%;box-sizing:border-box;margin-top:8px;background:#111;color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px;font:inherit}
+.lanc-escolha{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}.lanc-escolha>span{font-weight:700;color:var(--osso2)}
+#lancar #insZap{margin:0;border:0;padding:0;background:none;box-shadow:none}
+body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!important}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -869,6 +872,12 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   </section>
 
   <section class="painel js so-adm" id="lancar" style="margin-top:22px">
+    <div class="lanc-escolha"><span>O que você vai lançar?</span>
+      <div class="lw-tipos" role="tablist" id="lancTipos">
+        <button type="button" role="tab" data-lt="evento" aria-selected="true">📅 Evento</button>
+        <button type="button" role="tab" data-lt="insight" aria-selected="false">💬 Insight</button>
+      </div></div>
+    <div id="lancInsLugar"></div>
     <details id="lancDet">
       <summary><h2 style="display:inline">Lançar evento</h2><span class="sub" style="margin-left:10px">para o comando registrar a presença de um evento novo</span></summary>
       <div class="lanc-topo">
@@ -2167,7 +2176,7 @@ function montarMenu(){
   nav.innerHTML=`<div class="marca"><img alt="" src="${LOGO}"><div><b>Extremo Norte</b><small>Painel ADM</small></div></div>
     <button type="button" data-v="painel" aria-current="page">${ICO.painel}<span>Presença</span></button>
     <button type="button" data-v="pag">${ICO.pag}<span>Pagamentos</span>${abertos?`<span class="qt">${abertos}</span>`:""}</button>
-    <button type="button" data-v="lancar">${ICO.lancar}<span>Lançar evento</span></button>
+    <button type="button" data-v="lancar">${ICO.lancar}<span>Lançar</span></button>
     <button type="button" data-v="ficha"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.8 16.5c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M14 10h4M14 13.5h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Cadastro</span></button>
     <button type="button" data-v="kit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l4 3 4-3 5 4-3 4v10H6V11L3 7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 6v15" stroke="currentColor" stroke-width="2"/></svg><span>Kit/colete</span></button>
     <button type="button" data-v="acessos"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Acessos</span></button>
@@ -2176,13 +2185,24 @@ function montarMenu(){
   nav.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(b)irPara(b.dataset.v)});
   montarPagamentos();montarListas();montarFicha();montarKit();montarAcessos();montarCadastro();montarDash();if(DADOS.nuvem){const c=document.querySelector('[data-cad="cpf"]');if(c&&c.closest("label"))c.closest("label").hidden=true}
 }
+let LANC_TIPO="evento",INS_CASA=null;
+function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
+  if(!INS_CASA){INS_CASA=document.createComment("lugar da lista do insight");z.parentNode.insertBefore(INS_CASA,z)}
+  document.querySelectorAll("#lancTipos [data-lt]").forEach(b=>b.setAttribute("aria-selected",b.dataset.lt===tp));
+  if(tp==="insight"&&document.body.dataset.view==="lancar"){$("lancInsLugar").appendChild(z);z.hidden=false;$("lancDet").hidden=true;
+    if(!lancTipo.ok){lancTipo.ok=1;try{if($("izEv").value!=="novo"){$("izEv").value="novo";iz.k=null;izCarregar()}}catch(e){}}
+    try{izAtualiza()}catch(e){}}
+  else{if(z.parentNode!==INS_CASA.parentNode)INS_CASA.parentNode.insertBefore(z,INS_CASA.nextSibling);
+    z.hidden=!(document.body.dataset.view==="painel"&&ANAL==="ins"&&IZ_MODO==="preencher");$("lancDet").hidden=false;if(tp==="evento")$("lancDet").open=true}}
 function irPara(v){
   document.body.dataset.view=v;
+  if($("insZap")&&INS_CASA&&v!=="lancar")lancTipo(LANC_TIPO==="insight"?"insight":"evento");
   if(v==="painel"){aplicarAnalise();montarFiltros();render()}
   else{M=M_FULL;EV=EV_SETS.pres.map((e,i)=>({...e,i}));document.body.classList.remove("iz-preencher")}
   // abriu a tela Pagamentos: o ponto verde da tela de CPF some neste aparelho
   if(v==="acessos"){try{acBuscar()}catch(e){}}
   if(v==="dash"){try{dashMostrar()}catch(e){console.error(e)}}
+  if(v==="lancar")lancTipo(LANC_TIPO);
   if(v==="pag"){try{window.PAG_VISTO_ANT=localStorage.getItem("pag_visto")||"";localStorage.setItem("pag_visto",(DADOS.pag&&DADOS.pag.ultimo_pag)||new Date().toISOString().slice(0,19))}catch(e){}
     try{montarPagamentos()}catch(e){}}
   document.querySelectorAll(".lateral button[data-v]").forEach(b=>b.dataset.v===v?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
@@ -3000,6 +3020,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
 // sempre confere ao abrir (o painel pode ter pedido o e-mail e recarregado, perdendo o "#zap" do endereço)
 if(location.hash==="#zap"){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}
 if(window.caches)zapPendente()
+if($("lancTipos"))$("lancTipos").onclick=ev=>{const b=ev.target.closest("[data-lt]");if(b)lancTipo(b.dataset.lt)};
 montarAnalises();montarRoda();render();proximosAniversarios();montarLancamento();montarMenu();izMontar();ezMontar();ezChecar();
 if(MODO!=="individual"){let _agend=0;new MutationObserver(()=>{if(_trocando||_agend)return;_agend=requestAnimationFrame(()=>{_agend=0;aplicarTermos()})})
   .observe(document.querySelector(".wrap"),{childList:true,subtree:true,characterData:true});aplicarTermos()}
