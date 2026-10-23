@@ -173,12 +173,12 @@ LOGIN = r"""<!DOCTYPE html>
 html,body{height:100%;margin:0}
 body{background:#000;color:var(--osso);font-family:"Barlow","Segoe UI",Roboto,Arial,sans-serif;display:grid;place-items:center;padding:20px}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:url("data:image/jpeg;base64,__IMG__") right center/cover no-repeat;opacity:.25}
-form{width:min(380px,100%);background:rgba(236,231,220,.10);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(236,231,220,.18);border-radius:14px;padding:28px}
-h1{font-family:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;font-weight:900;font-size:40px;line-height:.95;margin:0 0 6px}
-p{color:var(--osso2);font-size:14px;margin:0 0 20px}
-label{display:block;font-size:13px;color:var(--osso2);margin-bottom:6px}
-input{width:100%;background:rgba(0,0,0,.45);color:var(--osso);border:1px solid rgba(236,231,220,.3);border-radius:8px;padding:12px;font:inherit;font-size:18px;letter-spacing:.06em}
-button{width:100%;min-height:48px;margin-top:14px;background:var(--osso);color:#111;border:0;border-radius:8px;padding:12px;font:inherit;font-weight:600;font-size:16px;cursor:pointer}
+form{width:min(290px,100%);background:rgba(236,231,220,.10);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(236,231,220,.18);border-radius:12px;padding:20px}
+h1{font-family:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;font-weight:900;font-size:29px;line-height:.95;margin:0 0 5px}
+p{color:var(--osso2);font-size:12px;margin:0 0 14px}
+label{display:block;font-size:11.5px;color:var(--osso2);margin-bottom:5px}
+input{width:100%;background:rgba(0,0,0,.45);color:var(--osso);border:1px solid rgba(236,231,220,.3);border-radius:8px;padding:9px 10px;font:inherit;font-size:16px;letter-spacing:.04em}
+button{width:100%;min-height:40px;margin-top:11px;background:var(--osso);color:#111;border:0;border-radius:8px;padding:12px;font:inherit;font-weight:600;font-size:14px;cursor:pointer}
 button:disabled{opacity:.6;cursor:wait}
 input:focus-visible,button:focus-visible{outline:2px solid var(--osso);outline-offset:2px}
 #erro{color:#E07472;font-size:14px;min-height:20px;margin:12px 0 0}
@@ -195,10 +195,24 @@ input:focus-visible,button:focus-visible{outline:2px solid var(--osso);outline-o
 #f,noscript form{position:relative;z-index:1}
 @media (max-width:700px){.fotos-login .fl{width:44vw;opacity:.13}}
 .fundo-video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:-1;opacity:0;pointer-events:none;transition:opacity .8s}
-html.com-video .fundo-video{opacity:.6}html.com-video body::before{opacity:0}
+html.com-video .fundo-video{opacity:1}html.com-video body::before{opacity:0}
+html.com-video body.entrou .fundo-video{opacity:.55}
+body.abertura #f,body.abertura .fotos-login,body.abertura .manut{opacity:0;transform:translateY(8px);pointer-events:none}
+#f,.fotos-login,.manut{transition:opacity .9s ease,transform .9s ease}
 @media (prefers-reduced-motion:reduce){.fundo-video{display:none}}
-</style></head><body><video class="fundo-video" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
-  oncanplay="document.documentElement.classList.add('com-video')" onerror="this.remove()"></video>__FOTOS__
+</style></head><body class="abertura"><video class="fundo-video" id="fv" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
+  oncanplay="document.documentElement.classList.add('com-video')" onerror="this.remove();entrar()"></video>
+<script>
+// abertura do app: o vídeo aparece sozinho por ~2 s e depois a tela de entrada surge por cima
+// (uma vez por visita; sem vídeo, internet fraca ou "menos movimento": aparece na hora)
+function entrar(){document.body.classList.remove("abertura");document.body.classList.add("entrou");try{sessionStorage.setItem("abertura_vista","1")}catch(_){}}
+(function(){let vista=false;try{vista=sessionStorage.getItem("abertura_vista")==="1"}catch(_){}
+  if(vista||matchMedia("(prefers-reduced-motion:reduce)").matches){entrar();return}
+  const v=document.getElementById("fv");let ok=false;
+  if(v)v.addEventListener("playing",()=>{if(ok)return;ok=true;setTimeout(entrar,2200)},{once:true});
+  setTimeout(()=>{if(!ok)entrar()},1500);       // o vídeo não começou a tempo: não deixa ninguém esperando
+  setTimeout(entrar,6000)})();                   // garantia
+</script>__FOTOS__
 <noscript><style>#f{display:none}</style><form style="display:block"><h1>Extremo Norte<br>SP3</h1><p>Este visualizador não abre o painel. Toque em compartilhar e escolha abrir no Safari, Chrome ou Edge.</p></form></noscript>
 <form id="f" autocomplete="off">
   __MANUT__
