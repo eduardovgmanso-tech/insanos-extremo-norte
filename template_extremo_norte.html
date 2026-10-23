@@ -28,6 +28,10 @@ body{margin:0;background:#000;color:var(--osso);font-family:var(--texto);font-si
 body::before{content:"";position:fixed;inset:0;z-index:-1;
   background:url("data:image/jpeg;base64,__IMG__") right center/cover no-repeat;opacity:.25;pointer-events:none}
 .wrap{max-width:1180px;margin:0 auto;padding:36px 22px 60px}
+/* vídeo de fundo (fundo.mp4): enquanto não carrega, fica a imagem de sempre */
+.fundo-video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:-2;opacity:0;pointer-events:none;transition:opacity .8s}
+html.com-video .fundo-video{opacity:.32}html.com-video body::before{opacity:0}
+@media (prefers-reduced-motion:reduce){.fundo-video{display:none}}
 
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 30px;margin-bottom:28px}
 h1{font-family:var(--titulo);font-weight:900;font-size:clamp(46px,8vw,92px);line-height:.86;margin:0;letter-spacing:.01em}
@@ -266,7 +270,12 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .site18 small{display:block;font-weight:500;font-size:12px;color:var(--presente)}
 @media (min-width:901px){header{position:relative;padding-right:250px;min-height:226px}body.adm header{min-height:286px}.site18{position:absolute;top:0;right:0;width:230px}.doc18{top:74px}.man18{top:133px}.dash18{top:192px}.plan18{top:251px}}
 .doc-ico{width:34px;height:auto;flex:0 0 34px;margin:0 5px}
-@media (max-width:900px){.site18{width:250px;max-width:100%}}
+@media (max-width:900px){.site18{width:250px;max-width:100%}
+  .topo-dir{flex-direction:row!important;flex-wrap:wrap;gap:6px;width:100%;align-items:stretch}
+  .topo-dir>:not(.site18){flex:0 0 100%;max-width:100%}          /* período e aviso "Versão ADM": linha inteira */
+  .topo-dir .site18{position:static;flex:1 1 0;min-width:58px;width:auto;flex-direction:column;justify-content:center;gap:4px;padding:7px 3px;text-align:center;border-radius:10px;min-height:0}
+  .topo-dir .site18 img{width:28px}.topo-dir .doc-ico{width:24px;flex:0 0 auto;margin:0}
+  .topo-dir .site18 span{font-size:11px;line-height:1.15;font-weight:600}.topo-dir .site18 small{display:none}}
 body.individual header{padding-right:0}
 @media (max-width:900px){.topo-dir{align-items:flex-start}}
 .lateral{display:none}
@@ -552,6 +561,8 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
 </style>
 </head>
 <body>
+<video class="fundo-video" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
+  oncanplay="document.documentElement.classList.add('com-video')" onerror="this.remove()"></video>
 <div class="wrap">
   __MANUT__
   <div class="aniv-alerta" id="anivAlerta" hidden></div>

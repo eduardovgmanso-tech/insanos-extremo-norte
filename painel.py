@@ -194,7 +194,11 @@ input:focus-visible,button:focus-visible{outline:2px solid var(--osso);outline-o
 .fotos-login .fl{position:absolute;width:min(30vw,340px);height:auto;opacity:.17;filter:grayscale(45%) contrast(1.05);border-radius:8px}
 #f,noscript form{position:relative;z-index:1}
 @media (max-width:700px){.fotos-login .fl{width:44vw;opacity:.13}}
-</style></head><body>__FOTOS__
+.fundo-video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:-1;opacity:0;pointer-events:none;transition:opacity .8s}
+html.com-video .fundo-video{opacity:.6}html.com-video body::before{opacity:0}
+@media (prefers-reduced-motion:reduce){.fundo-video{display:none}}
+</style></head><body><video class="fundo-video" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
+  oncanplay="document.documentElement.classList.add('com-video')" onerror="this.remove()"></video>__FOTOS__
 <noscript><style>#f{display:none}</style><form style="display:block"><h1>Extremo Norte<br>SP3</h1><p>Este visualizador não abre o painel. Toque em compartilhar e escolha abrir no Safari, Chrome ou Edge.</p></form></noscript>
 <form id="f" autocomplete="off">
   __MANUT__
@@ -1679,12 +1683,13 @@ def arquivos_app():
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v6";
+const CACHE = "insanos-v7";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
   const r = e.request;
   if (r.method !== "GET" || new URL(r.url).origin !== location.origin) return;
+  if (/\\.mp4$/i.test(new URL(r.url).pathname)) return;      // vídeo de fundo: direto da rede (guardar vídeo no app trava a reprodução)
   e.respondWith(fetch(r, {cache: "no-store"}).then(resp => {
     if (resp.ok) { const c = resp.clone(); caches.open(CACHE).then(k => k.put(r, c)); }
     return resp;
