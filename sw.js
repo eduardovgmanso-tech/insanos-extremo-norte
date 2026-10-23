@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v3";
+const CACHE = "insanos-v5";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -21,9 +21,14 @@ self.addEventListener("push", e => {
 self.addEventListener("notificationclick", e => {
   e.notification.close();
   const dd = e.notification.data || {};
-  // botão "Enviar no WhatsApp" (Android) ou toque na notificação no iPhone (que não mostra botões): abre o WhatsApp com a mensagem
+  // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
+  // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
-    e.waitUntil(clients.openWindow("https://wa.me/?text=" + encodeURIComponent(dd.zap))); return;
+    e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(dd.zap)))
+      .then(() => clients.matchAll({type: "window", includeUncontrolled: true}))
+      .then(ws => { for (const w of ws) if (w.url.includes("adm.html")) { w.postMessage({zap: 1}); return w.focus(); }
+                    return clients.openWindow("adm.html#zap"); }));
+    return;
   }
   e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(ws => {
     for (const w of ws) if (w.url.includes("adm.html")) return w.focus();
