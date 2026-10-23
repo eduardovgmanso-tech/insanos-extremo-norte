@@ -2507,11 +2507,16 @@ function lwDataISO(s){if(/^\d{4}-\d{2}-\d{2}$/.test(String(s||"")))return s;cons
 let _ocrPronto=null,lwFlyCampos=new Set();
 function ocrCarregar(){if(window.Tesseract)return Promise.resolve();if(_ocrPronto)return _ocrPronto;
   _ocrPronto=new Promise((ok,erro)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";s.onload=ok;s.onerror=()=>{_ocrPronto=null;erro(new Error("sem internet"))};document.head.appendChild(s)});return _ocrPronto}
-function flyPreparar(img){   // texto branco/amarelo do fly vira preto sobre branco (lê bem melhor)
-  const esc=Math.min(1,1600/img.width),w=Math.round(img.width*esc),h=Math.round(img.height*esc);
-  const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");g.drawImage(img,0,0,w,h);
-  const d=g.getImageData(0,0,w,h),p=d.data;
-  for(let i=0;i<p.length;i+=4){const r=p[i],gg=p[i+1],b=p[i+2],l=.299*r+.587*gg+.114*b,claro=l>175||(r>170&&gg>120&&b<130);const v=claro?0:255;p[i]=p[i+1]=p[i+2]=v;p[i+3]=255}
+function flyPreparar(img,modo){   // claro: letra clara do fly vira preta · escuro: letra escura fica preta · cinza: tons de cinza com contraste
+  const esc=Math.min(2,1600/img.width),w=Math.round(img.width*esc),h=Math.round(img.height*esc);   // aumenta imagens pequenas (WhatsApp)
+  const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");g.imageSmoothingQuality="high";g.drawImage(img,0,0,w,h);
+  const d=g.getImageData(0,0,w,h),p=d.data;let mn=255,mx=0;
+  if(modo==="cinza")for(let i=0;i<p.length;i+=4){const l=.299*p[i]+.587*p[i+1]+.114*p[i+2];if(l<mn)mn=l;if(l>mx)mx=l}
+  for(let i=0;i<p.length;i+=4){const r=p[i],gg=p[i+1],b=p[i+2],l=.299*r+.587*gg+.114*b;let v;
+    if(modo==="escuro")v=l<110?0:255;
+    else if(modo==="cinza")v=Math.max(0,Math.min(255,Math.round((l-mn)*255/Math.max(1,mx-mn))));
+    else{const claro=l>175||(r>170&&gg>120&&b<130);v=claro?0:255}
+    p[i]=p[i+1]=p[i+2]=v;p[i+3]=255}
   g.putImageData(d,0,0);return c}
 function flyEngrossar(c,raio){   // cada pixel preto "espalha" para os vizinhos: fecha os furinhos das letras com desgaste
   const w=c.width,h=c.height,g=c.getContext("2d"),src=g.getImageData(0,0,w,h).data,o=document.createElement("canvas");o.width=w;o.height=h;
@@ -2527,15 +2532,25 @@ async function lwLerFly(f){
   const st=$("lwFlyLido");st.textContent="Carregando o leitor de texto (na primeira vez pode levar alguns segundos)…";
   try{await ocrCarregar()}catch(e){st.textContent="Não consegui carregar o leitor de texto. Ele precisa de internet na primeira vez.";return}
   const img=await _img(URL.createObjectURL(f));if(!img){st.textContent="Não consegui abrir essa imagem.";return}
-  const bw=flyPreparar(img);st.textContent="Lendo o fly…";
   const w=await Tesseract.createWorker("por",1);
   try{
-    const r1=await w.recognize(bw);const lin=(r1.data.lines||[]).map(l=>({t:l.text.replace(/\s+/g," ").trim(),b:l.bbox})).filter(l=>l.t.length>2);
+    // tenta os 3 preparos e fica com o que leu mais palavras com segurança
+    let bw=null,r1=null,melhor=-1;const nota=r=>(r.data.words||[]).reduce((s,x)=>s+(x.confidence>55&&/[A-Za-zÀ-ú0-9]{2,}/.test(x.text)?x.text.length:0),0);
+    for(const [k,modo] of [["1/3","claro"],["2/3","escuro"],["3/3","cinza"]]){st.textContent=`Lendo o fly (${k})…`;
+      const c=flyPreparar(img,modo),r=await w.recognize(c),n=nota(r);if(n>melhor){melhor=n;bw=c;r1=r}}
+    const lin=(r1.data.lines||[]).map(l=>({t:l.text.replace(/\s+/g," ").trim(),b:l.bbox})).filter(l=>l.t.length>2);
     const N=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase();
     // data e hora: relê só a faixa onde está o mês, aceitando só números, meses e ":"
-    let dia=null,mes=null,hora=null;const lm=lin.find(l=>/\b(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\b/.test(N(l.t)));
-    const dh=s=>{const m=N(s).match(/(\d{1,2})\s*(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s*(\d{1,2})[:.H](\d{2})/);if(m){dia=+m[1];mes=FLY_MESES_N[m[2]];hora=`${m[3].padStart(2,"0")}:${m[4]}`}return !!m};
+    let dia=null,mes=null,hora=null;
+    // o leitor confunde letras e números (O/0, D/0, I/1, S/5…): o mês e a hora são lidos com tolerância
+    const MESX="JAN|FEV|MAR|ABR|MA[I1L]|JUN|JUL|AG[O0]|SET|[O0Q]UT|N[O0]V|DEZ";
+    const mesDe=x=>FLY_MESES_N[x.replace(/[0Q]/g,"O").replace(/[1L]/g,"I")];
+    const num=x=>x.replace(/[OQD]/g,"0").replace(/[IL|!]/g,"1").replace(/S/g,"5").replace(/B/g,"8").replace(/Z/g,"2");
+    const lm=lin.find(l=>new RegExp(`(^|[^A-Z])(${MESX})([^A-Z]|$)`).test(N(l.t)));
+    const dh=s=>{const m=N(s).match(new RegExp(`([0-9OQDIL]{1,2})\\s*(${MESX})[\\s\\-–—·.,]*([0-9OQDILSBZ]{1,2})\\s*[:.H]\\s*([0-9OQDILSBZ]{2})`));
+      if(m){const d=+num(m[1]),hh=+num(m[3]),mm=num(m[4]);if(d>=1&&d<=31&&hh<=23&&+mm<=59){dia=d;mes=mesDe(m[2]);hora=`${String(hh).padStart(2,"0")}:${mm}`;return true}}return false};
     if(lm)dh(lm.t);
+    if(!dia)lin.some(l=>dh(l.t));   // procura a data em qualquer linha
     if(lm&&!dia){const hh=lm.b.y1-lm.b.y0;await w.setParameters({tessedit_char_whitelist:"0123456789:ABDEFGIJLMNORSTUVZ ",tessedit_pageseg_mode:"6"});
       const r2=await w.recognize(bw,{rectangle:{left:0,top:Math.max(0,Math.round(lm.b.y0-hh*.35)),width:bw.width,height:Math.round(hh*1.7)}});
       dh(r2.data.text);
@@ -2547,7 +2562,10 @@ async function lwLerFly(f){
     const tipo=/ACAO.?SOCIAL/.test(tudo)?"social":/\bPUB\b/.test(tudo)?"pub":/REUNIAO/.test(tudo)?"reuniao":/BONDE|EVENTO/.test(tudo)?"evento":lw.tipo;
     if(tipo!==lw.tipo){const b=document.querySelector(`#lwTipos [data-lwt="${tipo}"]`);if(b)b.click()}
     const F=lw.f[lw.tipo]=lw.f[lw.tipo]||{},usados=new Set();
-    const por=(k,v)=>{if(v){F[k]=v;usados.add(k)}};
+    // tira pedacinhos soltos do começo e do fim (sujeira do desenho lida como letra: "Sá À", "x", "=")
+    const limpa=v=>{let w=String(v).trim().split(/\s+/);const lixo=x=>x.length<=2&&!/^\d+$/.test(x)&&!/^(de|da|do|e|a|o|n[º°]?)$/i.test(x);
+      while(w.length>1&&lixo(w[0]))w.shift();while(w.length>1&&lixo(w[w.length-1]))w.pop();return w.join(" ").replace(/^[^\p{L}\d]+|[^\p{L}\d).]+$/gu,"")};
+    const por=(k,v)=>{if(v){if(!/^(data|hora|pe_hora|pe_saida)$/.test(k))v=limpa(v);if(v){F[k]=v;usados.add(k)}}};
     // base (divisão/regional)
     const achaBase=l=>/^(DIVISAO|REGIONAL|DIV\.)\s/.test(N(l.t));
     const lb=lin.find(achaBase)||lin3.find(achaBase);
@@ -2569,7 +2587,10 @@ async function lwLerFly(f){
       if(ch){por("pe_chegada",`${ch[1].padStart(2,"0")}:${ch[2]}`);por("pe_saida",`${ch[3].padStart(2,"0")}:${ch[4]}`);por("conc_cheg",`${ch[1].padStart(2,"0")}:${ch[2]}`);por("conc_saida",`${ch[3].padStart(2,"0")}:${ch[4]}`)}}
     if(pe){const tx=pe.replace(/^P\.?\s?E\.?\s*[:\-]\s*/i,"").trim(),pa=tx.split(/\s[-–]\s/);por("pe",flyTitulo(pa[0]||""));por("pe_end",flyTitulo(pa.slice(1).join(" - ")))}
     lwFlyCampos=usados;lwGuardar();lwCampos();lwAtualiza();
-    st.innerHTML=`✅ Fly lido: <b>${usados.size} campo(s) preenchido(s)</b> (com borda dourada). Confira e corrija o que precisar antes de enviar.`;
+    const lido=lin.concat(lin3.filter(x=>!lin.some(y=>y.t===x.t))).map(l=>l.t).join("\n");
+    st.innerHTML=(usados.size?`✅ Fly lido: <b>${usados.size} campo(s) preenchido(s)</b> (com borda dourada). Confira e corrija o que precisar antes de enviar.`
+      :`⚠️ Li o fly, mas não reconheci data, local nem endereço. Confira o texto abaixo e preencha os campos à mão.`)
+      +`<details style="margin-top:6px"><summary style="cursor:pointer">Ver o texto lido</summary><pre style="white-space:pre-wrap;font:12px/1.4 inherit;margin:6px 0 0;max-height:220px;overflow:auto;background:#0b0b0b;border:1px solid var(--linha);border-radius:8px;padding:8px">${esc(lido||"(nada)")}</pre></details>`;
   }catch(e){st.textContent="Não consegui ler esse fly. Tente uma imagem maior ou mais nítida."}
   finally{await w.terminate()}}
 function lwCampos(){lwCarregar(lw.tipo);const f=lw.f[lw.tipo];
