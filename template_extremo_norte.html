@@ -1978,7 +1978,8 @@ function render(){
   if(MODO!=="individual"){
     const grp=M.map((m,i)=>({...m,i})).filter(noCargo);
     let comReg50=0,acima=0,acima75=0;
-    evs.forEach(e=>{let p=0,a=0;grp.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});if(p+a){comReg50++;if(p*2>p+a)acima++;if(p*4>(p+a)*3)acima75++}});
+    evs.forEach(e=>{let p=0,a=0;grp.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});const tot=grp.length;   // % do evento: SIM ÷ todos do filtro
+      if(p+a){comReg50++;if(p*2>tot)acima++;if(p*4>tot*3)acima75++}});
     const pcE=comReg50?Math.round(acima*100/comReg50):null,pcE75=comReg50?Math.round(acima75*100/comReg50):null;
     const porG=GRUPOS.map(g=>{let p=0,a=0;M.forEach((m,i)=>{if(grupoDe(m)!==g)return;evs.forEach(e=>{if(e.p[i]===1)p++;else if(e.p[i]===0)a++})});return {g,p,a,pc:pct(p,a)}}).filter(x=>x.p+x.a);
     const selG=st.cargos.length===1?st.cargos[0]:(st.nome?grupoDe(M.find(m=>m.n===st.nome)||{}):"");
@@ -1987,8 +1988,8 @@ function render(){
     // no Insights: os 3 últimos insights com a % de resposta de cada um (no lugar das metas de 50% e 75%)
     const ult3=()=>{const l=evs.map(e=>{let p=0,a=0;grp.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a}})
         .filter(x=>x.p+x.a).sort((x,y)=>x.e.d<y.e.d?1:x.e.d>y.e.d?-1:y.e.i-x.e.i).slice(0,3);
-      return `<div class="metas ultimos"><h4>ÚLTIMOS 3 INSIGHTS${st.cargos.length?" · "+esc(cargoRot().toUpperCase()):""}</h4>${l.length?l.map(x=>{const v=pct(x.p,x.a),dd=x.e.d.slice(8,10)+"/"+x.e.d.slice(5,7);
-        return `<div class="item ult" tabindex="0" data-data="${x.e.d}"><div class="big" style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</div><div class="txt"><b>${esc(x.e.e)}</b><br>${dd} · ${x.p} de ${x.p+x.a} responderam</div></div>`}).join("")
+      return `<div class="metas ultimos"><h4>ÚLTIMOS 3 INSIGHTS${st.cargos.length?" · "+esc(cargoRot().toUpperCase()):""}</h4>${l.length?l.map(x=>{const v=grp.length?Math.round(x.p*100/grp.length):null,dd=x.e.d.slice(8,10)+"/"+x.e.d.slice(5,7);   // SIM ÷ todos do filtro
+        return `<div class="item ult" tabindex="0" data-data="${x.e.d}"><div class="big" style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</div><div class="txt"><b>${esc(x.e.e)}</b><br>${dd} · ${x.p} de ${grp.length} responderam</div></div>`}).join("")
         :`<div class="txt">Nenhum insight com resposta nesse período.</div>`}</div>`};
     $("meta").innerHTML=`${alvoU?ultimos():ANAL==="ins"?ult3():`<div class="metas">${linhaMeta(pcE,50,acima)}${linhaMeta(pcE75,75,acima75)}</div>`}
       <div class="mini"><h4>ADESÃO POR FUNÇÃO</h4>${porG.map(x=>{const o=selG&&x.g!==selG?"off":"";
@@ -2069,7 +2070,7 @@ function render(){
       ?`<b style="color:var(--osso)">${esc(sel.n)}</b> esteve em <b style="color:var(--presente)">${fo}</b> e faltou em <b style="color:#D25A57">${fa}</b> dos eventos. Os eventos em que ele foi ficam em destaque; os que faltou ficam apagados.`
       :"Cada coluna é um evento, em ordem de data. Toque ou passe o mouse para ver o nome; clique para ver só aquela data.";
     $("legEventos").style.display="";
-    const cont=evs.map(e=>{let p=0,a=0;todos.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a}});
+    const cont=evs.map(e=>{let p=0,a=0;todos.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a:p+a?todos.length-p:0}});   // SIM ÷ todos do filtro
     const maxE=Math.max(1,...cont.map(c=>c.p+c.a));
     $("colEventos").classList.toggle("foco",!!st.data);
     $("colEventos").innerHTML=cont.length?cont.map(({e,p,a})=>{const v=sel?e.p[sel.i]:undefined;
