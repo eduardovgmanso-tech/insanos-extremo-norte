@@ -362,6 +362,35 @@ def renumerar_google(api, pid, mudancas):
     _gravar(api, pid, [(f"'{aba}'!D{linha}", num if num else "") for linha, num, ap in mudancas])
     print("Numero Lista acertado: " + ", ".join(f"{ap} = {num if num else '(afastado/excluído)'}" for _, num, ap in mudancas))
 
+def aplicar_boletos(api, pid, d):
+    """Boletos lidos no Sistema Insanos (botão no navegador): grava o link de cada irmão na PGTO, coluna J."""
+    aba = _aba_real(api, pid, "PGTO")
+    if not aba:
+        return "aba PGTO não encontrada"
+    v = _ler(api, pid, f"'{aba}'!A1:J400")
+    gr, feitos, iguais, sem_linha = [], [], 0, []
+    for it in (d.get("itens") or []):
+        ap, link = str(it.get("ap") or "").strip(), str(it.get("link") or "").strip()
+        if not ap or not link.startswith("http"):
+            continue
+        for i, row in enumerate(v[1:], start=2):
+            row = list(row) + [""] * 10
+            if _sa(str(row[1])).endswith(_sa(ap)):
+                if str(row[9]).strip() == link:
+                    iguais += 1
+                else:
+                    gr.append((f"'{aba}'!J{i}", link)); feitos.append(ap)
+                break
+        else:
+            sem_linha.append(ap)
+    _gravar(api, pid, gr)
+    res = f"boletos de {d.get('mes', '')}: {len(feitos)} link(s) gravado(s)"
+    if iguais:
+        res += f", {iguais} já estavam certos"
+    if sem_linha:
+        res += f" · sem linha na PGTO: {', '.join(sem_linha)}"
+    return res
+
 def processar_fila(api, pid):
     aba = _aba_real(api, pid, "Fila")
     if not aba:
@@ -380,6 +409,8 @@ def processar_fila(api, pid):
                 res, sit = aplicar_pagamento(api, pid, d), "feito"
             elif tp == "integrante":
                 res, sit = aplicar_integrante(api, pid, d), "feito"
+            elif tp == "boletos_sistema":
+                res, sit = aplicar_boletos(api, pid, d), "feito"
             else:
                 res, sit = f"tipo desconhecido: {tp}", "erro"
         except Exception as e:
@@ -404,6 +435,8 @@ def _resumo_publico(itens_d):
             comp += len([1 for v in (d.get("status") or {}).values() if v])
         elif tp == "integrante":
             cad += 1
+        elif tp == "boletos_sistema":
+            eventos.append("boletos do mês atualizados")
     partes = eventos[:2] + ([f"e mais {len(eventos) - 2} evento(s)"] if len(eventos) > 2 else [])
     if comp:
         partes.append(f"compensação de pagamento ({comp} irmão{'s' if comp > 1 else ''})")
@@ -442,6 +475,9 @@ def _resumo_item(d):
             return f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({dt})"
         if tp == "pagamento_manual":
             return "Compensação: " + ", ".join(k for k, v in (d.get("status") or {}).items() if v)
+        if tp == "boletos_sistema":
+            m = str(d.get("mes", ""))
+            return f"Boletos do Sistema Insanos ({m[5:7]}/{m[:4]})" if len(m) >= 7 else "Boletos do Sistema Insanos"
         if tp == "integrante":
             return f"Cadastro: {({'novo': 'novo integrante', 'afastar': 'afastado', 'reativar': 'reativado', 'excluir': 'excluído'}).get(d.get('acao'), d.get('acao'))} {d.get('apelido', '')}"
     except Exception:

@@ -460,6 +460,8 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
   background:#151515;color:var(--osso);border:1px solid rgba(76,175,106,.7);border-radius:12px;padding:12px 16px;font-weight:600;box-shadow:0 12px 40px rgba(0,0,0,.6);opacity:0;transition:opacity .35s,transform .35s;pointer-events:none}
 .aviso-rapido.on{opacity:1;transform:translateX(-50%) translateY(0)}.aviso-rapido.erro{border-color:rgba(224,116,114,.8)}
 @media (min-width:901px){.aviso-rapido{bottom:28px}}
+.bmk-si{margin:12px 0;border:1px solid var(--linha);border-radius:12px;padding:10px 14px;background:rgba(236,231,220,.04)}
+.bmk-si summary{cursor:pointer;font-weight:700}#bmkSIBox[hidden]{display:none!important}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -888,6 +890,16 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div>
       <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button></div></div>
     <div class="pag-agenda" id="pagAgenda"></div>
+    <details class="bmk-si" id="bmkSIBox" hidden><summary>🔖 Botão do Sistema Insanos: pegar os boletos do mês sem copiar links</summary>
+      <ol class="nota" style="margin:10px 0 8px;padding-left:20px;line-height:1.55">
+        <li>No <b>computador</b>, no Chrome, mostre a barra de favoritos (<b>Ctrl+Shift+B</b>).</li>
+        <li><b>Arraste</b> o botão verde abaixo para a barra de favoritos.</li>
+        <li>No <b>Sistema Insanos</b>, abra a tabela de mensalidades da divisão e clique no favorito <b>“Enviar boletos ao painel”</b>.</li>
+        <li>Escolha o mês, confirme, e em uns 3 minutos os links estão na planilha (aba PGTO).</li></ol>
+      <div class="lw-bts"><a class="btn zap" id="bmkSI" href="#" draggable="true">📥 Enviar boletos ao painel</a>
+        <button type="button" class="btn" id="bmkSICopiar">📋 Copiar o código do botão</button></div>
+      <p class="nota" style="margin:8px 0 0">O botão leva a chave do painel: não compartilhe. Sua senha do Sistema Insanos não sai do seu navegador.</p>
+    </details>
     <div id="pagAfast"></div>
     <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
       <div class="pag-kpis" id="pagKpis"></div></div>
@@ -3204,6 +3216,35 @@ async function zapPendente(){let txt="";try{const c=await caches.open("insanos-z
 if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",ev=>{if(ev.data&&ev.data.zap)zapPendente()});
 // sempre confere ao abrir (o painel pode ter pedido o e-mail e recarregado, perdendo o "#zap" do endereço)
 if(location.hash==="#zap"){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}
+// ---- botão (favorito) para o Sistema Insanos: lê a tabela de mensalidades e manda os links do mês para a planilha ----
+function bmkSICodigo(){const N=DADOS.nuvem;if(!N||!N.url)return "";
+  const f=function(URL_,CHAVE_){
+    const MESES=["janeiro","fevereiro","marco","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+    const nz=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
+    const grade=r=>{const g=[];let c=0;for(const cel of r.cells){const n=cel.colSpan||1;for(let k=0;k<n;k++)g[c+k]=cel;c+=n}return g};
+    let hdr=null,tab=null;
+    for(const t of document.querySelectorAll("table")){for(const r of t.rows){const tx=[...r.cells].map(c=>nz(c.innerText));if(tx.includes("janeiro")&&tx.includes("dezembro")){hdr=r;tab=t;break}}if(hdr)break}
+    if(!hdr){alert("Não achei a tabela de mensalidades (janeiro a dezembro) nesta página.");return}
+    const hoje=new Date(),resp=prompt("Pegar os boletos de qual mês? (1 a 12)",String(hoje.getMonth()+1));if(resp===null)return;
+    const mi=parseInt(resp,10)-1;if(!(mi>=0&&mi<12)){alert("Mês inválido.");return}
+    let ini=-1,fim=-1,c=0;for(const cel of hdr.cells){const n=cel.colSpan||1;if(nz(cel.innerText)===MESES[mi]){ini=c;fim=c+n-1}c+=n}
+    if(ini<0){alert("Não achei a coluna do mês "+(mi+1)+".");return}
+    const itens=[];let semLink=0;
+    for(const r of tab.rows){if(r===hdr)continue;const g=grade(r),nome=(g[0]&&g[0].innerText||"").trim(),m=nome.match(/^\s*\d+\s*[-–]\s*(.+?)\s*$/);if(!m)continue;
+      let a=null,st="",val="";for(let k=ini;k<=fim;k++){const cel=g[k];if(!cel)continue;const x=cel.querySelector("a[href]");if(x&&!a){a=x}const t=(cel.innerText||"").trim();if(/\d+,\d{2}/.test(t)&&!val)val=t;else if(t&&!st)st=t}
+      if(a&&/^https?:/i.test(a.href))itens.push({ap:m[1],link:a.href,status:(a.innerText||st).trim(),valor:val});else semLink++}
+    if(!itens.length){alert("Nenhum boleto com link no mês "+(mi+1)+".");return}
+    const ano=hoje.getFullYear()+(mi<hoje.getMonth()-6?1:mi>hoje.getMonth()+6?-1:0);   // em dezembro, "janeiro" é do ano que vem
+    const mes=ano+"-"+String(mi+1).padStart(2,"0");
+    if(!confirm("Enviar ao painel "+itens.length+" boleto(s) de "+MESES[mi]+"?"+(semLink?"\n("+semLink+" linha(s) sem link nesse mês)":"")))return;
+    fetch(URL_,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({chave:CHAVE_,quem:"botão do Sistema Insanos",dados:{tipo:"boletos_sistema",mes:mes,itens:itens}})})
+      .then(()=>alert("✅ Enviado! Em uns 3 minutos os links estão na planilha e o painel atualiza."))
+      .catch(e=>alert("Não consegui enviar ("+e.message+"). Avise o Edu."))};
+  return "javascript:("+f.toString()+")("+JSON.stringify(N.url)+","+JSON.stringify(N.chave)+");void 0"}
+(function(){const b=$("bmkSI");if(!b||!DADOS.nuvem||!DADOS.nuvem.url)return;$("bmkSIBox").hidden=false;b.href=bmkSICodigo();
+  b.onclick=ev=>{ev.preventDefault();avisoRapido("Arraste este botão para a barra de favoritos do Chrome.")};
+  $("bmkSICopiar").onclick=async()=>{try{await navigator.clipboard.writeText(bmkSICodigo());avisoRapido("📋 Código copiado. No Chrome: botão direito na barra de favoritos > Adicionar página > cole no campo URL.")}catch(_){prompt("Copie o código:",bmkSICodigo())}}})();
 if(window.caches)zapPendente()
 if($("lancTipos"))$("lancTipos").onclick=ev=>{const b=ev.target.closest("[data-lt]");if(b)lancTipo(b.dataset.lt)};
 montarAnalises();montarRoda();render();proximosAniversarios();montarLancamento();montarMenu();izMontar();ezMontar();ezChecar();
