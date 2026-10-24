@@ -2486,7 +2486,7 @@ function montarListas(){
   if($("lwLerFly")){$("lwLerFly").onclick=()=>{$("lwFlyArq").value="";$("lwFlyArq").click()};$("lwFlyArq").onchange=()=>{const f=$("lwFlyArq").files[0];if(f)lwLerFly(f)}}
   if($("lwFlyLimpar"))$("lwFlyLimpar").onclick=()=>{if(confirm("Apagar a leitura e todos os campos desta lista?"))lwFlyLimpar()};
   // câmera direto (no celular abre a câmera traseira; no computador, abre a escolha de arquivo)
-  if($("lwFotoFly")){$("lwFotoFly").onclick=()=>{$("lwFlyCam").value="";$("lwFlyCam").click()};$("lwFlyCam").onchange=()=>{const f=$("lwFlyCam").files[0];if(f)lwLerFly(f)}}
+  if($("lwFotoFly")){$("lwFotoFly").onclick=()=>{$("lwFlyCam").value="";$("lwFlyCam").click()};$("lwFlyCam").onchange=()=>{const f=$("lwFlyCam").files[0];if(f)lwLerFly(f,true)}}
   $("lwTipos").innerHTML=Object.entries(LW_TIPOS).map(([k,x])=>`<button type="button" role="tab" data-lwt="${k}" aria-selected="${k===lw.tipo}">${x.nome}</button>`).join("");
   lw.marca=lwMarcasCarregar(lw.tipo);lw.just=lwJustCarregar(lw.tipo);
   $("lwTipos").onclick=ev=>{const b=ev.target.closest("[data-lwt]");if(!b)return;lw.tipo=b.dataset.lwt;lw.marca=lwMarcasCarregar(lw.tipo);lw.just=lwJustCarregar(lw.tipo);
@@ -2576,23 +2576,25 @@ function avisoRapido(txt,erro){let a=document.getElementById("avisoRapido");if(!
 function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;const F=lw.f[lw.tipo]||{},assin=F.assin;
   lw.f[lw.tipo]=Object.fromEntries(T.campos.map(([k,,d])=>[k,d]));if(assin!==undefined)lw.f[lw.tipo].assin=assin;
   lwFlyCampos=new Set();lwGuardar();lwCampos();lwAtualiza();$("lwFlyLido").textContent="";$("lwFlyLimpar").hidden=true;avisoRapido("🗑️ Leitura e campos apagados.")}
-async function flyOcrGoogle(f){const N=DADOS.nuvem;if(!N||!N.url)return null;
+async function flyOcrGoogle(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return null;
   const img=await _img(URL.createObjectURL(f));if(!img)return null;
-  const e=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*e);c.height=Math.round(img.height*e);
-  c.getContext("2d").drawImage(img,0,0,c.width,c.height);const b64=c.toDataURL("image/jpeg",.88).split(",")[1];
-  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),30000);
+  // foto da câmera: mais resolução (letras pequenas e foto de longe); arquivo da galeria: 1600 px já basta
+  const lado=camera?2400:1600,qual=camera?.92:.88;
+  const e=Math.min(1,lado/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*e);c.height=Math.round(img.height*e);
+  const g=c.getContext("2d");g.imageSmoothingQuality="high";g.drawImage(img,0,0,c.width,c.height);const b64=c.toDataURL("image/jpeg",qual).split(",")[1];
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),camera?45000:30000);
   try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,ocr:b64}),signal:ac.signal});
     let j=null;try{j=await r.json()}catch(_){flyOcrGoogle.erro="resposta inválida do Apps Script (publique a Nova versão)";return null}
     if(j&&j.ok&&j.texto&&j.texto.trim())return j.texto;
     flyOcrGoogle.erro=j&&j.ok?"o Google não achou texto na imagem":(j&&j.erro?j.erro:"sem resposta");return null}
   catch(e){flyOcrGoogle.erro=e&&e.name==="AbortError"?"demorou demais (mais de 30 s)":"sem conexão com o Apps Script";return null}finally{clearTimeout(to)}}
-async function lwLerFly(f){
+async function lwLerFly(f,camera){
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
   st.innerHTML=`<span class="lendo"><span class="lendo-ico" aria-hidden="true">🔍</span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span></b>${usaGoogle?'<small class="by-google">Leitura powered by Google</small>':""}</span>`;let lin=null,lin3=[],w=null,bw=null,fonte="leitor do painel";
   // 1º: o leitor do Google (bem melhor com letras estilizadas e fotos); se não responder, o leitor do painel
   if(DADOS.nuvem&&DADOS.nuvem.url){
-    flyOcrGoogle.erro="";const tx=await flyOcrGoogle(f);
+    flyOcrGoogle.erro="";const tx=await flyOcrGoogle(f,camera);
 
     if(tx){lin=tx.split(/\n+/).map(t=>({t:t.replace(/\s+/g," ").trim(),b:null})).filter(l=>l.t.length>2);fonte="leitor do Google"}}
   if(!lin){const bg=st.querySelector(".by-google");if(bg)bg.remove();   // Google não respondeu: tira a frase (agora é o leitor do painel)
