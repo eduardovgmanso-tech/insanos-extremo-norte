@@ -717,9 +717,9 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="pag-cab"><div><h2 style="margin:0">Lista Whatsapp</h2><p class="sub" style="margin:4px 0 0">Monte a lista, marque quem vai e copie para o grupo do WhatsApp.</p></div></div>
     <div class="lw-tipos" role="tablist" id="lwTipos"></div>
     <div class="iz-zap lw-fly-ler">
-      <button type="button" class="btn zap" id="lwLerFly">🖼️ Ler fly e preencher</button>
-      <input type="file" id="lwFlyArq" accept="image/*" hidden>
-      <p class="nota" style="margin:6px 0 0">Escolha a imagem do fly: o painel lê o texto e preenche os campos da lista. A imagem é lida só neste aparelho. <b>Confira os campos depois.</b></p>
+      <button type="button" class="btn zap" id="lwFotoFly">📷 Tirar foto do fly</button><button type="button" class="btn" id="lwLerFly">🖼️ Escolher da galeria</button>
+      <input type="file" id="lwFlyArq" accept="image/*" hidden><input type="file" id="lwFlyCam" accept="image/*" capture="environment" hidden>
+      <p class="nota" style="margin:6px 0 0">Tire uma foto do fly ou escolha a imagem: o leitor do Google lê o texto e preenche os campos da lista (a imagem é apagada logo depois). <b>Confira os campos depois.</b></p>
       <p class="nota" id="lwFlyLido" style="margin:6px 0 0"></p>
     </div>
     <div class="lw-grade">
@@ -2469,6 +2469,8 @@ function lwCarregar(t){if(lw.f[t])return;let v={};try{v=JSON.parse(localStorage.
   lw.f[t]=Object.fromEntries(LW_TIPOS[t].campos.map(([k,,d])=>[k,v[k]!==undefined?v[k]:d]))}
 function montarListas(){
   if($("lwLerFly")){$("lwLerFly").onclick=()=>{$("lwFlyArq").value="";$("lwFlyArq").click()};$("lwFlyArq").onchange=()=>{const f=$("lwFlyArq").files[0];if(f)lwLerFly(f)}}
+  // câmera direto (no celular abre a câmera traseira; no computador, abre a escolha de arquivo)
+  if($("lwFotoFly")){$("lwFotoFly").onclick=()=>{$("lwFlyCam").value="";$("lwFlyCam").click()};$("lwFlyCam").onchange=()=>{const f=$("lwFlyCam").files[0];if(f)lwLerFly(f)}}
   $("lwTipos").innerHTML=Object.entries(LW_TIPOS).map(([k,x])=>`<button type="button" role="tab" data-lwt="${k}" aria-selected="${k===lw.tipo}">${x.nome}</button>`).join("");
   lw.marca=lwMarcasCarregar(lw.tipo);lw.just=lwJustCarregar(lw.tipo);
   $("lwTipos").onclick=ev=>{const b=ev.target.closest("[data-lwt]");if(!b)return;lw.tipo=b.dataset.lwt;lw.marca=lwMarcasCarregar(lw.tipo);lw.just=lwJustCarregar(lw.tipo);
@@ -2558,12 +2560,16 @@ async function flyOcrGoogle(f){const N=DADOS.nuvem;if(!N||!N.url)return null;
   c.getContext("2d").drawImage(img,0,0,c.width,c.height);const b64=c.toDataURL("image/jpeg",.88).split(",")[1];
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),30000);
   try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,ocr:b64}),signal:ac.signal});
-    const j=await r.json();return j&&j.ok&&j.texto&&j.texto.trim()?j.texto:null}catch(_){return null}finally{clearTimeout(to)}}
+    let j=null;try{j=await r.json()}catch(_){flyOcrGoogle.erro="resposta inválida do Apps Script (publique a Nova versão)";return null}
+    if(j&&j.ok&&j.texto&&j.texto.trim())return j.texto;
+    flyOcrGoogle.erro=j&&j.ok?"o Google não achou texto na imagem":(j&&j.erro?j.erro:"sem resposta");return null}
+  catch(e){flyOcrGoogle.erro=e&&e.name==="AbortError"?"demorou demais (mais de 30 s)":"sem conexão com o Apps Script";return null}finally{clearTimeout(to)}}
 async function lwLerFly(f){
   const st=$("lwFlyLido");let lin=null,lin3=[],w=null,bw=null,fonte="leitor do painel";
   // 1º: o leitor do Google (bem melhor com letras estilizadas e fotos); se não responder, o leitor do painel
   if(DADOS.nuvem&&DADOS.nuvem.url){st.textContent="Lendo o fly com o leitor do Google…";
-    const tx=await flyOcrGoogle(f);
+    flyOcrGoogle.erro="";const tx=await flyOcrGoogle(f);
+    if(!tx){st.textContent=`O leitor do Google não respondeu (${flyOcrGoogle.erro||"sem resposta"}). Usando o leitor do painel…`;await new Promise(r=>setTimeout(r,1800))}
     if(tx){lin=tx.split(/\n+/).map(t=>({t:t.replace(/\s+/g," ").trim(),b:null})).filter(l=>l.t.length>2);fonte="leitor do Google"}}
   if(!lin){st.textContent="Carregando o leitor de texto (na primeira vez pode levar alguns segundos)…";
     try{await ocrCarregar()}catch(e){st.textContent="Não consegui carregar o leitor de texto. Ele precisa de internet na primeira vez.";return}}
@@ -2634,6 +2640,7 @@ async function lwLerFly(f){
     const lido=lin.concat(lin3.filter(x=>!lin.some(y=>y.t===x.t))).map(l=>l.t).join("\n");
     st.innerHTML=(usados.size?`✅ Fly lido pelo ${fonte}: <b>${usados.size} campo(s) preenchido(s)</b> (com borda dourada). Confira e corrija o que precisar antes de enviar.`
       :`⚠️ Li o fly, mas não reconheci data, local nem endereço. Confira o texto abaixo e preencha os campos à mão.`)
+      +(flyOcrGoogle.erro&&fonte!=="leitor do Google"?`<br><small style="color:#E9B949">Leitor do Google: ${esc(flyOcrGoogle.erro)}</small>`:"")
       +`<details style="margin-top:6px"><summary style="cursor:pointer">Ver o texto lido</summary><pre style="white-space:pre-wrap;font:12px/1.4 inherit;margin:6px 0 0;max-height:220px;overflow:auto;background:#0b0b0b;border:1px solid var(--linha);border-radius:8px;padding:8px">${esc(lido||"(nada)")}</pre></details>`;
   }catch(e){st.textContent="Não consegui ler esse fly. Tente uma imagem maior ou mais nítida."}
   finally{if(w)await w.terminate()}}
