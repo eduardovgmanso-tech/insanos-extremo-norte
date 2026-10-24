@@ -2577,7 +2577,7 @@ const FLY_MESES_N={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,
 function flyTitulo(s){const peq=["da","de","do","das","dos","e"];return String(s).toLowerCase().replace(/\s+/g," ").trim().split(" ").map((w,i)=>i&&peq.includes(w)?w:w.charAt(0).toUpperCase()+w.slice(1)).join(" ")}
 // leitor do Google (pelo Apps Script da planilha): manda a imagem reduzida e recebe o texto
 function avisoRapido(txt,erro){let a=document.getElementById("avisoRapido");if(!a){a=document.createElement("div");a.id="avisoRapido";a.className="aviso-rapido";a.setAttribute("role","status");document.body.appendChild(a)}
-  a.textContent=txt;a.classList.toggle("erro",!!erro);a.classList.add("on");clearTimeout(avisoRapido.t);avisoRapido.t=setTimeout(()=>a.classList.remove("on"),3800)}
+  a.textContent=txt;a.classList.toggle("erro",!!erro);a.classList.add("on");clearTimeout(avisoRapido.t);avisoRapido.t=setTimeout(()=>a.classList.remove("on"),txt.length>90?7000:3800)}
 // apaga a leitura e todos os campos da lista (mantém só a assinatura)
 function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;const F=lw.f[lw.tipo]||{},assin=F.assin;
   lw.f[lw.tipo]=Object.fromEntries(T.campos.map(([k,,d])=>[k,d]));if(assin!==undefined)lw.f[lw.tipo].assin=assin;
@@ -2610,7 +2610,7 @@ Responda SOMENTE um objeto JSON com estas chaves (use "" quando a informação n
 Regras: escreva com maiúsculas e minúsculas normais e com acentos (não tudo em maiúsculas); "R." vira "R." mesmo; não invente nada que não esteja no fly; ignore o rodapé (#SOMOSdeVERDADE, sites, rádio, "Insanos MC").`}
 async function flyIA(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return null;
   const b64=await flyImagem64(f,camera);if(!b64)return null;
-  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),camera?50000:40000);
+  const ac=new AbortController(),to=setTimeout(()=>ac.abort(),camera?75000:60000);
   try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,ia:b64,prompt:flyPedidoIA()}),signal:ac.signal});
     const j=await r.json().catch(()=>null);if(j&&j.ok&&j.campos&&typeof j.campos==="object")return j.campos;
     flyIA.erro=j&&j.erro?j.erro:"sem resposta";return null}
@@ -2649,7 +2649,7 @@ async function lwLerFly(f,camera){
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
   st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura com IA · powered by Google</small>':""}</span>`;
   // porcentagem estimada: sobe aos poucos (mais devagar perto de 90%) e vai a 100% quando o resultado chega
-  let pct=0;const pctEl=()=>st.querySelector(".lendo-pct"),passo=camera?.035:.05;
+  let pct=0;const pctEl=()=>st.querySelector(".lendo-pct"),passo=camera?.02:.028;
   // a caveira enche de baixo para cima, nas cores da caveira dos eventos (vermelho, amarelo, verde e dourado)
   const pinta=v=>{const e=pctEl(),cv=st.querySelector(".cav-mini"),cor=corFaixa(v)[1];if(e){e.textContent=v+"%";e.style.color=cor}
     if(cv){cv.style.setProperty("--p",v+"%");cv.style.setProperty("--c",cor)}};
@@ -2659,6 +2659,7 @@ async function lwLerFly(f,camera){
   if(usaGoogle){flyIA.erro="";const c=await flyIA(f,camera);
     if(c){const n=flyAplicarIA(c);if(n){fimPct();await new Promise(r=>setTimeout(r,350));clearInterval(timer);st.textContent="";$("lwFlyLimpar").hidden=false;
       avisoRapido(`✅ Fly lido pela IA do Google (Gemini): ${n} campo(s) preenchido(s). Confira os campos.`);return}}
+    if(!flyIA.erro)flyIA.erro="a resposta veio sem campos";
     const bg=st.querySelector(".by-google");if(bg)bg.textContent="Leitura powered by Google";}   // Gemini não respondeu: segue com o leitor do Google
   // 2º: o leitor do Google (texto) com as regras do painel; 3º: o leitor do painel
   if(DADOS.nuvem&&DADOS.nuvem.url){
@@ -2733,7 +2734,8 @@ async function lwLerFly(f,camera){
     lwFlyCampos=usados;lwGuardar();lwCampos();lwAtualiza();
     // terminou: aviso rápido com o resultado e o botão para apagar tudo
     fimPct();await new Promise(r=>setTimeout(r,350));st.textContent="";$("lwFlyLimpar").hidden=false;
-    avisoRapido(usados.size?`✅ Fly lido pelo ${fonte}: ${usados.size} campo(s) preenchido(s). Confira os campos.`:"⚠️ Li o fly, mas não reconheci os campos. Preencha à mão.",!usados.size);
+    const porque=usaGoogle&&flyIA.erro?` (a IA não respondeu: ${String(flyIA.erro).slice(0,90)})`:"";
+    avisoRapido((usados.size?`✅ Fly lido pelo ${fonte}: ${usados.size} campo(s) preenchido(s). Confira os campos.`:"⚠️ Li o fly, mas não reconheci os campos. Preencha à mão.")+porque,!usados.size);
   }catch(e){st.textContent="";avisoRapido("Não consegui ler esse fly. Tente uma foto mais nítida.",1)}
   finally{clearInterval(timer);if(w)await w.terminate()}}
 function lwCampos(){lwCarregar(lw.tipo);const f=lw.f[lw.tipo];
