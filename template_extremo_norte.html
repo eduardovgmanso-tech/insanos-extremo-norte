@@ -33,9 +33,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;
 html.com-video .fundo-video{opacity:.32}html.com-video body::before{opacity:0}
 @media (prefers-reduced-motion:reduce){.fundo-video{display:none}}
 
-header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 30px;margin-bottom:28px}
-h1{font-family:var(--titulo);font-weight:900;font-size:clamp(46px,8vw,92px);line-height:.86;margin:0;letter-spacing:.01em}
-h1 small{display:block;font-weight:600;font-size:.32em;letter-spacing:.06em;color:var(--osso2);margin-top:10px}
+header{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px 30px;margin-bottom:28px}
+h1{font-family:var(--titulo);font-weight:900;font-size:clamp(32px,4.6vw,54px);line-height:.92;margin:0;letter-spacing:.01em}
+h1 small{display:block;font-weight:600;font-size:.42em;letter-spacing:.06em;color:var(--osso2);margin-top:8px}
 .periodo{color:var(--osso2);font-size:14px;text-align:right}
 .periodo b{display:block;color:var(--osso);font-weight:600;font-size:16px}
 
@@ -294,7 +294,7 @@ body.adm .wrap{margin-left:212px}
 .lateral button:focus-visible{outline:2px solid var(--osso);outline-offset:2px}
 body.adm[data-view="pag"] .v-painel,body.adm[data-view="lancar"] .v-painel{display:none!important}
 body.adm #pagView,body.adm #lancar{display:none}
-body.adm[data-view="pag"] header h1,body.adm[data-view="lancar"] header h1,body.adm[data-view="pag"] .periodo,body.adm[data-view="lancar"] .periodo{display:none}
+body.adm[data-view="pag"] .periodo,body.adm[data-view="lancar"] .periodo{display:none}
 body.adm[data-view="pag"] header,body.adm[data-view="lancar"] header{min-height:70px}
 @media (min-width:901px){body.adm:not([data-view="painel"]) header{min-height:286px}}
 body.adm[data-view="pag"] #pagView{display:block}
@@ -364,7 +364,7 @@ body.adm[data-view="lancar"] #lancar summary{pointer-events:none}body.adm[data-v
 body.adm #acessosView{display:none}
 body.adm #dashView{display:none}body.adm[data-view="dash"] #dashView{display:block}
 body.adm[data-view="dash"] .v-painel{display:none!important}
-body.adm[data-view="dash"] header h1,body.adm[data-view="dash"] .periodo{display:none}
+body.adm[data-view="dash"] .periodo{display:none}
 body.adm a.site18.dash18{display:flex}body.adm a.site18.plan18:not([hidden]){display:flex}#plan18[hidden]{display:none!important}
 body.adm header:has(#plan18:not([hidden])){min-height:345px}
 body:not(.adm) #dash18,body:not(.adm) #dashView{display:none!important}
@@ -384,7 +384,7 @@ body:not(.adm) #dash18,body:not(.adm) #dashView{display:none!important}
 .dleg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--osso2);margin:0 0 4px}.dleg i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:4px}
 body.adm[data-view="acessos"] #acessosView{display:block}
 body.adm[data-view="acessos"] .v-painel{display:none!important}
-body.adm[data-view="acessos"] header h1,body.adm[data-view="acessos"] .periodo{display:none}
+body.adm[data-view="acessos"] .periodo{display:none}
 .ac-l{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:4px 14px;align-items:center;padding:10px 12px;border:1px solid var(--linha);border-radius:10px;margin-bottom:6px;background:rgba(0,0,0,.25)}
 .ac-l.no{border-color:rgba(210,90,87,.55);background:rgba(163,48,47,.10)}
 .ac-l .q{font-weight:700;font-size:14px}.ac-l .q small{display:block;font-weight:500;color:var(--osso2);font-size:12px}
@@ -393,7 +393,7 @@ body.adm[data-view="acessos"] header h1,body.adm[data-view="acessos"] .periodo{d
 .ac-l .r.ok{background:rgba(76,175,106,.2);color:#8FD9A3}.ac-l .r.no{background:rgba(210,90,87,.2);color:#F2A3A3}
 @media (max-width:600px){.ac-l{grid-template-columns:minmax(0,1fr) auto}.ac-l .q{grid-column:1/-1}}
 body.adm[data-view="fotos"] .v-painel{display:none!important}
-body.adm[data-view="fotos"] header h1,body.adm[data-view="fotos"] .periodo{display:none}
+body.adm[data-view="fotos"] .periodo{display:none}
 .galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
 @media (max-width:900px){
   body.adm .lateral{gap:0;padding-left:2px;padding-right:2px}
@@ -411,19 +411,19 @@ body.adm[data-view="fotos"] header h1,body.adm[data-view="fotos"] .periodo{displ
 body.adm #kitView{display:none}
 body.adm[data-view="kit"] #kitView{display:block}
 body.adm[data-view="kit"] .v-painel{display:none!important}
-body.adm[data-view="kit"] header h1,body.adm[data-view="kit"] .periodo{display:none}
+body.adm[data-view="kit"] .periodo{display:none}
 #kcZap[aria-disabled=true]{opacity:.45;pointer-events:none}
 #kcPrev{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;background:rgba(0,0,0,.4);border:1px solid var(--linha);border-radius:10px;padding:14px;max-height:70vh;overflow:auto;margin:0}
 body.adm #fichaView{display:none}
 body.adm[data-view="ficha"] #fichaView{display:block}
 body.adm[data-view="ficha"] .v-painel{display:none!important}
-body.adm[data-view="ficha"] header h1,body.adm[data-view="ficha"] .periodo{display:none}
+body.adm[data-view="ficha"] .periodo{display:none}
 #fcPrev{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;background:rgba(0,0,0,.4);border:1px solid var(--linha);border-radius:10px;padding:14px;max-height:70vh;overflow:auto;margin:0}
 #fcZap[aria-disabled=true]{opacity:.45;pointer-events:none}
 body.adm #listasView{display:none}
 body.adm[data-view="listas"] #listasView{display:block}
 body.adm[data-view="listas"] .v-painel{display:none!important}
-body.adm[data-view="listas"] header h1,body.adm[data-view="listas"] .periodo{display:none}
+body.adm[data-view="listas"] .periodo{display:none}
 .sem-assin{opacity:.5}
 .fly-aviso{color:#D9B26A;font-weight:600;margin:6px 0 10px}
 .fly-aviso[hidden]{display:none}
@@ -539,7 +539,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
 @media (max-width:600px){
   .wrap{padding:22px 14px 40px}
   header{margin-bottom:20px}
-  h1 small{font-size:.38em}
+  h1 small{font-size:.46em}
   .filtros{padding:12px;gap:10px}
   .resumo{padding:16px}
   .painel{padding:16px}
@@ -2212,8 +2212,13 @@ function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
     try{izAtualiza()}catch(e){}}
   else{if(z.parentNode!==INS_CASA.parentNode)INS_CASA.parentNode.insertBefore(z,INS_CASA.nextSibling);
     z.hidden=!(document.body.dataset.view==="painel"&&ANAL==="ins"&&IZ_MODO==="preencher");$("lancDet").hidden=false;if(tp==="evento")$("lancDet").open=true}}
+const TELA_TIT={pag:"Pagamentos",lancar:"Lançar",ficha:"Cadastro",kit:"Kit / colete",acessos:"Acessos",listas:"Lista WhatsApp",dash:"Dashboard"};
 function irPara(v){
   document.body.dataset.view=v;
+  {const h=document.querySelector("header h1");if(h&&h.firstChild&&TELA_TIT[v])h.firstChild.nodeValue=TELA_TIT[v];
+   // se a tela já tem um título igual ao do topo, esconde o de dentro (não repete)
+   const nz=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z]/g,"");
+   document.querySelectorAll("section h2").forEach(h2=>{h2.hidden=!!TELA_TIT[v]&&nz(h2.firstChild&&h2.firstChild.nodeValue||h2.textContent)===nz(TELA_TIT[v])})}
   if($("insZap")&&INS_CASA&&v!=="lancar")lancTipo(LANC_TIPO==="insight"?"insight":"evento");
   if(v==="painel"){aplicarAnalise();montarFiltros();render()}
   else{M=M_FULL;EV=EV_SETS.pres.map((e,i)=>({...e,i}));document.body.classList.remove("iz-preencher")}
@@ -2274,9 +2279,14 @@ function montarPagamentos(){montarAfastados();
   const hn=(P.agenda||[]).map(h=>+h.slice(0,2)),hs=hn.map(h=>h+"h");
   const seguidas=hn.length>2&&hn.every((h,i)=>!i||h===hn[i-1]+1);
   const lista=seguidas?`de hora em hora, das ${hs[0]} às ${hs[hs.length-1]}`:hs.length>1?hs.slice(0,-1).join(", ")+" e "+hs[hs.length-1]:hs.join("");
+  if(DADOS.nuvem){const noPrazo=dv!=null&&dv>=0;   // na nuvem: automática, do dia 1 ao vencimento, de meia em meia hora das 7h às 18h
+    $("pagAgenda").className="pag-agenda on";
+    $("pagAgenda").innerHTML=noPrazo?`✅ Verificação automática ATIVA: de meia em meia hora, das 7h às 18h, até o vencimento (${venc}).<small>Feita na nuvem, sem depender de computador.</small>`
+      :`⏸️ Verificação automática em pausa até o dia 01.<small>Ela volta sozinha no próximo mês, de meia em meia hora, das 7h às 18h.</small>`}
+  else{
   $("pagAgenda").className="pag-agenda "+(hs.length?"on":"off");
   $("pagAgenda").innerHTML=hs.length?`✅ Verificação automática ATIVA: ${lista}, até o vencimento (${venc}).<small>Situação conferida no Windows quando o painel foi gerado.</small>`
-    :`⚠️ Verificação automática DESLIGADA.<small>Para ligar, rode o AtivarVerificacaoAutomatica.bat no computador do painel.</small>`;
+    :`⚠️ Verificação automática DESLIGADA.<small>Para ligar, rode o AtivarVerificacaoAutomatica.bat no computador do painel.</small>`}
   $("pagKpis").innerHTML=`<div><span>Pagos (boleto)</span><b style="color:var(--presente)">${cont.pago}<small style="font-size:16px;color:var(--osso2)"> de ${tot}</small></b></div>
     <div><span>Em compensação</span><b style="color:#D9B26A">${cont.aguard}</b></div>
     <div><span>Sem pagamento</span><b style="color:#D25A57">${cont.aberto}</b></div>
@@ -2288,10 +2298,10 @@ function montarPagamentos(){montarAfastados();
   const todosPagos=tot>0&&cont.pago===tot;
   if(todosPagos){const mes=MESES[+(P.venc||"2000-01").slice(5,7)-1].toLowerCase();
     $("pagAgenda").className="pag-agenda on todos";
-    $("pagAgenda").innerHTML=`✅ Todos os pagamentos de ${mes} foram feitos!<small>Desligue a verificação automática (DesativarVerificacaoAutomatica.bat) e ligue de novo no dia 01 (AtivarVerificacaoAutomatica.bat).</small>`}
+    $("pagAgenda").innerHTML=`✅ Todos os pagamentos de ${mes} foram feitos!<small>${DADOS.nuvem?"A verificação automática continua até o vencimento e volta sozinha no dia 01.":"Desligue a verificação automática (DesativarVerificacaoAutomatica.bat) e ligue de novo no dia 01 (AtivarVerificacaoAutomatica.bat)."}</small>`}
   const v=P.verif;
   $("pagVerif").hidden=todosPagos;
-  $("pagVerif").innerHTML=P.verif_antiga?`<span style="color:#D9B26A;font-weight:600">⚠️ Ainda não houve verificação dos boletos de ${MESES[+P.venc.slice(5,7)-1].toLowerCase()}</span> (a última foi em ${esc(v.quando)}). Cole os links dos boletos novos na coluna J da aba PGTO e rode o VerificarPagamentos.bat.`
+  $("pagVerif").innerHTML=P.verif_antiga?`<span style="color:#D9B26A;font-weight:600">⚠️ Ainda não houve verificação dos boletos de ${MESES[+P.venc.slice(5,7)-1].toLowerCase()}</span> (a última foi em ${esc(v.quando)}). Cole os links dos boletos novos na coluna J da aba PGTO${DADOS.nuvem?" (planilha do Google): a próxima verificação, em até 30 minutos, confere.":" e rode o VerificarPagamentos.bat."}`
     :v&&v.quando?`Última verificação dos boletos na Iugu: <b>${esc(v.quando)}</b>.`:"Status conforme a aba PGTO da planilha. A verificação dos boletos ainda não rodou.";
   const pri={aberto:0,aguard:1,pago:2};
   const cartao=m=>{const c=cls(m.n),ob=(P.obs||{})[m.n];
@@ -2789,11 +2799,12 @@ function montarCadastro(){if(!$("cadCampos"))return;
     const falta=[["ap","Apelido"],["num","Nº do sistema"],["cargo","Cargo"],["grau","Grau"],["apos","Entra na lista depois de"]].filter(([k])=>!d[k]).map(([,r])=>r);
     if(falta.length){alert("Preencha: "+falta.join(", "));return}
     if(M_FULL.some(m=>zNorm(m.n)===zNorm(d.ap))||(DADOS.afastados||[]).some(a=>zNorm(a.n)===zNorm(d.ap))){alert(`Já existe um integrante com o apelido "${d.ap}".`);return}
-    if(!confirm(`Efetivar a entrada de ${d.ap}? O painel gera o arquivo, e o GerarPainel inclui ele na planilha (Dados Integrantes, Presenca, Insights, Staff e PGTO).`))return;
+    if(!confirm(DADOS.nuvem?`Efetivar a entrada de ${d.ap}? O painel envia para a planilha do Google (Dados Integrantes, Presenca, Insights e PGTO).`:`Efetivar a entrada de ${d.ap}? O painel gera o arquivo, e o GerarPainel inclui ele na planilha (Dados Integrantes, Presenca, Insights, Staff e PGTO).`))return;
     const grau=d.grau.trim().toUpperCase(),dados={tipo:"integrante",acao:"novo",apelido:d.ap,apos:d.apos,
       dados:{num:d.num,cargo:d.cargo,grau:(grau.length<=2?" ":"")+grau,tel:d.tel,nome:d.nome,nasc:d.nasc,cpf:d.cpf,colete:d.colete,tam:d.tam,email:d.email}};
     if(await cadArquivo(dados,`integrante_novo_${cadSlug(d.ap)}_${Date.now()}.json`)){c.efetivado=new Date().toLocaleDateString("pt-BR");cadGuardar(l);desenharSel();
-      $("cadAviso").innerHTML=`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para incluir ${esc(d.ap)} na planilha. O cadastro continua guardado aqui até você apagar.`}};
+      $("cadAviso").innerHTML=DADOS.nuvem?`✅ Enviado para a planilha. Em uns 3 minutos ${esc(d.ap)} aparece no painel. O cadastro continua guardado aqui até você apagar.`
+        :`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para incluir ${esc(d.ap)} na planilha. O cadastro continua guardado aqui até você apagar.`}};
   desenharSel();
   // situação: afastar, reativar, excluir
   const afast=(DADOS.afastados||[]);
@@ -2812,7 +2823,7 @@ function montarCadastro(){if(!$("cadCampos"))return;
     if(acao==="reativar"){if(!$("sitApos").value){alert("Escolha depois de quem ele volta na lista.");return}d.apos=$("sitApos").value}
     const txt={afastar:`Afastar ${ap} a partir de ${lwBR(d.desde||"")}? Ele sai das listas e dos pagamentos.`,excluir:`EXCLUIR ${ap} DEFINITIVAMENTE?\n\nTodos os dados dele serão apagados da planilha: linha na Dados Integrantes, colunas na Presenca, Insights e Staff (com o histórico de presenças) e linha na PGTO. A numeração dos irmãos abaixo dele sobe.\n\n${DADOS.nuvem?"Se precisar desfazer: na planilha do Google, Arquivo > Histórico de versões.":"O GerarPainel faz um backup da planilha antes (pasta Lancamentos\\backup)."}`,reativar:`Reativar ${ap}, voltando depois de ${d.apos}?`}[acao];
     if(!confirm(txt))return;
-    if(await cadArquivo(d,`integrante_${acao}_${cadSlug(ap)}_${Date.now()}.json`))$("sitAviso").innerHTML=`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para aplicar na planilha.`}}
+    if(await cadArquivo(d,`integrante_${acao}_${cadSlug(ap)}_${Date.now()}.json`))$("sitAviso").innerHTML=DADOS.nuvem?`✅ Enviado para a planilha. Em uns 3 minutos aparece no painel.`:`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para aplicar na planilha.`}}
 const FC_CAMPOS=["Nome Da Tarjeta Do Colete","Nome Completo","Cpf","Rg","Nascimento","Cep","Rua","Bairro","Cidade","Tel. com Whatssapp","Email",
   "Tel. Emergência e Contato","Profissão","Camisa Tamanho","Couro Ou Jeans","Tamanho Do Colete","Possui Carro","Possui Moto","Padrinho","Indicação"];
 const FC_MSG_PADRAO=()=>`*💀🇧🇷 Seja muito bem-vindo{NOME} à família Insanos M.C.! 🇧🇷💀*
@@ -2993,7 +3004,7 @@ function montarLancamento(){
     return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lanc-grade">${ms.map(m=>`<div class="lanc-l"><span>${esc(m.n)}</span>
       <div class="seg" role="group" aria-label="${esc(m.n)}">${["Sim","Staff","Não","-"].map(v=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="false" ${v==="Staff"?'title="Fez staff (conta como presença)"':""}>${v==="-"?"–":v==="Staff"?"🛠️ Staff":v}</button>`).join("")}</div></div>`).join("")}</div>`}).join("");
   const hoje=new Date();$("lData").value=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;
-  $("lDica").textContent=podeCompartilhar()
+  $("lDica").textContent=DADOS.nuvem?"Ao salvar, o lançamento vai direto para a planilha do Google, e o painel se atualiza em uns 3 minutos.":podeCompartilhar()
     ?"No celular, ao salvar abre o compartilhar: mande o arquivo para o Eduardo pelo WhatsApp."
     :"O arquivo vai para Downloads. O GerarPainel.bat encontra e importa sozinho na próxima vez que rodar.";
   atualizaLanc();
