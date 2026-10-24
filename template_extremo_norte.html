@@ -2612,7 +2612,15 @@ async function flyIA(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return null;
   const b64=await flyImagem64(f,camera);if(!b64)return null;
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),camera?75000:60000);
   try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,ia:b64,prompt:flyPedidoIA()}),signal:ac.signal});
-    const j=await r.json().catch(()=>null);if(j&&j.ok&&j.campos&&typeof j.campos==="object")return j.campos;
+    const j=await r.json().catch(()=>null);
+    if(j&&j.ok&&j.campos){let c=j.campos;
+      // o Gemini às vezes devolve os campos dentro de uma lista ou de outra chave: acha o objeto com os campos
+      if(typeof c==="string"){try{c=JSON.parse(c)}catch(_){}}
+      if(Array.isArray(c))c=c.find(x=>x&&typeof x==="object")||{};
+      if(c&&typeof c==="object"&&!("tipo" in c)&&!("titulo" in c)){const dentro=Object.values(c).find(v=>v&&typeof v==="object"&&!Array.isArray(v)&&("tipo" in v||"titulo" in v||"data" in v));if(dentro)c=dentro}
+      // chaves com acento ou maiúsculas ("Endereço", "Título"): deixa no padrão
+      if(c&&typeof c==="object"){const n={};for(const[k,v]of Object.entries(c))n[k.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z_]/g,"")]=v;c=n}
+      flyIA.bruto=JSON.stringify(j.campos).slice(0,120);return c}
     flyIA.erro=j&&j.erro?j.erro:"sem resposta";return null}
   catch(e){flyIA.erro=e&&e.name==="AbortError"?"demorou demais":"sem conexão";return null}finally{clearTimeout(to)}}
 // coloca o que o Gemini devolveu nos campos de cada tipo de lista
@@ -2659,7 +2667,7 @@ async function lwLerFly(f,camera){
   if(usaGoogle){flyIA.erro="";const c=await flyIA(f,camera);
     if(c){const n=flyAplicarIA(c);if(n){fimPct();await new Promise(r=>setTimeout(r,350));clearInterval(timer);st.textContent="";$("lwFlyLimpar").hidden=false;
       avisoRapido(`✅ Fly lido pela IA do Google (Gemini): ${n} campo(s) preenchido(s). Confira os campos.`);return}}
-    if(!flyIA.erro)flyIA.erro="a resposta veio sem campos";
+    if(!flyIA.erro)flyIA.erro="a resposta veio num formato inesperado: "+(flyIA.bruto||"vazia");
     const bg=st.querySelector(".by-google");if(bg)bg.textContent="Leitura powered by Google";}   // Gemini não respondeu: segue com o leitor do Google
   // 2º: o leitor do Google (texto) com as regras do painel; 3º: o leitor do painel
   if(DADOS.nuvem&&DADOS.nuvem.url){
