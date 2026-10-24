@@ -2588,6 +2588,9 @@ async function flyImagem64(f,camera){const img=await _img(URL.createObjectURL(f)
   const e=Math.min(1,lado/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*e);c.height=Math.round(img.height*e);
   const g=c.getContext("2d");g.imageSmoothingQuality="high";g.drawImage(img,0,0,c.width,c.height);return c.toDataURL("image/jpeg",qual).split(",")[1]}
 // ---- leitura inteligente com o Gemini (a IA do Google): entende o fly e devolve os campos já separados ----
+// modelos, em ordem: os apelidos "-latest" passam sozinhos para o modelo mais novo quando o Google aposenta um
+// (o gemini-2.5-flash foi aposentado para chaves novas); o "lite" é mais rápido e tem menos procura
+const FLY_MODELOS=["gemini-flash-latest","gemini-flash-lite-latest","gemini-2.0-flash"];
 function flyPedidoIA(){const hoje=new Date().toISOString().slice(0,10);
   return `Você lê flys (cartazes) de eventos do moto clube Insanos MC e devolve os dados para preencher uma lista do WhatsApp.
 Responda SOMENTE um objeto JSON com estas chaves (use "" quando a informação não estiver no fly):
@@ -2611,7 +2614,7 @@ Regras: escreva com maiúsculas e minúsculas normais e com acentos (não tudo e
 async function flyIA(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return null;
   const b64=await flyImagem64(f,camera);if(!b64)return null;
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),camera?75000:60000);
-  try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,ia:b64,prompt:flyPedidoIA()}),signal:ac.signal});
+  try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,ia:b64,prompt:flyPedidoIA(),modelos:FLY_MODELOS}),signal:ac.signal});
     const j=await r.json().catch(()=>null);
     if(j&&j.ok&&j.campos){let c=j.campos;
       // o Gemini às vezes devolve os campos dentro de uma lista ou de outra chave: acha o objeto com os campos
