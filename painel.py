@@ -197,19 +197,29 @@ input:focus-visible,button:focus-visible{outline:2px solid var(--osso);outline-o
 .fundo-video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:-1;opacity:0;pointer-events:none;transition:opacity .8s}
 html.com-video .fundo-video{opacity:1}html.com-video body::before{opacity:0}
 html.com-video body.entrou .fundo-video{opacity:.55}
-body.abertura #f,body.abertura .fotos-login,body.abertura .manut{opacity:0;transform:translateY(8px);pointer-events:none}
-#f,.fotos-login,.manut{transition:opacity .9s ease,transform .9s ease}
+body.abertura #f,body.abertura .manut{opacity:0;transform:translateY(8px);pointer-events:none}
+#f,.manut{transition:opacity .9s ease,transform .9s ease}
+/* fotos: durante a abertura vão surgindo uma a uma (sem mexer na inclinação de cada uma) */
+.fotos-login .fl{transition:opacity .9s ease,scale .9s ease}
+body.abertura:not(.fotos-on) .fotos-login .fl{opacity:0;scale:.85}
+body.abertura.fotos-on .fotos-login .fl{opacity:.45}      /* durante o vídeo, bem visíveis; depois voltam a ficar clarinhas */
+.fotos-login .fl:nth-child(2){transition-delay:.3s}.fotos-login .fl:nth-child(3){transition-delay:.6s}
+.fotos-login .fl:nth-child(4){transition-delay:.9s}.fotos-login .fl:nth-child(5){transition-delay:1.2s}.fotos-login .fl:nth-child(6){transition-delay:1.5s}
+body.entrou:not(.anim) .fotos-login .fl{transition:none}
+body.entrou .fotos-login .fl{transition-delay:0s!important}     /* ao entrar, todas esmaecem juntas */
 @media (prefers-reduced-motion:reduce){.fundo-video{display:none}}
 </style></head><body class="abertura"><video class="fundo-video" id="fv" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
   oncanplay="document.documentElement.classList.add('com-video')" onerror="this.remove();entrar()"></video>
 <script>
 // abertura do app: o vídeo aparece sozinho por ~2 s e depois a tela de entrada surge por cima
 // (uma vez por visita; sem vídeo, internet fraca ou "menos movimento": aparece na hora)
-function entrar(){document.body.classList.remove("abertura");document.body.classList.add("entrou");try{sessionStorage.setItem("abertura_vista","1")}catch(_){}}
+function entrar(){document.body.classList.add("fotos-on");document.body.classList.remove("abertura");document.body.classList.add("entrou");try{sessionStorage.setItem("abertura_vista","1")}catch(_){}}
 (function(){let vista=false;try{vista=sessionStorage.getItem("abertura_vista")==="1"}catch(_){}
   if(vista||matchMedia("(prefers-reduced-motion:reduce)").matches){entrar();return}
   const v=document.getElementById("fv");let ok=false;
-  if(v)v.addEventListener("playing",()=>{if(ok)return;ok=true;setTimeout(entrar,2200)},{once:true});
+  if(v)v.addEventListener("playing",()=>{if(ok)return;ok=true;document.body.classList.add("anim");
+    setTimeout(()=>document.body.classList.add("fotos-on"),400);   // as fotos surgem uma a uma enquanto o logo se forma
+    setTimeout(entrar,2600)},{once:true});
   setTimeout(()=>{if(!ok)entrar()},1500);       // o vídeo não começou a tempo: não deixa ninguém esperando
   setTimeout(entrar,6000)})();                   // garantia
 </script>__FOTOS__
