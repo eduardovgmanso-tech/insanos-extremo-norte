@@ -3234,14 +3234,15 @@ function bmkSICodigo(){const N=DADOS.nuvem;if(!N||!N.url)return "";
       let a=null,st="",val="";for(let k=ini;k<=fim;k++){const cel=g[k];if(!cel)continue;const x=cel.querySelector("a[href]");if(x&&!a){a=x}const t=(cel.innerText||"").trim();if(/\d+,\d{2}/.test(t)&&!val)val=t;else if(t&&!st)st=t}
       if(a&&/^https?:/i.test(a.href))itens.push({ap:m[1],link:a.href,status:(a.innerText||st).trim(),valor:val});else semLink++}
     if(!itens.length){alert("Nenhum boleto com link no mês "+(mi+1)+".");return}
-    const ano=hoje.getFullYear()+(mi<hoje.getMonth()-6?1:mi>hoje.getMonth()+6?-1:0);   // em dezembro, "janeiro" é do ano que vem
+    const ano=hoje.getFullYear()+(mi<hoje.getMonth()-6?1:mi>hoje.getMonth()+6?-1:0);
     const mes=ano+"-"+String(mi+1).padStart(2,"0");
     if(!confirm("Enviar ao painel "+itens.length+" boleto(s) de "+MESES[mi]+"?"+(semLink?"\n("+semLink+" linha(s) sem link nesse mês)":"")))return;
     fetch(URL_,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify({chave:CHAVE_,quem:"botão do Sistema Insanos",dados:{tipo:"boletos_sistema",mes:mes,itens:itens}})})
       .then(()=>alert("✅ Enviado! Em uns 3 minutos os links estão na planilha e o painel atualiza."))
       .catch(e=>alert("Não consegui enviar ("+e.message+"). Avise o Edu."))};
-  return "javascript:("+f.toString()+")("+JSON.stringify(N.url)+","+JSON.stringify(N.chave)+");void 0"}
+  const fonte=f.toString().replace(/\s*\n\s*/g," ");   // numa linha só: o Chrome tira as quebras de linha ao guardar o favorito
+  return "javascript:("+fonte+")("+JSON.stringify(N.url)+","+JSON.stringify(N.chave)+");void 0"}
 (function(){const b=$("bmkSI");if(!b||!DADOS.nuvem||!DADOS.nuvem.url)return;$("bmkSIBox").hidden=false;b.href=bmkSICodigo();
   b.onclick=ev=>{ev.preventDefault();avisoRapido("Arraste este botão para a barra de favoritos do Chrome.")};
   $("bmkSICopiar").onclick=async()=>{try{await navigator.clipboard.writeText(bmkSICodigo());avisoRapido("📋 Código copiado. No Chrome: botão direito na barra de favoritos > Adicionar página > cole no campo URL.")}catch(_){prompt("Copie o código:",bmkSICodigo())}}})();
