@@ -443,7 +443,10 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 #lwFlyLimpar[hidden]{display:none!important}
 .lendo{display:inline-flex;align-items:center;gap:6px 10px;flex-wrap:wrap;padding:8px 12px;border-radius:10px;background:rgba(236,231,220,.06);border:1px solid var(--linha)}
 .lendo b{color:var(--osso);font-size:15px}.lendo-ico{display:inline-block;animation:lupa 1.2s ease-in-out infinite}
-.logo-gira{width:30px;height:30px;object-fit:contain;animation:gira 1.4s linear infinite;filter:drop-shadow(0 0 6px rgba(236,231,220,.25))}
+.cav-mini{position:relative;display:inline-block;width:36px;height:44px;flex:0 0 36px;isolation:isolate}
+.cav-mini::before{content:"";position:absolute;inset:0;background:var(--cav) center/contain no-repeat;filter:grayscale(1) brightness(.75) contrast(1.1)}
+.cav-mini::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,var(--c) var(--p),transparent var(--p));
+  -webkit-mask:var(--cav) center/contain no-repeat;mask:var(--cav) center/contain no-repeat;mix-blend-mode:multiply;transition:background .3s}
 .lendo-pct{display:inline-block;min-width:3.2em;color:#E9B949;font-variant-numeric:tabular-nums}
 @keyframes gira{to{transform:rotate(360deg)}}
 .by-google{flex-basis:100%;font-size:12px;letter-spacing:.04em;color:var(--osso2);font-style:italic}
@@ -2594,11 +2597,14 @@ async function flyOcrGoogle(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return n
 async function lwLerFly(f,camera){
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
-  st.innerHTML=`<span class="lendo"><img class="logo-gira" src="${LOGO}" alt="" aria-hidden="true"><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura powered by Google</small>':""}</span>`;
+  st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura powered by Google</small>':""}</span>`;
   // porcentagem estimada: sobe aos poucos (mais devagar perto de 90%) e vai a 100% quando o resultado chega
   let pct=0;const pctEl=()=>st.querySelector(".lendo-pct"),passo=camera?.035:.05;
-  const timer=setInterval(()=>{pct+=(92-pct)*passo;const e=pctEl();if(e)e.textContent=Math.floor(pct)+"%"},150);
-  const fimPct=()=>{clearInterval(timer);const e=pctEl();if(e)e.textContent="100%"};let lin=null,lin3=[],w=null,bw=null,fonte="leitor do painel";
+  // a caveira enche de baixo para cima, nas cores da caveira dos eventos (vermelho, amarelo, verde e dourado)
+  const pinta=v=>{const e=pctEl(),cv=st.querySelector(".cav-mini"),cor=corFaixa(v)[1];if(e){e.textContent=v+"%";e.style.color=cor}
+    if(cv){cv.style.setProperty("--p",v+"%");cv.style.setProperty("--c",cor)}};
+  const timer=setInterval(()=>{pct+=(92-pct)*passo;pinta(Math.floor(pct))},150);
+  const fimPct=()=>{clearInterval(timer);pinta(100)};let lin=null,lin3=[],w=null,bw=null,fonte="leitor do painel";
   // 1º: o leitor do Google (bem melhor com letras estilizadas e fotos); se não responder, o leitor do painel
   if(DADOS.nuvem&&DADOS.nuvem.url){
     flyOcrGoogle.erro="";const tx=await flyOcrGoogle(f,camera);
