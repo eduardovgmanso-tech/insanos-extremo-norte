@@ -2623,7 +2623,7 @@ async function flyIA(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return null;
       if(c&&typeof c==="object"&&!("tipo" in c)&&!("titulo" in c)){const dentro=Object.values(c).find(v=>v&&typeof v==="object"&&!Array.isArray(v)&&("tipo" in v||"titulo" in v||"data" in v));if(dentro)c=dentro}
       // chaves com acento ou maiúsculas ("Endereço", "Título"): deixa no padrão
       if(c&&typeof c==="object"){const n={};for(const[k,v]of Object.entries(c))n[k.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z_]/g,"")]=v;c=n}
-      flyIA.bruto=JSON.stringify(j.campos).slice(0,120);return c}
+      flyIA.bruto=JSON.stringify(j.campos).slice(0,120);flyIA.modelo=String(j.modelo||"");return c}
     flyIA.erro=j&&j.erro?j.erro:"sem resposta";return null}
   catch(e){flyIA.erro=e&&e.name==="AbortError"?"demorou demais":"sem conexão";return null}finally{clearTimeout(to)}}
 // coloca o que o Gemini devolveu nos campos de cada tipo de lista
@@ -2658,7 +2658,7 @@ async function flyOcrGoogle(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return n
 async function lwLerFly(f,camera){
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
-  st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura com IA · powered by Google</small>':""}</span>`;
+  st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura com IA</small>':""}</span>`;
   // porcentagem estimada: sobe aos poucos (mais devagar perto de 90%) e vai a 100% quando o resultado chega
   let pct=0;const pctEl=()=>st.querySelector(".lendo-pct"),passo=camera?.02:.028;
   // a caveira enche de baixo para cima, nas cores da caveira dos eventos (vermelho, amarelo, verde e dourado)
@@ -2667,9 +2667,10 @@ async function lwLerFly(f,camera){
   const timer=setInterval(()=>{pct+=(92-pct)*passo;pinta(Math.floor(pct))},150);
   const fimPct=()=>{clearInterval(timer);pinta(100)};let lin=null,lin3=[],w=null,bw=null,fonte="leitor do painel";
   // 1º: o Gemini (entende o fly e devolve os campos prontos)
-  if(usaGoogle){flyIA.erro="";const c=await flyIA(f,camera);
+  if(usaGoogle){flyIA.erro="";flyIA.modelo="";const c=await flyIA(f,camera);
     if(c){const n=flyAplicarIA(c);if(n){fimPct();await new Promise(r=>setTimeout(r,350));clearInterval(timer);st.textContent="";$("lwFlyLimpar").hidden=false;
-      avisoRapido(`✅ Fly lido pela IA do Google (Gemini): ${n} campo(s) preenchido(s). Confira os campos.`);return}}
+      const quem=/gpt|openai/i.test(flyIA.modelo||"")?"IA (ChatGPT)":"IA do Google (Gemini)";
+      avisoRapido(`✅ Fly lido pela ${quem}: ${n} campo(s) preenchido(s). Confira os campos.`);return}}
     if(!flyIA.erro)flyIA.erro="a resposta veio num formato inesperado: "+(flyIA.bruto||"vazia");
     const bg=st.querySelector(".by-google");if(bg)bg.textContent="Leitura powered by Google";}   // Gemini não respondeu: segue com o leitor do Google
   // 2º: o leitor do Google (texto) com as regras do painel; 3º: o leitor do painel
