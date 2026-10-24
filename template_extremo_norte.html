@@ -2647,7 +2647,7 @@ async function flyOcrGoogle(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return n
 async function lwLerFly(f,camera){
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
-  st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura powered by Google</small>':""}</span>`;
+  st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura com IA · powered by Google</small>':""}</span>`;
   // porcentagem estimada: sobe aos poucos (mais devagar perto de 90%) e vai a 100% quando o resultado chega
   let pct=0;const pctEl=()=>st.querySelector(".lendo-pct"),passo=camera?.035:.05;
   // a caveira enche de baixo para cima, nas cores da caveira dos eventos (vermelho, amarelo, verde e dourado)
@@ -2658,7 +2658,8 @@ async function lwLerFly(f,camera){
   // 1º: o Gemini (entende o fly e devolve os campos prontos)
   if(usaGoogle){flyIA.erro="";const c=await flyIA(f,camera);
     if(c){const n=flyAplicarIA(c);if(n){fimPct();await new Promise(r=>setTimeout(r,350));clearInterval(timer);st.textContent="";$("lwFlyLimpar").hidden=false;
-      avisoRapido(`✅ Fly lido: ${n} campo(s) preenchido(s). Confira os campos.`);return}}}
+      avisoRapido(`✅ Fly lido pela IA do Google (Gemini): ${n} campo(s) preenchido(s). Confira os campos.`);return}}
+    const bg=st.querySelector(".by-google");if(bg)bg.textContent="Leitura powered by Google";}   // Gemini não respondeu: segue com o leitor do Google
   // 2º: o leitor do Google (texto) com as regras do painel; 3º: o leitor do painel
   if(DADOS.nuvem&&DADOS.nuvem.url){
     flyOcrGoogle.erro="";const tx=await flyOcrGoogle(f,camera);
@@ -2732,7 +2733,7 @@ async function lwLerFly(f,camera){
     lwFlyCampos=usados;lwGuardar();lwCampos();lwAtualiza();
     // terminou: aviso rápido com o resultado e o botão para apagar tudo
     fimPct();await new Promise(r=>setTimeout(r,350));st.textContent="";$("lwFlyLimpar").hidden=false;
-    avisoRapido(usados.size?`✅ Fly lido: ${usados.size} campo(s) preenchido(s). Confira os campos.`:"⚠️ Li o fly, mas não reconheci os campos. Preencha à mão.",!usados.size);
+    avisoRapido(usados.size?`✅ Fly lido pelo ${fonte}: ${usados.size} campo(s) preenchido(s). Confira os campos.`:"⚠️ Li o fly, mas não reconheci os campos. Preencha à mão.",!usados.size);
   }catch(e){st.textContent="";avisoRapido("Não consegui ler esse fly. Tente uma foto mais nítida.",1)}
   finally{clearInterval(timer);if(w)await w.terminate()}}
 function lwCampos(){lwCarregar(lw.tipo);const f=lw.f[lw.tipo];
