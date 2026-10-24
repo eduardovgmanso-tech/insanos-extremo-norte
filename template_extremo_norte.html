@@ -443,11 +443,14 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 #lwFlyLimpar[hidden]{display:none!important}
 .lendo{display:inline-flex;align-items:center;gap:6px 10px;flex-wrap:wrap;padding:8px 12px;border-radius:10px;background:rgba(236,231,220,.06);border:1px solid var(--linha)}
 .lendo b{color:var(--osso);font-size:15px}.lendo-ico{display:inline-block;animation:lupa 1.2s ease-in-out infinite}
+.logo-gira{width:30px;height:30px;object-fit:contain;animation:gira 1.4s linear infinite;filter:drop-shadow(0 0 6px rgba(236,231,220,.25))}
+.lendo-pct{display:inline-block;min-width:3.2em;color:#E9B949;font-variant-numeric:tabular-nums}
+@keyframes gira{to{transform:rotate(360deg)}}
 .by-google{flex-basis:100%;font-size:12px;letter-spacing:.04em;color:var(--osso2);font-style:italic}
 .pontos i{font-style:normal;animation:ponto 1.2s infinite;opacity:0}.pontos i:nth-child(2){animation-delay:.2s}.pontos i:nth-child(3){animation-delay:.4s}
 @keyframes ponto{0%,20%{opacity:0}50%{opacity:1}100%{opacity:0}}
 @keyframes lupa{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(3px,-2px) rotate(-12deg)}}
-@media (prefers-reduced-motion:reduce){.lendo-ico,.pontos i{animation:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.lendo-ico,.pontos i,.logo-gira{animation:none;opacity:1}}
 @media (max-width:420px){.lw-fly-bts .btn{padding-left:6px;padding-right:6px;font-size:14px;gap:4px}}
 .lw-fly-bts{display:flex;gap:8px;flex-wrap:nowrap}.lw-fly-bts .btn{flex:1 1 0;min-width:0;justify-content:center;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .aviso-rapido{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);z-index:400;max-width:min(92vw,460px);
@@ -2591,15 +2594,19 @@ async function flyOcrGoogle(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return n
 async function lwLerFly(f,camera){
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
-  st.innerHTML=`<span class="lendo"><span class="lendo-ico" aria-hidden="true">🔍</span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span></b>${usaGoogle?'<small class="by-google">Leitura powered by Google</small>':""}</span>`;let lin=null,lin3=[],w=null,bw=null,fonte="leitor do painel";
+  st.innerHTML=`<span class="lendo"><img class="logo-gira" src="${LOGO}" alt="" aria-hidden="true"><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura powered by Google</small>':""}</span>`;
+  // porcentagem estimada: sobe aos poucos (mais devagar perto de 90%) e vai a 100% quando o resultado chega
+  let pct=0;const pctEl=()=>st.querySelector(".lendo-pct"),passo=camera?.035:.05;
+  const timer=setInterval(()=>{pct+=(92-pct)*passo;const e=pctEl();if(e)e.textContent=Math.floor(pct)+"%"},150);
+  const fimPct=()=>{clearInterval(timer);const e=pctEl();if(e)e.textContent="100%"};let lin=null,lin3=[],w=null,bw=null,fonte="leitor do painel";
   // 1º: o leitor do Google (bem melhor com letras estilizadas e fotos); se não responder, o leitor do painel
   if(DADOS.nuvem&&DADOS.nuvem.url){
     flyOcrGoogle.erro="";const tx=await flyOcrGoogle(f,camera);
 
     if(tx){lin=tx.split(/\n+/).map(t=>({t:t.replace(/\s+/g," ").trim(),b:null})).filter(l=>l.t.length>2);fonte="leitor do Google"}}
   if(!lin){const bg=st.querySelector(".by-google");if(bg)bg.remove();   // Google não respondeu: tira a frase (agora é o leitor do painel)
-    try{await ocrCarregar()}catch(e){st.textContent="";avisoRapido("Não consegui ler o fly: sem internet.",1);return}}
-  const img=lin?null:await _img(URL.createObjectURL(f));if(!lin&&!img){st.textContent="";avisoRapido("Não consegui abrir essa imagem.",1);return}
+    try{await ocrCarregar()}catch(e){clearInterval(timer);st.textContent="";avisoRapido("Não consegui ler o fly: sem internet.",1);return}}
+  const img=lin?null:await _img(URL.createObjectURL(f));if(!lin&&!img){clearInterval(timer);st.textContent="";avisoRapido("Não consegui abrir essa imagem.",1);return}
   if(!lin)w=await Tesseract.createWorker("por",1);
   try{
     if(!lin){
@@ -2664,10 +2671,10 @@ async function lwLerFly(f,camera){
     if(pe){const tx=pe.replace(/^P\.?\s?E\.?\s*[:\-]\s*/i,"").trim(),pa=tx.split(/\s[-–]\s/);por("pe",flyTitulo(pa[0]||""));por("pe_end",flyTitulo(pa.slice(1).join(" - ")))}
     lwFlyCampos=usados;lwGuardar();lwCampos();lwAtualiza();
     // terminou: aviso rápido com o resultado e o botão para apagar tudo
-    st.textContent="";$("lwFlyLimpar").hidden=false;
+    fimPct();await new Promise(r=>setTimeout(r,350));st.textContent="";$("lwFlyLimpar").hidden=false;
     avisoRapido(usados.size?`✅ Fly lido: ${usados.size} campo(s) preenchido(s). Confira os campos.`:"⚠️ Li o fly, mas não reconheci os campos. Preencha à mão.",!usados.size);
   }catch(e){st.textContent="";avisoRapido("Não consegui ler esse fly. Tente uma foto mais nítida.",1)}
-  finally{if(w)await w.terminate()}}
+  finally{clearInterval(timer);if(w)await w.terminate()}}
 function lwCampos(){lwCarregar(lw.tipo);const f=lw.f[lw.tipo];
   $("lwCampos").innerHTML=(lw.tipo==="original"?"":`<label class="inteiro lw-check"><span><input type="checkbox" id="lwMapas" ${lw.mapas?"checked":""}> Incluir link do Google Maps nos endereços</span></label>`)+LW_TIPOS[lw.tipo].campos.map(([k,r,,inteiro,tipo])=>tipo==="base"?lwCampoBase(f):tipo==="sede"?lwCampoSede(f):tipo==="assin"?lwCampoAssin(f):
     tipo==="hora"?lwCampoHora(k,r,f[k]||""):tipo==="data"?`<label>${esc(r)}<input type="date" data-lwc="${k}" value="${esc(lwISO(f[k]))}"></label>`:`<label class="${inteiro?"inteiro":""} ${tipo==="livre"?"lw-livre":""}" ${tipo==="livre"&&LW_SEDE&&lw.tipo==="reuniao"&&f.sede!=="livre"?"hidden":""}>${esc(r)}${
