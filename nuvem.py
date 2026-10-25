@@ -559,7 +559,7 @@ def verificar_boletos(api, pid, g):
             if not boleto_do_mes:
                 item["obs"] = f"boleto com vencimento {vb:%d/%m/%Y}: o boleto deste mês ainda não foi cadastrado"
             elif selo:
-                item["obs"] = f"selo da Iugu: {selo}"
+                item["obs"] = f"situação no boleto: {selo}"
         ap_man = g._manual_de(rotulo, manual)
         if not ap_man and novo != "Pago em Dia" and atual.lower().startswith("aguard"):
             ap_man = rotulo.split()[-1] if rotulo else rotulo

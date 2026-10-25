@@ -616,11 +616,17 @@ def _ler_boleto(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=25) as r:
         bruto = r.read().decode("utf-8", "ignore")
-    selo = re.search(r'class="status_warning"[^>]*>\s*([^<]+?)\s*<', bruto)
+    selo = re.search(r'class="status_warning"[^>]*>\s*([^<]+?)\s*<', bruto)          # página da Iugu
     texto = re.sub(r"\s+", " ", H.unescape(re.sub(r"<[^>]+>", " ", bruto)))
     v = re.search(r"Vencimento\D{0,40}(\d{2})/(\d{2})/(\d{4})", texto, re.I)
     venc = datetime.date(int(v.group(3)), int(v.group(2)), int(v.group(1))) if v else None
-    return (selo.group(1).strip() if selo else None), venc
+    selo = selo.group(1).strip() if selo else None
+    if not selo:   # página do Sistema Insanos (FaturaCopiaCola): a situação vem logo depois do vencimento
+        m = re.search(r"Vencimento:?\s*\d{2}/\d{2}/\d{4}\s*(Pago em Dia|Pago Atrasado|Pago|A Vencer|Vencid[ao]|Em Aberto|Atrasad[ao]|Cancelad[ao]|Isent[ao])", texto, re.I)
+        if not m:
+            m = re.search(r"\b(Pago em Dia|Pago Atrasado|A Vencer|Vencid[ao]|Em Aberto|Cancelad[ao]|Isent[ao])\b", texto, re.I)
+        selo = m.group(1).strip() if m else None
+    return selo, venc
 
 def verificar_pagamentos(forcar=False):
     hoje = datetime.date.today()
