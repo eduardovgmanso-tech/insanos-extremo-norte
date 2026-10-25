@@ -758,9 +758,9 @@ def verificar_pagamentos(forcar=False):
     if novos:
         hora = datetime.datetime.now().strftime("%d/%m às %H:%M")
         if len(novos) == 1:
-            notificar("💰 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora}).", "pagamento")
+            notificar("💵 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora}).", "pagamento", icone="notif-pag.png")
         else:
-            notificar(f"💰 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora}).", "pagamento")
+            notificar(f"💵 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora}).", "pagamento", icone="notif-pag.png")
     return True
 
 # ---------------------------------------------------------------------
@@ -1416,7 +1416,7 @@ def _pywebpush():
             print("Aviso: não consegui instalar o componente das notificações (pywebpush).")
             return None
 
-def notificar(titulo, corpo, tag="aviso", zap=None):
+def notificar(titulo, corpo, tag="aviso", zap=None, icone=None):
     """Manda a notificação para todos os celulares que ativaram no app."""
     if not ACESSOS_URL or not os.path.exists(ARQ_VAPID_PEM):
         return
@@ -1432,6 +1432,8 @@ def notificar(titulo, corpo, tag="aviso", zap=None):
     if wp is None:
         return
     msg = {"title": titulo, "body": corpo, "tag": tag, "url": "adm.html"}
+    if icone:    # imagem do aviso (pasta app: notif-pag.png, notif-evento.png, ...)
+        msg["icon"] = icone
     if zap:      # mensagem pronta para o botão "📲 Enviar no WhatsApp" (a notificação tem limite de tamanho)
         msg["zap"] = zap
         if len(json.dumps(msg, ensure_ascii=False).encode("utf-8")) > 3400:
@@ -1495,7 +1497,7 @@ def avisos_diarios(so_depois_das_9=False):
             if horario and chave not in feitos:
                 titulo = {"09:00": "🎂 Aniversário amanhã", "13:00": "🎂 Lembrete: aniversário amanhã",
                           "19:00": "🎂 Último lembrete: aniversário amanhã"}.get(horario, "🎂 Aniversário amanhã")
-                notificar(titulo, f"Amanhã ({amanha:%d/%m}) é aniversário de {ap}: faz {amanha.year - nasc.year} anos. Hora de preparar o fly!", "aniversario")
+                notificar(titulo, f"Amanhã ({amanha:%d/%m}) é aniversário de {ap}: faz {amanha.year - nasc.year} anos. Hora de preparar o fly!", "aniversario", icone="notif-niver.png")
                 feitos[chave] = agora.isoformat(timespec="minutes")
         if sit.startswith("afast"):
             dd = r[c_des] if c_des is not None and c_des < len(r) else None
@@ -1505,7 +1507,7 @@ def avisos_diarios(so_depois_das_9=False):
                 inf = info_afastamento(ap, dd)
                 chave = f"afast:{ap}:{inf['fim']}"
                 if inf["terminou"] and chave not in feitos:
-                    notificar("⚠️ Fim de afastamento", f"O afastamento de {ap} terminou em {datetime.date.fromisoformat(inf['fim']):%d/%m}. Reative ou exclua no Cadastro.", "afastamento")
+                    notificar("⚠️ Fim de afastamento", f"O afastamento de {ap} terminou em {datetime.date.fromisoformat(inf['fim']):%d/%m}. Reative ou exclua no Cadastro.", "afastamento", icone="notif-aviso.png")
                     feitos[chave] = agora.isoformat(timespec="minutes")
     try:
         with open(ARQ_AVISOS, "w", encoding="utf-8") as f:
@@ -1713,7 +1715,7 @@ def arquivos_app():
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v7";
+const CACHE = "insanos-v8";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -1728,7 +1730,7 @@ self.addEventListener("fetch", e => {
 self.addEventListener("push", e => {
   let d = {};
   try { d = e.data.json(); } catch (_) { d = {title: "Insanos ADM", body: e.data ? e.data.text() : ""}; }
-  const op = {body: d.body || "", icon: "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
+  const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   e.waitUntil(self.registration.showNotification(d.title || "Insanos ADM", op));
@@ -1739,7 +1741,7 @@ self.addEventListener("notificationclick", e => {
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
-    e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap})))))
+    e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap}))))
       .then(() => clients.matchAll({type: "window", includeUncontrolled: true}))
       .then(ws => { for (const w of ws) if (w.url.includes("adm.html")) { w.postMessage({zap: 1}); return w.focus(); }
                     return clients.openWindow("adm.html#zap"); }));
@@ -1758,6 +1760,11 @@ self.addEventListener("notificationclick", e => {
         if os.path.exists(caminho):
             with open(caminho, "rb") as f:
                 arq[f"icon-{t}.png"] = f.read()
+    pasta_app = os.path.join(PASTA, "app")
+    for nome in (sorted(os.listdir(pasta_app)) if os.path.isdir(pasta_app) else []):
+        if nome.startswith("notif-") and nome.endswith(".png"):     # imagens das notificações
+            with open(os.path.join(pasta_app, nome), "rb") as f:
+                arq[nome] = f.read()
     return arq
 
 def publicar_se_mudou(arquivos, assinatura, forcar=False):

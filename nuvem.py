@@ -362,6 +362,21 @@ def renumerar_google(api, pid, mudancas):
     _gravar(api, pid, [(f"'{aba}'!D{linha}", num if num else "") for linha, num, ap in mudancas])
     print("Numero Lista acertado: " + ", ".join(f"{ap} = {num if num else '(afastado/excluído)'}" for _, num, ap in mudancas))
 
+def _tipo_aviso(d):
+    """Emoji e imagem da notificação conforme o que foi lançado."""
+    tp, nome = d.get("tipo"), _sa(str(d.get("evento", "")))
+    if tp in ("pagamento_manual", "boletos_sistema"):
+        return "💵", "notif-pag.png"
+    if tp == "integrante":
+        return "🪪", "notif-cadastro.png"
+    if tp == "lancamento_presenca" and _sa(str(d.get("aba", ""))).startswith("insight"):
+        return "💬", "notif-insight.png"
+    if "pub" in nome.split() or nome.startswith("pub"):
+        return "🍻", "notif-pub.png"
+    if "social" in nome:
+        return "🤝", "notif-social.png"
+    return "🎉", "notif-evento.png"
+
 def aplicar_boletos(api, pid, d):
     """Boletos lidos no Sistema Insanos (botão no navegador): grava o link de cada irmão na PGTO, coluna J."""
     aba = _aba_real(api, pid, "PGTO")
@@ -607,9 +622,9 @@ def verificar_boletos(api, pid, g):
         hora = datetime.datetime.now().strftime("%d/%m às %H:%M")
         try:
             if len(novos) == 1:
-                g.notificar("💰 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora}).", "pagamento")
+                g.notificar("💵 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora}).", "pagamento", icone="notif-pag.png")
             else:
-                g.notificar(f"💰 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora}).", "pagamento")
+                g.notificar(f"💵 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora}).", "pagamento", icone="notif-pag.png")
         except Exception as e:
             print(f"Aviso: notificação não enviada ({e}).")
     return bool(grav)
@@ -699,7 +714,7 @@ def main():
         setattr(g, nome, lambda *a, **k: None)
     # notificações no celular: só com o segredo NOTIFICAR = sim (ligado na virada, para não chegarem em dobro com o PC)
     if os.environ.get("NOTIFICAR", "").strip().lower() not in ("sim", "s", "1", "true"):
-        g.notificar = lambda titulo, corpo, tag="aviso": print(f"(notificações desligadas na nuvem) teria enviado: {titulo} · {corpo}")
+        g.notificar = lambda titulo, corpo, tag="aviso", **k: print(f"(notificações desligadas na nuvem) teria enviado: {titulo} · {corpo}")
         g.avisos_diarios = lambda *a, **k: None
         print("Notificações: desligadas na nuvem (segredo NOTIFICAR não está como 'sim').")
     else:
@@ -721,8 +736,12 @@ def main():
                 itens = [r for r, _, _d in resumo_fila]
                 corpo = " · ".join(itens[:3]) + (f" · e mais {len(itens) - 3}" if len(itens) > 3 else "")
                 zaps = [d.get("zap") for _, _, d in resumo_fila if d.get("zap") and d.get("tipo") == "pagamento_manual"]   # botão só nos pagamentos
-                g.notificar("✅ Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao",
-                            zap=zaps[-1] if zaps else None)      # a mensagem pronta do último lançamento com lista
+                # emoji e imagem: pagamento > PUB > ação social > evento > insight > cadastro (o mais importante da rodada)
+                ordem = ["notif-pag.png", "notif-pub.png", "notif-social.png", "notif-evento.png", "notif-insight.png", "notif-cadastro.png"]
+                tipos = [_tipo_aviso(d) for _, _, d in resumo_fila]
+                emoji, icone = min(tipos, key=lambda x: ordem.index(x[1])) if tipos else ("✅", None)
+                g.notificar(f"{emoji} Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao",
+                            zap=zaps[-1] if zaps else None, icone=icone)      # a mensagem pronta do último lançamento com lista
             elif evento == "repository_dispatch" and not lanc_recente:
                 # a planilha avisou e a Fila estava vazia: foi edição feita à mão na planilha
                 g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")
