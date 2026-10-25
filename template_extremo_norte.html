@@ -3201,6 +3201,8 @@ async function salvarLancamento(){
 // mensagem do WhatsApp que veio pela notificação, no computador: caixa para copiar (emojis certos) e colar no WhatsApp
 async function zapPendente(){let txt="";try{const c=await caches.open("insanos-zap"),r=await c.match("zap");if(!r)return;txt=await r.text();await c.delete("zap");
     try{const o=JSON.parse(txt);if(o&&typeof o.txt==="string"){if(Date.now()-(o.ts||0)>864e5)return;txt=o.txt}}catch(_){} }catch(e){return}
+  // aviso de pagamento novo: a lista do status é montada aqui, com os dados já atualizados (igual ao botão da tela Pagamentos)
+  if(txt==="__STATUS_PAGAMENTOS__"){try{txt=DADOS.pag?pagMsgLocal():""}catch(e){txt=""}}
   if(!txt)return;const cel=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);let cx=document.getElementById("zapCaixa");if(cx)cx.remove();cx=document.createElement("div");cx.id="zapCaixa";
   cx.style.cssText="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px";
   cx.innerHTML=`<div style="background:#141414;border:1px solid var(--linha);border-radius:16px;max-width:560px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)">

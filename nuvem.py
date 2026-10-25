@@ -538,6 +538,8 @@ def estado_salvar(api, pid, aba):
 # ---------------------------------------------------------------------
 #  Verificação dos boletos da Iugu (mesma regra do PC), gravando na aba PGTO da planilha do Google
 # ---------------------------------------------------------------------
+AVISOS_PAG = []          # avisos de pagamento novo, enviados depois de publicar o painel
+
 def verificar_boletos(api, pid, g):
     hoje = datetime.date.today()
     ciclo = g.vencimento(hoje.year, hoje.month)
@@ -620,13 +622,11 @@ def verificar_boletos(api, pid, g):
     novos = [str(it.get("rotulo", "")).split(" - ")[-1].strip() for it in itens if it.get("novo_pago")]
     if novos:
         hora = datetime.datetime.now().strftime("%d/%m às %H:%M")
-        try:
-            if len(novos) == 1:
-                g.notificar("💵 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora}).", "pagamento", icone="notif-pag.png")
-            else:
-                g.notificar(f"💵 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora}).", "pagamento", icone="notif-pag.png")
-        except Exception as e:
-            print(f"Aviso: notificação não enviada ({e}).")
+        # o aviso sai DEPOIS de publicar o painel: o botão "📲 Enviar no WhatsApp" monta a lista com os dados novos
+        if len(novos) == 1:
+            AVISOS_PAG.append(("💵 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora})."))
+        else:
+            AVISOS_PAG.append((f"💵 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora})."))
     return bool(grav)
 
 def preparar_ambiente():
@@ -729,6 +729,12 @@ def main():
             print(f"Aviso: verificação de pagamentos falhou ({type(e).__name__}: {e}). O painel é gerado mesmo assim.")
     try:
         g.main()
+        for titulo, corpo in AVISOS_PAG:
+            try:
+                g.notificar(titulo, corpo, "pagamento", zap="__STATUS_PAGAMENTOS__", icone="notif-pag.png")
+            except Exception as e:
+                print(f"Aviso: notificação de pagamento não enviada ({e}).")
+        AVISOS_PAG.clear()
         # notificação para o comando: o site já foi publicado com a alteração
         try:
             if resumo_fila:
