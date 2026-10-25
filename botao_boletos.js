@@ -54,10 +54,16 @@
       const ano=hoje.getFullYear()+(mi<hoje.getMonth()-6?1:mi>hoje.getMonth()+6?-1:0);
       const mes=ano+"-"+String(mi+1).padStart(2,"0");
       if(!confirm("Enviar ao painel "+itens.length+" boleto(s) de "+MESES[mi]+"?"+(semLink>0?"\n("+semLink+" irmão(s) sem link nesse mês)":"")+"\n\nExemplo: "+itens[0].ap+" - "+itens[0].status))return;
-      fetch(URL_,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
-        body:JSON.stringify({chave:CHAVE_,quem:"botão do Sistema Insanos",dados:{tipo:"boletos_sistema",mes:mes,itens:itens}})})
+      const pac={chave:CHAVE_,quem:"botão do Sistema Insanos",dados:{tipo:"boletos_sistema",mes:mes,itens:itens}};
+      const porFormulario=()=>{
+        const fm=document.createElement("form");fm.method="POST";fm.action=URL_;fm.target="_blank";fm.enctype="text/plain";fm.acceptCharset="UTF-8";fm.style.display="none";
+        const ip=document.createElement("input");ip.type="hidden";
+        const js=JSON.stringify(pac);ip.name=js.slice(0,-1)+',"_":"';ip.value='"}';
+        fm.appendChild(ip);document.body.appendChild(fm);fm.submit();setTimeout(()=>fm.remove(),3000);
+        alert("✅ Enviado! Abriu uma aba com {\"ok\":true}: pode fechar. Em uns 3 minutos os links estão na planilha.")};
+      fetch(URL_,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(pac)})
         .then(()=>alert("✅ Enviado! Em uns 3 minutos os links estão na planilha e o painel atualiza."))
-        .catch(e=>alert("Não consegui enviar ("+e.message+"). Avise o Edu."))}
+        .catch(()=>{try{porFormulario()}catch(e){alert("Não consegui enviar ("+e.message+"). Avise o Edu.")}})}
     for(const r of linhas){const g=grade(r),m=txt(g[0]).trim().match(/^\s*\d+\s*[-–]\s*(.+?)\s*$/);if(!m)continue;
       let a=null,st="",val="";for(let k=ini;k<=fim;k++){const cel=g[k];if(!cel)continue;const x=cel.querySelector("a[href]");if(x&&!a){a=x}const tt=txt(cel).trim();if(/\d+,\d{2}/.test(tt)&&!val)val=tt;else if(tt&&!st)st=tt}
       if(a&&/^https?:/i.test(a.href))itens.push({ap:m[1],link:a.href,status:(txt(a)||st).trim(),valor:val});else semLink++}
