@@ -3221,22 +3221,28 @@ function bmkSICodigo(){const N=DADOS.nuvem;if(!N||!N.url)return "";
   const f=function(URL_,CHAVE_){
     const MESES=["janeiro","fevereiro","marco","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
     const nz=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim();
+    const txt=c=>c?(c.innerText||c.textContent||""):"";
     const grade=r=>{const g=[];let c=0;for(const cel of r.cells){const n=cel.colSpan||1;for(let k=0;k<n;k++)g[c+k]=cel;c+=n}return g};
-    let hdr=null,tab=null;
-    for(const t of document.querySelectorAll("table")){for(const r of t.rows){const tx=[...r.cells].map(c=>nz(c.innerText));if(tx.includes("janeiro")&&tx.includes("dezembro")){hdr=r;tab=t;break}}if(hdr)break}
-    if(!hdr){alert("Não achei a tabela de mensalidades (janeiro a dezembro) nesta página.");return}
+    const docs=[];const junta=w=>{try{docs.push(w.document);for(let k=0;k<w.frames.length;k++)junta(w.frames[k])}catch(_){}};junta(window);
+    const ehNome=r=>/^\s*\d+\s*[-–]\s*\S/.test(txt(r.cells[0]));
+    let hdr=null,tabs=[];
+    for(const d of docs){const ts=[...d.querySelectorAll("table")];tabs=tabs.concat(ts);
+      for(const tb of ts){for(const r of tb.rows){const tx=[...r.cells].map(c=>nz(txt(c)));if(tx.some(x=>x.startsWith("janeiro"))&&tx.some(x=>x.startsWith("dezembro"))){hdr=r;break}}if(hdr)break}if(hdr)break}
+    const linhas=tabs.flatMap(tb=>[...tb.rows]).filter(r=>r.cells.length>=13&&ehNome(r));
+    if(!linhas.length){alert("Não achei a tabela de mensalidades nesta página.\n(diagnóstico: "+tabs.length+" tabela(s), "+(docs.length-1)+" quadro(s), nenhuma linha no formato 1-Apelido)");return}
     const hoje=new Date(),resp=prompt("Pegar os boletos de qual mês? (1 a 12)",String(hoje.getMonth()+1));if(resp===null)return;
     const mi=parseInt(resp,10)-1;if(!(mi>=0&&mi<12)){alert("Mês inválido.");return}
-    let ini=-1,fim=-1,c=0;for(const cel of hdr.cells){const n=cel.colSpan||1;if(nz(cel.innerText)===MESES[mi]){ini=c;fim=c+n-1}c+=n}
-    if(ini<0){alert("Não achei a coluna do mês "+(mi+1)+".");return}
+    let ini=-1,fim=-1;
+    if(hdr){let c=0;for(const cel of hdr.cells){const n=cel.colSpan||1;if(nz(txt(cel)).startsWith(MESES[mi])){ini=c;fim=c+n-1}c+=n}}
+    if(ini<0){const tot=grade(linhas[0]).length,por=Math.max(1,Math.floor((tot-1)/12));ini=1+mi*por;fim=ini+por-1}
     const itens=[];let semLink=0;
-    for(const r of tab.rows){if(r===hdr)continue;const g=grade(r),nome=(g[0]&&g[0].innerText||"").trim(),m=nome.match(/^\s*\d+\s*[-–]\s*(.+?)\s*$/);if(!m)continue;
-      let a=null,st="",val="";for(let k=ini;k<=fim;k++){const cel=g[k];if(!cel)continue;const x=cel.querySelector("a[href]");if(x&&!a){a=x}const t=(cel.innerText||"").trim();if(/\d+,\d{2}/.test(t)&&!val)val=t;else if(t&&!st)st=t}
-      if(a&&/^https?:/i.test(a.href))itens.push({ap:m[1],link:a.href,status:(a.innerText||st).trim(),valor:val});else semLink++}
-    if(!itens.length){alert("Nenhum boleto com link no mês "+(mi+1)+".");return}
+    for(const r of linhas){const g=grade(r),m=txt(g[0]).trim().match(/^\s*\d+\s*[-–]\s*(.+?)\s*$/);if(!m)continue;
+      let a=null,st="",val="";for(let k=ini;k<=fim;k++){const cel=g[k];if(!cel)continue;const x=cel.querySelector("a[href]");if(x&&!a){a=x}const tt=txt(cel).trim();if(/\d+,\d{2}/.test(tt)&&!val)val=tt;else if(tt&&!st)st=tt}
+      if(a&&/^https?:/i.test(a.href))itens.push({ap:m[1],link:a.href,status:(txt(a)||st).trim(),valor:val});else semLink++}
+    if(!itens.length){alert("Nenhum boleto com link no mês "+(mi+1)+".\n(diagnóstico: "+linhas.length+" irmão(s), colunas "+ini+" a "+fim+(hdr?", cabeçalho achado":", sem cabeçalho")+")");return}
     const ano=hoje.getFullYear()+(mi<hoje.getMonth()-6?1:mi>hoje.getMonth()+6?-1:0);
     const mes=ano+"-"+String(mi+1).padStart(2,"0");
-    if(!confirm("Enviar ao painel "+itens.length+" boleto(s) de "+MESES[mi]+"?"+(semLink?"\n("+semLink+" linha(s) sem link nesse mês)":"")))return;
+    if(!confirm("Enviar ao painel "+itens.length+" boleto(s) de "+MESES[mi]+"?"+(semLink?"\n("+semLink+" linha(s) sem link nesse mês)":"")+"\n\nExemplo: "+itens[0].ap+" - "+itens[0].status))return;
     fetch(URL_,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify({chave:CHAVE_,quem:"botão do Sistema Insanos",dados:{tipo:"boletos_sistema",mes:mes,itens:itens}})})
       .then(()=>alert("✅ Enviado! Em uns 3 minutos os links estão na planilha e o painel atualiza."))
