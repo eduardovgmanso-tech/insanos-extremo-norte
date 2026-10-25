@@ -888,7 +888,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
 
   <section class="painel js so-adm" id="pagView">
     <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div>
-      <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button></div></div>
+      <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagTesteAviso" hidden>🔔 Testar aviso de pagamento</button></div></div>
     <div class="pag-agenda" id="pagAgenda"></div>
     <details class="bmk-si" id="bmkSIBox" hidden><summary>🔖 Botão do Sistema Insanos: pegar os boletos do mês sem copiar links</summary>
       <ol class="nota" style="margin:10px 0 8px;padding-left:20px;line-height:1.55">
@@ -3226,6 +3226,9 @@ function bmkSICodigo(){const N=DADOS.nuvem;if(!N||!N.url)return "";
 (function(){const b=$("bmkSI");if(!b||!DADOS.nuvem||!DADOS.nuvem.url)return;$("bmkSIBox").hidden=false;b.href=bmkSICodigo();
   b.onclick=ev=>{ev.preventDefault();avisoRapido("Arraste este botão para a barra de favoritos do Chrome.")};
   $("bmkSICopiar").onclick=async()=>{try{await navigator.clipboard.writeText(bmkSICodigo());avisoRapido("📋 Código copiado. No Chrome: botão direito na barra de favoritos > Adicionar página > cole no campo URL.")}catch(_){prompt("Copie o código:",bmkSICodigo())}}})();
+// teste do aviso de pagamento (chega só no celular de quem pediu, com o botão do WhatsApp e a lista do status)
+if($("pagTesteAviso")&&DADOS.nuvem&&DADOS.nuvem.url){$("pagTesteAviso").hidden=false;
+  $("pagTesteAviso").onclick=()=>{if(confirm("Mandar um aviso de TESTE de pagamento só para o seu celular?\n\nNada é alterado na planilha. O aviso chega em uns 3 minutos."))nuvemEnviar({tipo:"teste_pagamento"},"Pedido de teste enviado. O aviso chega só no seu celular.")}}
 if(window.caches)zapPendente()
 if($("lancTipos"))$("lancTipos").onclick=ev=>{const b=ev.target.closest("[data-lt]");if(b)lancTipo(b.dataset.lt)};
 montarAnalises();montarRoda();render();proximosAniversarios();montarLancamento();montarMenu();izMontar();ezMontar();ezChecar();

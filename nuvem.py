@@ -426,13 +426,17 @@ def processar_fila(api, pid):
                 res, sit = aplicar_integrante(api, pid, d), "feito"
             elif tp == "boletos_sistema":
                 res, sit = aplicar_boletos(api, pid, d), "feito"
+            elif tp == "teste_pagamento":     # botão de teste: não mexe em nada; manda o aviso só para quem pediu
+                AVISOS_PAG.append(("💵 Pagamento novo (teste)", "Teste do aviso de pagamento: toque em 📲 Enviar no WhatsApp para ver a lista.",
+                                   str(row[1]).strip().lower()))
+                res, sit = "aviso de teste enviado só para quem pediu", "feito"
             else:
                 res, sit = f"tipo desconhecido: {tp}", "erro"
         except Exception as e:
             res, sit = f"{type(e).__name__}: {e}", "erro"
         _gravar(api, pid, [(f"'{aba}'!E{i}", sit), (f"'{aba}'!F{i}", f"{datetime.datetime.now():%d/%m/%Y %H:%M} · {res}")])
         print(f"Fila linha {i}: {sit} · {res}"); n += 1
-        if sit == "feito":
+        if sit == "feito" and tp != "teste_pagamento":
             resumo.append((_resumo_item(d), str(row[1]).strip().lower(), d))
     return resumo
 
@@ -729,9 +733,10 @@ def main():
             print(f"Aviso: verificação de pagamentos falhou ({type(e).__name__}: {e}). O painel é gerado mesmo assim.")
     try:
         g.main()
-        for titulo, corpo in AVISOS_PAG:
+        for aviso in AVISOS_PAG:
+            titulo, corpo, so_para = (list(aviso) + [None])[:3]
             try:
-                g.notificar(titulo, corpo, "pagamento", zap="__STATUS_PAGAMENTOS__", icone="notif-pag.png")
+                g.notificar(titulo, corpo, "pagamento", zap="__STATUS_PAGAMENTOS__", icone="notif-pag.png", so_para=so_para)
             except Exception as e:
                 print(f"Aviso: notificação de pagamento não enviada ({e}).")
         AVISOS_PAG.clear()

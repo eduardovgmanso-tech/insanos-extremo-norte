@@ -1416,7 +1416,7 @@ def _pywebpush():
             print("Aviso: não consegui instalar o componente das notificações (pywebpush).")
             return None
 
-def notificar(titulo, corpo, tag="aviso", zap=None, icone=None):
+def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None):
     """Manda a notificação para todos os celulares que ativaram no app."""
     if not ACESSOS_URL or not os.path.exists(ARQ_VAPID_PEM):
         return
@@ -1441,6 +1441,8 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None):
     dados = json.dumps(msg, ensure_ascii=False)
     enviados = 0
     for email, sub in inscritos:
+        if so_para and str(email).strip().lower() != str(so_para).strip().lower():
+            continue            # aviso de teste: só para quem pediu
         try:
             info = json.loads(sub) if isinstance(sub, str) else sub
             wp.webpush(subscription_info=info, data=dados, vapid_private_key=ARQ_VAPID_PEM,
