@@ -16,13 +16,51 @@ PASTA     = os.path.dirname(os.path.abspath(__file__))
 PLANILHA  = os.path.join(PASTA, "Insanos.xlsx")
 IMAGEM    = os.path.join(PASTA, "maxresdefault.jpg")
 TEMPLATE  = os.path.join(PASTA, "template_extremo_norte.html")
-SAIDA     = os.path.join(PASTA, "Extremo Norte - SP3 - Analise.html")
-SAIDA_ADM = os.path.join(PASTA, "Extremo Norte - SP3 - Analise (ADM).html")
 PASTA_IND = os.path.join(PASTA, "Individuais")
+
+# ---------------------------------------------------------------------
+# DIVISÃO: tudo o que é próprio de cada divisão fica no arquivo divisao.json (Kit Nova Divisão).
+# Sem o arquivo, vale a Extremo Norte (os valores abaixo).
+DIVISAO_PADRAO = {
+    "nome": "Extremo Norte", "regional": "SP3", "estado": "SP", "comando_superior": "Comando VIII",
+    "sede_local": "Sede Extremo Norte sp3 ( Quintos bar burg )",
+    "sede_endereco": "Rua Silvio Brant correia, n° 313 - Vila Ema - SP.",
+    "assinatura_local": "Extremo Norte SP3 - Vila Ema",
+    "autorizados": ["Queijo", "Brawl", "Maycon", "Rick", "Edu", "Demonão"],
+    "acessos_somente": ["Edu"],
+}
+def _carregar_divisao():
+    d = dict(DIVISAO_PADRAO)
+    arq = os.path.join(PASTA, "divisao.json")
+    if os.path.exists(arq):
+        try:
+            with open(arq, encoding="utf-8") as f:
+                d.update({k: v for k, v in json.load(f).items() if not str(k).startswith("_") and v not in (None, "")})
+        except Exception as e:
+            print(f"Aviso: não consegui ler o divisao.json ({e}). Usando os valores padrão.")
+    return d
+DIV = _carregar_divisao()
+DIV_ROTULO = f"{DIV['nome']} - {DIV['regional']}"          # ex.: "Extremo Norte - SP3"
+SAIDA     = os.path.join(PASTA, f"{DIV_ROTULO} - Analise.html")
+SAIDA_ADM = os.path.join(PASTA, f"{DIV_ROTULO} - Analise (ADM).html")
+
+def texto_divisao(html):
+    """Troca os textos da Extremo Norte pelos da divisão do divisao.json (sem o arquivo, não muda nada)."""
+    P, D = DIVISAO_PADRAO, DIV
+    trocas = [(P["sede_local"], D["sede_local"]), (P["sede_endereco"], D["sede_endereco"]),
+              (P["assinatura_local"], D["assinatura_local"]),
+              ("${DIV_REG}-SP", "${DIV_REG}-" + D["estado"]),
+              (P["comando_superior"], D["comando_superior"]), (P["comando_superior"].upper(), D["comando_superior"].upper()),
+              (P["nome"], D["nome"]), (P["nome"].upper(), D["nome"].upper()), (P["nome"].lower(), D["nome"].lower()),
+              (P["regional"], D["regional"])]
+    for velho, novo in trocas:
+        if velho != novo:
+            html = html.replace(velho, novo)
+    return html
 
 # Quem pode abrir o painel geral e o ADM (apelido igual ao da aba Dados Integrantes).
 # A senha de cada um é o CPF cadastrado na coluna "CPF" dessa aba (só os números).
-AUTORIZADOS = ["Queijo", "Brawl", "Maycon", "Rick", "Edu", "Demonão"]
+AUTORIZADOS = list(DIV["autorizados"])     # do divisao.json
 
 # Quem abre SÓ o painel geral com o próprio CPF (não abre o ADM, que tem telefones e pagamentos).
 AUTORIZADOS_SO_GERAL = []
@@ -44,7 +82,7 @@ MANUT_HTML = ""
 ACESSOS_URL = os.environ.get("ACESSOS_URL", "")       # do cofre do GitHub
 ACESSOS_CHAVE = os.environ.get("ACESSOS_CHAVE", "")   # do cofre do GitHub
 # quem vê a tela "Acessos" no ADM (pelo e-mail da planilha). Os demais do comando não veem nem conseguem ler.
-ACESSOS_SOMENTE = ["Edu"]
+ACESSOS_SOMENTE = list(DIV["acessos_somente"])     # do divisao.json
 PLANILHA_URL = ""      # na nuvem: link da planilha do Google (atalho 📗 Planilha, trancado como a tela Acessos)
 EMAIL_APELIDO = {}
 NUVEM = None      # na nuvem: {"url": recebedor, "chave": ...} -> os lançamentos vão direto para a planilha do Google
@@ -352,7 +390,7 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
         slots.append({"iv": b64(iv_s), "ct": b64(AESGCM(kek).encrypt(iv_s, chave, None))})
     secrets.SystemRandom().shuffle(slots)
     pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots}
-    return (LOGIN.replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
+    return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
                  .replace("__MANIFEST__", "manifest-adm.json").replace("__REGISTRO__", "🔎 Os acessos a este painel são registrados pelo comando." if ACESSOS_URL else "")
@@ -1697,7 +1735,7 @@ def limpar_historico_github():
         _log(f"Aviso: não consegui limpar o histórico do GitHub ({e}). Tento de novo na próxima publicação.")
         return False
 
-APP_NOME = "Extremo Norte SP3"
+APP_NOME = f"{DIV['nome']} {DIV['regional']}"
 
 # O link é só do comando (ADM). O endereço geral não tem mais o painel: só leva para a entrada do ADM, sem nenhum dado.
 INDEX_SO_ADM = """<!DOCTYPE html>
@@ -2019,7 +2057,7 @@ def main():
     with open(IMAGEM, "rb") as f:
         img = base64.b64encode(f.read()).decode()
     with open(TEMPLATE, encoding="utf-8") as f:
-        html = f.read()
+        html = texto_divisao(f.read())
     gerado = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M")
     global MANUT_HTML
     MANUT_HTML = AVISO_MANUTENCAO if os.path.exists(os.path.join(PASTA, "MANUTENCAO.txt")) else ""
@@ -2191,7 +2229,7 @@ def main():
                     "gmedia": r["grp"][g]["media"]} for k, r in rankings.items()}
         evs_i = [{"d": e["d"], "e": e["e"], "p": [e["p"][i]]} for e in eventos]
         nome_arq = "".join(ch for ch in m["n"] if ch not in proibidos)
-        gravar(os.path.join(PASTA_IND, f"Extremo Norte - SP3 - {nome_arq}.html"),
+        gravar(os.path.join(PASTA_IND, f"{DIV_ROTULO} - {nome_arq}.html"),
                {"modo": "individual", "m": [m], "ev": evs_i, "rank": rank}, sem_js=estatico(m, evs_i, rank))
 
     print(f"OK: {len(membros)} integrantes e {len(eventos)} eventos.")

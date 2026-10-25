@@ -2612,7 +2612,7 @@ Responda SOMENTE um objeto JSON com estas chaves (use "" quando a informação n
 "data": data do evento no formato AAAA-MM-DD (hoje é ${hoje}; se o fly não tiver o ano, use a próxima vez que essa data acontece);
 "hora": horário de início no formato HH:MM;
 "nome": nome da instituição ou do lugar onde acontece a ação (ex.: "CRAS - Zeladoria da Sapopemba");
-"local": nome do local do evento (ex.: "Sede da Reg SP3", "Quintos Bar Burg");
+"local": nome do local do evento (ex.: "Sede da Reg SP3", "Bar do Zé");
 "endereco": endereço do local do evento (rua/avenida, número e bairro);
 "destino": destino do bonde ou passeio, se houver;
 "pe": nome do ponto de encontro (o que vem depois de "P.E."), sem o endereço;
@@ -2653,7 +2653,10 @@ function flyAplicarIA(c){const s=v=>String(v==null?"":v).trim(),tipos=["reuniao"
   const t=lw.tipo,chg=hh(c.pe_chegada||c.pe_hora||c.conc_cheg),sai=hh(c.pe_saida||c.conc_saida);
   if(t==="social"){por("nome",c.nome||c.local);por("local",c.endereco||(c.nome?c.local:""));por("pe_hora",chg);por("pe_saida",sai)}
   else if(t==="evento"){por("destino",c.destino);por("local",[s(c.local),s(c.endereco)].filter(Boolean).join(" - "));por("conc_cheg",chg);por("conc_saida",sai);por("obs",c.obs)}
-  else if(t==="reuniao"){const ehSede=/SEDE.*EXTREMO|SILVIO BRANT|QUINTOS/i.test((s(c.local)+" "+s(c.endereco)).normalize("NFD").replace(/[\u0300-\u036f]/g,""));
+  else if(t==="reuniao"){const nzS=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
+    const lido=nzS(s(c.local)+" "+s(c.endereco)),rua=nzS(String(LW_SEDE.endereco).split(/[,-]/)[0]).replace(/^(RUA|R|AV|AVENIDA|ESTRADA|ALAMEDA) /,""),
+      lugar=nzS(String(LW_SEDE.local).replace(/\(.*?\)/g," ")).split(" ").filter(w=>w.length>3&&!/^(SEDE|DIVISAO)$/.test(w));
+    const ehSede=(rua.length>4&&lido.includes(rua))||(/SEDE/.test(lido)&&lugar.some(w=>lido.includes(w)))||lugar.filter(w=>lido.includes(w)).length>=2;   // a sede da divisão (divisao.json)
     F.sede=ehSede||(!s(c.local)&&!s(c.endereco))?"sede":"livre";usados.add("sede");if(!ehSede){por("local",c.local);por("endereco",c.endereco)}}
   else{por("local",c.local);por("endereco",c.endereco);por("pe_chegada",chg);por("pe_saida",sai);por("convite",c.convite);
     por("v_int",c.v_int);por("v_conv",c.v_conv);por("pix_nome",c.pix_nome);por("pix_chave",c.pix_chave)}
