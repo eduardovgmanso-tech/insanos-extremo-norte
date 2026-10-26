@@ -1582,7 +1582,8 @@ async function imagemEvento(){
   // adesão por função
   let fy=topo+480;T(TT.func+(semCmdC?" · sem o comando":""),60,fy,34,"#ECE7DC",700,tit);fy+=28;
   GRUPOS.forEach(gp=>{const ms=MC.filter(m=>grupoDe(m)===gp);if(!ms.length)return;const s=ms.filter(m=>ezPres(ez.marca[m.n])).length,n=ms.length-s;
-    const p2=s+n?Math.round(s*100/(s+n)):null;   // por função também: SIM ÷ todos do grupoT(gp,60,fy+30,26,"#B8B2A6",600);
+    const p2=s+n?Math.round(s*100/(s+n)):null;   // por função também: SIM ÷ todos do grupo
+    T(gp,60,fy+30,26,"#B8B2A6",600);
     caixa(240,fy+10,560,26,8,"rgba(236,231,220,.08)");if(p2){caixa(240,fy+10,560*p2/100,26,8,corFaixa(p2)[0])}
     T(p2==null?"–":`${p2}% · ${s} de ${s+n}`,W-60,fy+31,24,"#ECE7DC",700,null,"right");fy+=44});
   // observação
