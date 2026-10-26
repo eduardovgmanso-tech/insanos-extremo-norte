@@ -491,7 +491,12 @@ def _resumo_item(d):
     try:
         if tp == "lancamento_presenca":
             dt = datetime.datetime.strptime(d["data"], "%Y-%m-%d").strftime("%d/%m")
-            return f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({dt})"
+            # adesão no momento: SIM (e Staff) ÷ todos os integrantes marcados no lançamento (igual ao painel)
+            marc = [str(v or "").strip().lower() for v in (d.get("marcacoes") or {}).values()]
+            sim = sum(1 for v in marc if v.startswith("sim") or v.startswith("staff"))
+            ins = str(d.get("aba", "")).lower().startswith("insight")
+            pc = f" · {round(100 * sim / len(marc))}% de {'resposta' if ins else 'adesão'} ({sim} de {len(marc)})" if marc else ""
+            return f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({dt}){pc}"
         if tp == "pagamento_manual":
             return "Compensação: " + ", ".join(k for k, v in (d.get("status") or {}).items() if v)
         if tp == "boletos_sistema":
@@ -627,10 +632,12 @@ def verificar_boletos(api, pid, g):
     if novos:
         hora = datetime.datetime.now().strftime("%d/%m às %H:%M")
         # o aviso sai DEPOIS de publicar o painel: o botão "📲 Enviar no WhatsApp" monta a lista com os dados novos
+        pagos = sum(1 for it in itens if str(it.get("status", "")).lower().startswith("pago"))
+        situacao = f" {round(100 * pagos / len(itens))}% pagos ({pagos} de {len(itens)})." if itens else ""
         if len(novos) == 1:
-            AVISOS_PAG.append(("💵 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora})."))
+            AVISOS_PAG.append(("💵 Pagamento novo", f"{novos[0]} pagou a mensalidade (identificado {hora})." + situacao))
         else:
-            AVISOS_PAG.append((f"💵 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora})."))
+            AVISOS_PAG.append((f"💵 {len(novos)} pagamentos novos", ", ".join(novos) + f" (identificados {hora})." + situacao))
     return bool(grav)
 
 def preparar_ambiente():
