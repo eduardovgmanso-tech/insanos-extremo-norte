@@ -1848,16 +1848,24 @@ async function imagemDash(){const ms=[...DASH_SEL].sort();if(!ms.length)throw ne
         T(v==null?"–":v+"%",900,y,26,corFaixa(v)[1],800,tit,"right");T(aa==null?"–":aa+"%",W-60,y,22,"#7d776d",600,null,"right")});
     }else{const cs=ms.map(dashCalc);
       T("COMPARATIVO",60,268,70,"#ECE7DC",800,tit);T(ms.map(m=>MESES[+m.slice(5)-1].slice(0,3)+"/"+m.slice(2,4)).join(" · "),60,316,30,"#D9B26A",600);
-      const c0=430,cw=(W-60-c0)/ms.length;y=400;ms.forEach((m,i)=>T(MESES[+m.slice(5)-1].slice(0,3)+"/"+m.slice(2,4),c0+cw*(i+0.5),y,26,"#B8B2A6",700,null,"center"));
-      const lin=(rot,vals,pc)=>{y+=60;g.fillStyle="rgba(236,231,220,.10)";g.fillRect(60,y-40,W-120,1);T(rot,60,y,28,"#ECE7DC",600);
-        vals.forEach((v,i)=>T(v==null?"–":(pc?v+"%":String(v)),c0+cw*(i+0.5),y,32,pc?corFaixa(v)[1]:"#ECE7DC",800,tit,"center"))};
+      // colunas: os meses (etiquetas coloridas) e, entre um mês e outro, quanto subiu (▲) ou desceu (▼)
+      const n=ms.length,c0=n>=4?360:430,util=W-60-c0;let dw=Math.min(84,(util-n*112)/Math.max(1,n-1));if(n<2||dw<56)dw=0;
+      const mw=(util-(n-1)*dw)/n,mx=i=>c0+i*(mw+dw)+mw/2,dx=i=>c0+i*(mw+dw)-dw/2;
+      const rgba=(hex,a)=>{const h=hex.replace("#","");return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`};
+      const chip=(v,cx,yy,alt,fs)=>{const w=Math.min(mw-8,fs>=26?120:100);if(v==null){T("–",cx,yy,fs,"#7d776d",700,null,"center");return}
+        const c=corFaixa(v)[1];caixa(cx-w/2,yy-alt+8,w,alt,9,rgba(c,.16));T(v+"%",cx,yy,fs,c,800,tit,"center")};
+      const delta=(a,b,x,yy,fs)=>{if(!dw||a==null||b==null)return;const d=b-a;
+        if(!d){T("=",x,yy,fs,"#7d776d",700,null,"center");return}T(`${d>0?"▲":"▼"} ${d>0?"+":"−"}${Math.abs(d)}`,x,yy,fs,d>0?"#7fd89f":"#f0b6b4",800,null,"center")};
+      y=400;ms.forEach((m,i)=>{const r=MESES[+m.slice(5)-1].slice(0,3)+"/"+m.slice(2,4),cx=mx(i);caixa(cx-58,y-30,116,40,20,"rgba(233,185,73,.16)");T(r,cx,y,24,"#E9B949",800,null,"center")});
+      const lin=(rot,vals,pc)=>{y+=62;g.fillStyle="rgba(236,231,220,.10)";g.fillRect(60,y-44,W-120,1);T(corta(rot,c0-80,28,600),60,y,28,"#ECE7DC",600);
+        vals.forEach((v,i)=>{if(pc)chip(v,mx(i),y,46,30);else T(v==null?"–":String(v),mx(i),y,32,"#ECE7DC",800,tit,"center");if(i)delta(vals[i-1],v,dx(i),y-3,20)})};
       lin("Presença",cs.map(x=>x.pres.pc),1);lin("Insights (s/ comando)",cs.map(x=>x.ins.pc),1);
-      lin("Eventos",cs.map(x=>x.pres.n));lin("Insights",cs.map(x=>x.ins.n));
-      y+=50;T("PRESENÇA POR FUNÇÃO",60,y,22,"#7d776d",700);y-=10;
-      GRUPOS.forEach(gp=>lin(gp,cs.map(x=>{const a=x.pres.porG[gp];return a?pct(a.p,a.a):null}),1));
-      y+=50;T("PRESENÇA POR INTEGRANTE",60,y,22,"#7d776d",700);y-=14;
-      dashLinhasInt(cs).forEach(x=>{y+=46;g.fillStyle="rgba(236,231,220,.08)";g.fillRect(60,y-30,W-120,1);T(corta(x.m.n,340,24,600),60,y,24,"#ECE7DC",600);
-        x.v.forEach((v,i)=>{const cx=c0+cw*(i+0.5);if(v!=null){caixa(cx-50,y-28,100,36,8,corFaixa(v)[1]+"33")}T(v==null?"–":v+"%",cx,y,24,v==null?"#7d776d":corFaixa(v)[1],800,tit,"center")})});
+      lin("Nº de eventos",cs.map(x=>x.pres.n));lin("Nº de insights",cs.map(x=>x.ins.n));
+      y+=52;T("PRESENÇA POR FUNÇÃO",60,y,22,"#7d776d",700);y-=10;
+      GRUPOS.forEach(gp=>lin(gp,cs.map(x=>{const a=x.pres.porG[gp];return a&&a.p+a.a?pct(a.p,a.a):null}),1));
+      y+=56;T("PRESENÇA POR INTEGRANTE",60,y,22,"#7d776d",700);y+=6;
+      dashLinhasInt(cs).forEach(x=>{y+=46;g.fillStyle="rgba(236,231,220,.08)";g.fillRect(60,y-30,W-120,1);T(corta(x.m.n,c0-80,24,600),60,y,24,"#ECE7DC",600);
+        x.v.forEach((v,i)=>{chip(v,mx(i),y,36,24);if(i)delta(x.v[i-1],v,dx(i),y-2,18)})});
     }
     try{const qs=330,qx=W-60-qs,qy=y+60;y=await qrDesenhar(g,qx,qy,qs,["IDB1",ms.join(",")].join("|"),T);
       T(`Atualizado em ${GERADO}`,60,qy+qs-10,22,"#7d776d",500);T("Insanos Sempre, Sempre Insanos",60,qy+qs+24,22,"#7d776d",500);y-=20}
