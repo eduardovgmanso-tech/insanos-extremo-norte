@@ -2140,6 +2140,20 @@ def main():
         if m["n"] in _man:
             pag["manual"][m["n"]] = _man[m["n"]]
     pag["obs"] = {}
+    arq_ant = os.path.join(PASTA, "pagamentos_antecipados.json")     # pagos antes do dia 1º (boletos do mês seguinte)
+    if os.path.exists(arq_ant):
+        try:
+            with open(arq_ant, encoding="utf-8") as f:
+                ant = json.load(f)
+            hoje_m = datetime.date.today().strftime("%Y-%m")
+            if str(ant.get("mes", "")) > hoje_m and ant.get("pagos"):
+                lista = []
+                for rot, quando in ant["pagos"].items():
+                    nome = next((m["n"] for m in membros if str(rot).lower().endswith(m["n"].lower())), str(rot).split(" - ")[-1].strip())
+                    lista.append({"n": nome, "quando": quando})
+                pag["antecipados"] = {"mes": ant["mes"], "lista": lista}
+        except Exception as e:
+            print(f"Aviso: não consegui ler os pagamentos antecipados ({e}).")
     if os.path.exists(ARQ_VERIF):                                   # criado pela verificação automática
         try:
             with open(ARQ_VERIF, encoding="utf-8") as f:

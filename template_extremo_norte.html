@@ -462,6 +462,17 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 @media (min-width:901px){.aviso-rapido{bottom:28px}}
 .bmk-si{margin:12px 0;border:1px solid var(--linha);border-radius:12px;padding:10px 14px;background:rgba(236,231,220,.04)}
 .bmk-si summary{cursor:pointer;font-weight:700}#bmkSIBox[hidden]{display:none!important}
+.afast.antec{border-color:rgba(63,174,106,.55);background:rgba(63,174,106,.08)}.afast.antec h3{color:#7fd89f}
+#pagLista.pag-lista{display:flex!important;flex-direction:column;gap:10px}
+.pag-grupo{border:1px solid var(--linha);border-radius:14px;background:rgba(236,231,220,.04);overflow:hidden}
+.pag-grupo summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;font-weight:700;font-size:16px}
+.pag-grupo summary::-webkit-details-marker{display:none}
+.pag-grupo.ok summary{color:#7fd89f}.pag-grupo.ab summary{color:#f0b6b4}
+.pag-grupo .pg-n{min-width:28px;text-align:center;padding:2px 8px;border-radius:999px;background:rgba(236,231,220,.1);color:var(--osso);font-size:14px}
+.pag-grupo .pg-tag{font-size:12.5px;font-weight:600;padding:3px 8px;border-radius:999px;background:rgba(233,185,73,.14);color:#E9B949}
+.pag-grupo .pg-tag.novo{background:rgba(63,174,106,.16);color:#7fd89f}
+.pag-grupo .pg-seta{margin-left:auto;transition:transform .2s;color:var(--osso2)}.pag-grupo[open] .pg-seta{transform:rotate(180deg)}
+.pag-lista-int{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;padding:0 12px 12px}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -900,6 +911,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
         <button type="button" class="btn" id="bmkSICopiar">📋 Copiar o código do botão</button></div>
       <p class="nota" style="margin:8px 0 0">O botão leva a chave do painel: não compartilhe. Sua senha do Sistema Insanos não sai do seu navegador.</p>
     </details>
+    <div id="pagAntec"></div>
     <div id="pagAfast"></div>
     <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
       <div class="pag-kpis" id="pagKpis"></div></div>
@@ -2299,7 +2311,11 @@ function montarAfastados(){const el=$("pagAfast");if(!el)return;const A=DADOS.af
   el.innerHTML=`<div class="afast"><h3>⏸️ Afastados (sem cobrança e fora das listas)</h3>${A.map(a=>a.terminou
     ?`<p class="fim">⚠️ <b>${esc(a.n)}</b>: o afastamento terminou em ${br(a.fim)}. Reative (Situação = Ativo) ou exclua (Situação = Excluído) na aba Dados Integrantes.</p>`
     :`<p><b>${esc(a.n)}</b>${a.desde?` · afastado desde ${br(a.desde)} · volta a ser cobrado em <b>${esc(a.volta)}</b>`:" · coloque a data do pedido na coluna “Afastado desde” para calcular a volta"}</p>`).join("")}</div>`}
-function montarPagamentos(){montarAfastados();
+function montarAntecipados(){const el=$("pagAntec");if(!el)return;const A=(DADOS.pag||{}).antecipados;
+  if(!A||!A.lista||!A.lista.length){el.innerHTML="";return}
+  const MS=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"],mes=MS[+A.mes.slice(5,7)-1]+"/"+A.mes.slice(0,4);
+  el.innerHTML=`<div class="afast antec"><h3>💵 Pagos antecipados · ${esc(mes)}</h3><p class="nota" style="margin:0 0 8px">Pagaram o boleto do mês seguinte antes do dia 1º. No dia 1º entram como “Pago em Dia” sozinhos.</p>${A.lista.map(a=>`<p>✅ <b>${esc(a.n)}</b> · identificado ${esc(a.quando)}</p>`).join("")}</div>`}
+function montarPagamentos(){montarAfastados();montarAntecipados();
   if($("pagImg")&&!$("pagImg").onclick){$("pagImg").onclick=()=>entregarImagemPagamentos($("pagImg"));
     $("pagLer").onclick=()=>{$("pagLerArq").value="";$("pagLerArq").click()};$("pagLerArq").onchange=()=>{const f=$("pagLerArq").files[0];if(f)lerImagemPagamentos(f)}}
   const P=DADOS.pag;if(!P){$("pagView").innerHTML='<div class="vazio">A planilha não tem as abas PGTO e Pagamentos.</div>';return}
@@ -2359,9 +2375,16 @@ function montarPagamentos(){montarAfastados();
     else html=html.replace(/(<span>Nº [^<]*<\/span>)/,`$1<span class="pag-quando sem">✓ pago (identificado antes do registro de horário)</span>`);
     if(!novoPag(m.n))return html;
     return html.replace('<div class="pag-l','<div class="pag-l pag-novo').replace('<div class="nome">',`<div class="nome"><span class="tag-novo">🆕 pagou ${quando(pe[m.n])}</span>`)};
+  // dois grupos que abrem e fecham (começam fechados): pagos + em compensação, e em aberto
+  const compL=faltaL.filter(m=>cls(m.n)==="aguard"),abertoL=faltaL.filter(m=>cls(m.n)==="aberto");
+  const novos=pagosL.filter(m=>novoPag(m.n)).length,AB=window.PAG_ABERTO||(window.PAG_ABERTO={ok:false,ab:false});
+  const grupo=(id,cl,tit,n,extra,corpo)=>`<details class="pag-grupo ${cl}" data-g="${id}"${AB[id]?" open":""}><summary><span class="pg-tit">${tit}</span><span class="pg-n">${n}</span>${extra}<span class="pg-seta">▾</span></summary><div class="pag-lista-int">${corpo}</div></details>`;
   $("pagLista").innerHTML=
-    (faltaL.length?`<h3 class="pag-bloco">Falta pagar <span>${faltaL.length}</span></h3>`+faltaL.map(cartao).join(""):"")+
-    `<h3 class="pag-bloco ok">Pagos <span>${pagosL.length}</span></h3>`+(pagosL.length?pagosL.map(m=>marcarNovo(cartao(m),m)).join(""):`<p class="pag-vazio">Ninguém pagou ainda.</p>`);
+    grupo("ok","ok","✅ Pagos e em compensação",pagosL.length+compL.length,
+      (compL.length?`<span class="pg-tag">⏰ ${compL.length} em compensação</span>`:"")+(novos?`<span class="pg-tag novo">🆕 ${novos} novo${novos>1?"s":""}</span>`:""),
+      (compL.length||pagosL.length)?compL.map(cartao).join("")+pagosL.map(m=>marcarNovo(cartao(m),m)).join(""):`<p class="pag-vazio">Ninguém pagou ainda.</p>`)+
+    grupo("ab","ab","⏳ Em aberto",abertoL.length,"",abertoL.length?abertoL.map(cartao).join(""):`<p class="pag-vazio">Todos pagaram. 🎉</p>`);
+  $("pagLista").querySelectorAll(".pag-grupo").forEach(d=>d.addEventListener("toggle",()=>{AB[d.dataset.g]=d.open}));
   const podeEnv=ord.filter(m=>cls(m.n)!=="pago"&&P.boleto[m.n]&&(P.boleto_mes||{})[m.n]!==false&&fcTelefone(m.tel));
   const pagos=ord.filter(m=>cls(m.n)==="pago");
   const nEnv=podeEnv.filter(m=>pgReg("env")[m.n]).length,nAgr=pagos.filter(m=>pgReg("agr")[m.n]).length;

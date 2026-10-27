@@ -377,34 +377,119 @@ def _tipo_aviso(d):
         return "🤝", "notif-social.png"
     return "🎉", "notif-evento.png"
 
+MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+def _mes_k(v):
+    """Mês dos boletos guardados na coluna K (cabeçalho "Boleto 11/2026"), ou None."""
+    import re as _re
+    m = _re.search(r"(\d{1,2})/(\d{4})", str((list(v[0]) + [""] * 11)[10] if v else ""))
+    return (int(m.group(2)), int(m.group(1))) if m else None
+
 def aplicar_boletos(api, pid, d):
-    """Boletos lidos no Sistema Insanos (botão no navegador): grava o link de cada irmão na PGTO, coluna J."""
+    """Boletos lidos no Sistema Insanos (botão no navegador): grava o link de cada irmão na PGTO.
+    Mês atual (ou anterior): coluna J. Mês seguinte (boleto pago antes): coluna K, sem mexer no mês atual."""
     aba = _aba_real(api, pid, "PGTO")
     if not aba:
         return "aba PGTO não encontrada"
-    v = _ler(api, pid, f"'{aba}'!A1:J400")
+    v = _ler(api, pid, f"'{aba}'!A1:K400")
+    try:
+        ano, mes = int(str(d.get("mes"))[:4]), int(str(d.get("mes"))[5:7])
+    except Exception:
+        hoje = datetime.date.today(); ano, mes = hoje.year, hoje.month
+    hoje = datetime.date.today()
+    futuro = (ano, mes) > (hoje.year, hoje.month)
+    col, letra = (10, "K") if futuro else (9, "J")
     gr, feitos, iguais, sem_linha = [], [], 0, []
+    if futuro:
+        if _mes_k(v) != (ano, mes):        # outro mês estava na K: começa do zero
+            gr += [(f"'{aba}'!K{i}", "") for i in range(2, len(v) + 1) if str((list(v[i - 1]) + [""] * 11)[10]).strip()]
+        gr.append((f"'{aba}'!K1", f"Boleto {mes:02d}/{ano}"))
     for it in (d.get("itens") or []):
         ap, link = str(it.get("ap") or "").strip(), str(it.get("link") or "").strip()
         if not ap or not link.startswith("http"):
             continue
         for i, row in enumerate(v[1:], start=2):
-            row = list(row) + [""] * 10
+            row = list(row) + [""] * 11
             if _sa(str(row[1])).endswith(_sa(ap)):
-                if str(row[9]).strip() == link:
+                if str(row[col]).strip() == link and not futuro:
                     iguais += 1
                 else:
-                    gr.append((f"'{aba}'!J{i}", link)); feitos.append(ap)
+                    gr.append((f"'{aba}'!{letra}{i}", link)); feitos.append(ap)
                 break
         else:
             sem_linha.append(ap)
     _gravar(api, pid, gr)
     res = f"boletos de {d.get('mes', '')}: {len(feitos)} link(s) gravado(s)"
+    if futuro:
+        res += f" na coluna K (mês seguinte: entram na J no dia 01/{mes:02d})"
     if iguais:
         res += f", {iguais} já estavam certos"
     if sem_linha:
         res += f" · sem linha na PGTO: {', '.join(sem_linha)}"
     return res
+
+def promover_antecipados(api, pid):
+    """Virada do mês: os boletos guardados na K (mês seguinte) passam para a J quando o mês chega."""
+    aba = _aba_real(api, pid, "PGTO")
+    if not aba:
+        return 0
+    v = _ler(api, pid, f"'{aba}'!A1:K400")
+    mk, hoje = _mes_k(v), datetime.date.today()
+    if not mk or mk > (hoje.year, hoje.month):
+        return 0
+    gr, n = [], 0
+    for i, row in enumerate(v[1:], start=2):
+        row = list(row) + [""] * 11
+        link = str(row[10]).strip()
+        if link.startswith("http"):
+            gr += [(f"'{aba}'!J{i}", link), (f"'{aba}'!K{i}", "")]; n += 1
+    gr.append((f"'{aba}'!K1", "Boleto do próximo mês"))
+    _gravar(api, pid, gr)
+    print(f"Virada do mês: {n} boleto(s) do mês {mk[1]:02d}/{mk[0]} passaram da coluna K para a J.")
+    return n
+
+def verificar_antecipados(api, pid, g):
+    """Boletos do mês seguinte (coluna K): avisa quem pagou antes do dia 1º."""
+    aba = _aba_real(api, pid, "PGTO")
+    if not aba:
+        return False
+    v = _ler(api, pid, f"'{aba}'!A1:K400")
+    mk, hoje = _mes_k(v), datetime.date.today()
+    if not mk or mk <= (hoje.year, hoje.month):
+        return False
+    arq = os.path.join(PASTA, "pagamentos_antecipados.json")
+    try:
+        with open(arq, encoding="utf-8") as f:
+            ant = json.load(f)
+    except Exception:
+        ant = {}
+    chave_mes = f"{mk[0]}-{mk[1]:02d}"
+    if ant.get("mes") != chave_mes:
+        ant = {"mes": chave_mes, "pagos": {}}
+    inativos = g.inativos_planilha()
+    novos = []
+    print(f"Verificando pagamentos antecipados ({MESES_PT[mk[1] - 1]}/{mk[0]})...")
+    for row in v[1:]:
+        row = list(row) + [""] * 11
+        link, rotulo = str(row[10]).strip(), str(row[1]).strip()
+        if not link.startswith("http") or rotulo in ant["pagos"] or any(rotulo.lower().endswith(ap) for ap in inativos):
+            continue
+        try:
+            selo, vb = g._ler_boleto(link)
+        except Exception as e:
+            print(f"  {rotulo}: não abriu ({e})"); continue
+        if selo and "pag" in selo.lower() and (not vb or (vb.year, vb.month) == mk):
+            ant["pagos"][rotulo] = datetime.datetime.now().strftime("%d/%m às %H:%M")
+            novos.append(rotulo.split(" - ")[-1].strip())
+            print(f"  {rotulo}: pago antecipado")
+    with open(arq, "w", encoding="utf-8") as f:
+        json.dump(ant, f, ensure_ascii=False, indent=1)
+    if novos:
+        nome_mes = MESES_PT[mk[1] - 1]
+        AVISOS_PAG.append(("💵 Pagamento antecipado" if len(novos) == 1 else f"💵 {len(novos)} pagamentos antecipados",
+                           f"{', '.join(novos)} {'pagou' if len(novos) == 1 else 'pagaram'} a mensalidade de {nome_mes} antes do dia 1º. "
+                           f"Já são {len(ant['pagos'])} pago(s) antecipado(s).", None, False))
+    return bool(novos)
 
 def processar_fila(api, pid):
     aba = _aba_real(api, pid, "Fila")
@@ -512,7 +597,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -628,7 +713,12 @@ def verificar_boletos(api, pid, g):
         json.dump({"quando": quando, "ciclo": ciclo.isoformat(), "novos_pagos": novos_pagos, "ultimo_pagamento": ultimo,
                    "pagos_em": pagos_em, "itens": itens}, f, ensure_ascii=False, indent=1)
     print(f"Verificação concluída: {len(itens)} boletos lidos, {len(grav)} status alterado(s).")
-    novos = [str(it.get("rotulo", "")).split(" - ")[-1].strip() for it in itens if it.get("novo_pago")]
+    try:
+        with open(os.path.join(PASTA, "pagamentos_antecipados.json"), encoding="utf-8") as f:
+            ja_avisados = set((json.load(f).get("pagos") or {}).keys())
+    except Exception:
+        ja_avisados = set()
+    novos = [str(it.get("rotulo", "")).split(" - ")[-1].strip() for it in itens if it.get("novo_pago") and it.get("rotulo") not in ja_avisados]
     if novos:
         hora = datetime.datetime.now().strftime("%d/%m às %H:%M")
         # o aviso sai DEPOIS de publicar o painel: o botão "📲 Enviar no WhatsApp" monta a lista com os dados novos
@@ -731,6 +821,16 @@ def main():
     else:
         print("Notificações: ligadas.")
     # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
+    try:                                         # virada do mês: boletos do mês seguinte (coluna K) passam para a J
+        if promover_antecipados(api, planilha_id):
+            montar_planilha(ler_google(planilha_id, cred, api), xlsx)
+    except Exception as e:
+        print(f"Aviso: virada dos boletos antecipados falhou ({type(e).__name__}: {e}).")
+    if evento in ("workflow_dispatch", "schedule"):  # pagamentos antecipados: em todas as rodadas automáticas
+        try:
+            verificar_antecipados(api, planilha_id, g)
+        except Exception as e:
+            print(f"Aviso: verificação dos antecipados falhou ({type(e).__name__}: {e}).")
     if evento == "workflow_dispatch" or (evento == "schedule" and epoca_pag and 7 <= agora.hour <= 18):
         try:
             if verificar_boletos(api, planilha_id, g):
@@ -741,9 +841,9 @@ def main():
     try:
         g.main()
         for aviso in AVISOS_PAG:
-            titulo, corpo, so_para = (list(aviso) + [None])[:3]
+            titulo, corpo, so_para, com_zap = (list(aviso) + [None, True])[:4]
             try:
-                g.notificar(titulo, corpo, "pagamento", zap="__STATUS_PAGAMENTOS__", icone="notif-pag.png", so_para=so_para)
+                g.notificar(titulo, corpo, "pagamento", zap="__STATUS_PAGAMENTOS__" if com_zap else None, icone="notif-pag.png", so_para=so_para)
             except Exception as e:
                 print(f"Aviso: notificação de pagamento não enviada ({e}).")
         AVISOS_PAG.clear()
