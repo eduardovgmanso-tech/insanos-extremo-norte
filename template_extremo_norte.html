@@ -475,6 +475,24 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .pag-lista-int{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;padding:0 12px 12px}
 .btn-comp.ades{margin-left:6px}.btn-comp.ades.on{background:#1f8f4e;color:#fff;border-color:#1f8f4e}
 .dleg i{width:11px!important;height:11px!important;border-radius:3px!important;border:0!important}
+.dcomp{table-layout:fixed;min-width:420px}
+.dcomp th:first-child,.dcomp td:first-child{width:34%;min-width:150px}
+.dcomp th:not(:first-child),.dcomp td:not(:first-child){text-align:center!important;padding:8px 4px}
+.dcomp tbody tr:not(.sec):nth-child(odd){background:rgba(236,231,220,.035)}
+.dcomp .dmes{display:inline-block;padding:4px 12px;border-radius:999px;background:rgba(233,185,73,.14);color:#E9B949;font-weight:700;font-size:13.5px}
+.dchip{display:inline-block;min-width:58px;padding:4px 8px;border-radius:8px;border:1px solid transparent;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.dchip.vazio{color:var(--osso2);background:rgba(236,231,220,.05)}
+.dseta{font-style:normal;font-size:10px;margin-left:4px;vertical-align:middle}.dseta.up{color:#7fd89f}.dseta.dn{color:#f0b6b4}
+.dnum{font-size:15px;font-variant-numeric:tabular-nums}
+.dcomp th.ddel,.dcomp td.ddel{width:58px;padding:8px 0!important}
+.dd{display:inline-block;font-size:11.5px;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dd.up{color:#7fd89f}.dd.dn{color:#f0b6b4}.dd.igual{color:var(--osso2)}
+.dtxt{font-size:12.5px;line-height:1.3;display:inline-block}
+.dsub{display:block;font-size:10.5px;color:var(--osso2);font-weight:500;line-height:1.2}
+@media (max-width:600px){.dcomp{font-size:12.5px}.dchip{min-width:42px;font-size:12px;padding:3px 3px;border-radius:7px}
+  .dcomp th:first-child,.dcomp td:first-child{width:80px;min-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px}
+  .dcomp th.ddel,.dcomp td.ddel{width:36px}.dd{font-size:10px}.dcomp .dmes{padding:3px 7px;font-size:12px}
+  .dcomp th:not(:first-child),.dcomp td:not(:first-child){padding:7px 1px}.dtxt{font-size:11px}}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1704,17 +1722,28 @@ function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice
         return `<div class="drow"><span>${esc(g)}</span><div class="dbar"><i style="width:${v||0}%;background:${corFaixa(v)[1]}"></i></div><b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b><span style="color:var(--osso2)">${w==null?"–":w+"%"}</span></div>`}).join("")}</div>
       <div class="dbox"><h3>Destaques de ${ymNome(ym)}</h3>${dashDestaques(c,temAnt?ant:null).map(([a,b])=>`<div class="dli"><span>${a}</span><b>${esc(b)}</b></div>`).join("")}</div></div>
       ${dashPorIntegrante([c],ant)}`;
-  }else{const ms=[...DASH_SEL].sort(),cs=ms.map(dashCalc),cel=v=>`<td style="color:${corFaixa(v)[1]};font-weight:700">${v==null?"–":v+"%"}</td>`;
-    const lin=(rot,f)=>`<tr><td>${rot}</td>${cs.map(f).join("")}</tr>`;
+  }else{const ms=[...DASH_SEL].sort(),cs=ms.map(dashCalc);
+    const destaque=x=>{const d=dashDestaques(x,null).find(z=>z[0].includes("Mais presente"));return d?d[1]:null};
     el.innerHTML=`<div class="dbox"><h3>Comparativo · ${ms.map(m=>ymNome(m,true)).join(", ")}</h3>${DLEG}${dashSvg(ms,[["#4CAF6A",cs.map(x=>x.pres.pc)],["#D9B26A",cs.map(x=>x.ins.pc),1]])}</div>
-      <div class="dbox" style="overflow-x:auto"><table class="dtab"><thead><tr><th></th>${ms.map(m=>`<th>${ymNome(m,true)}</th>`).join("")}</tr></thead><tbody>
-      ${lin("Presença",x=>cel(x.pres.pc))}${lin("Insights (sem o comando)",x=>cel(x.ins.pc))}
-      ${lin("Eventos",x=>`<td>${x.pres.n}</td>`)}${lin("Insights",x=>`<td>${x.ins.n}</td>`)}
-      <tr class="sec"><td colspan="${ms.length+1}">Presença por função</td></tr>
-      ${GRUPOS.map(g=>lin(esc(g),x=>{const a=x.pres.porG[g];return cel(a?pct(a.p,a.a):null)})).join("")}
-      <tr class="sec"><td colspan="${ms.length+1}">Destaque</td></tr>
-      ${lin("🏆 Mais presente",x=>{const d=dashDestaques(x,null).find(z=>z[0].includes("Mais presente"));return `<td style="font-size:13px">${d?esc(d[1]):"–"}</td>`})}
-      </tbody></table></div>${dashPorIntegrante(cs,null)}`}}
+      <div class="dbox" style="overflow-x:auto">${dashTabMeses(ms,[
+        {rot:"Presença",vals:cs.map(x=>x.pres.pc)},{rot:`Insights<small class="dsub">sem o comando</small>`,vals:cs.map(x=>x.ins.pc)},
+        {rot:"Nº de eventos",vals:cs.map(x=>x.pres.n),num:1},{rot:"Nº de insights",vals:cs.map(x=>x.ins.n),num:1},
+        {sec:"Presença por função"},
+        ...GRUPOS.map(g=>({rot:esc(g),vals:cs.map(x=>{const a=x.pres.porG[g];return a&&a.p+a.a?pct(a.p,a.a):null})})),
+        {sec:"Destaque"},{rot:"🏆 Mais presente",vals:cs.map(destaque),txt:1}])}</div>${dashPorIntegrante(cs,null)}`}}
+// tabela de vários meses (comparativo e presença por integrante): meses centralizados, % em etiqueta
+// e, entre um mês e outro, quanto subiu (▲) ou desceu (▼)
+function dashTabMeses(ms,linhas,tit){const n=ms.length,cols=1+n+(n-1);
+  const chip=v=>{if(v==null)return `<span class="dchip vazio">–</span>`;const c=corFaixa(v)[1];
+    return `<span class="dchip" style="color:${c};background:color-mix(in srgb,${c} 16%,transparent);border-color:color-mix(in srgb,${c} 40%,transparent)">${v}%</span>`};
+  const delta=(a,b,num)=>{if(a==null||b==null)return `<td class="ddel"></td>`;const d=b-a;
+    if(!d)return `<td class="ddel"><span class="dd igual">=</span></td>`;
+    return `<td class="ddel"><span class="dd ${d>0?"up":"dn"}">${d>0?"▲":"▼"} ${d>0?"+":"−"}${Math.abs(d)}${num?"":""}</span></td>`};
+  const cab=`<tr><th></th>${ms.map((m,k)=>(k?`<th class="ddel"></th>`:"")+`<th><span class="dmes">${ymNome(m,true)}</span></th>`).join("")}</tr>`;
+  const corpo=linhas.map(l=>{if(l.sec)return `<tr class="sec"><td colspan="${cols}">${l.sec}</td></tr>`;
+    return `<tr><td>${l.rot}</td>${l.vals.map((v,k)=>(k?(l.txt?`<td class="ddel"></td>`:delta(l.vals[k-1],v,l.num)):"")+
+      `<td>${l.txt?`<span class="dtxt">${v==null?"–":esc(v)}</span>`:l.num?`<b class="dnum">${v??"–"}</b>`:chip(v)}</td>`).join("")}</tr>`}).join("");
+  return `${tit?`<h3>${tit}</h3>`:""}<table class="dtab dcomp" style="min-width:${innerWidth<600?Math.max(280,80+n*56+(n-1)*36):Math.max(420,180+n*96+(n-1)*58)}px"><thead>${cab}</thead><tbody>${corpo}</tbody></table>`}
 // presença de cada irmão: 1 mês = barras (com o mês anterior e os insights); vários meses = tabela colorida
 function dashLinhasInt(cs){const ord=[...M_FULL].map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o);
   return ord.map(({m,i})=>({m,i,v:cs.map(c=>{const x=c.pres.porM[i];return x&&x.p+x.a?pct(x.p,x.a):null}),ins:cs.map(c=>{const x=c.ins.porM[i];return x&&x.p+x.a?pct(x.p,x.a):null})}))}
@@ -1724,10 +1753,7 @@ function dashPorIntegrante(cs,ant){const L=dashLinhasInt(cs);
     return `<div class="dbox"><h3>Presença por integrante · ${ymNome(cs[0].ym)}</h3><div class="dleg"><span>barra: presença no mês</span><span>antes: mês anterior</span><span>ins.: insights</span></div>
       ${lin.map(x=>{const v=x.v[0],a=A?(A.find(y=>y.i===x.i)||{v:[null]}).v[0]:null,ins=x.ins[0];
         return `<div class="drow" style="grid-template-columns:120px minmax(0,1fr) 48px 74px 66px"><span>${esc(x.m.n)}</span><div class="dbar"><i style="width:${v||0}%;background:${corFaixa(v)[1]}"></i></div><b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b><span style="color:var(--osso2);font-size:12px">antes ${a==null?"–":a+"%"}</span><span style="color:var(--osso2);font-size:12px">ins. ${ins==null?"–":ins+"%"}</span></div>`}).join("")}</div>`}
-  const cor=v=>v==null?"transparent":corFaixa(v)[1];
-  return `<div class="dbox" style="overflow-x:auto"><h3>Presença por integrante</h3><table class="dtab"><thead><tr><th></th>${cs.map(c=>`<th>${ymNome(c.ym,true)}</th>`).join("")}</tr></thead><tbody>
-    ${L.map(x=>`<tr><td>${esc(x.m.n)}</td>${x.v.map(v=>`<td><span style="display:inline-block;min-width:52px;padding:3px 6px;border-radius:6px;background:${v==null?"transparent":cor(v)+"33"};color:${v==null?"var(--osso2)":cor(v)};font-weight:700">${v==null?"–":v+"%"}</span></td>`).join("")}</tr>`).join("")}
-    </tbody></table></div>`}
+  return `<div class="dbox" style="overflow-x:auto">${dashTabMeses(cs.map(c=>c.ym),L.map(x=>({rot:esc(x.m.n),vals:x.v})),"Presença por integrante")}</div>`}
 // ---- fly mensal para o Comando VIII: resumo pequeno, com TUDO do mês dentro do QR (compactado) ----
 // QR: "C8Z1" + JSON compactado {v,d:divisão,r:regional,m:"aaaa-mm",e:[[dia,nome,presentes,ausentes]],i:[[dia,nome,responderam,não]]}
 function c8Dados(ym){const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?i:-1).filter(i=>i>=0));
