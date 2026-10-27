@@ -474,6 +474,7 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .pag-grupo .pg-seta{margin-left:auto;transition:transform .2s;color:var(--osso2)}.pag-grupo[open] .pg-seta{transform:rotate(180deg)}
 .pag-lista-int{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;padding:0 12px 12px}
 .btn-comp.ades{margin-left:6px}.btn-comp.ades.on{background:#1f8f4e;color:#fff;border-color:#1f8f4e}
+.dleg i{width:11px!important;height:11px!important;border-radius:3px!important;border:0!important}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -967,6 +968,13 @@ const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agos
 let M=DADOS.m, EV=DADOS.ev.map((e,i)=>({...e,i}));
 // análises da tela Presença: Presença, Insights e Staff (mesmo formato); no Insights e no Staff dá para tirar o Comando
 const M_FULL=M,EV_SETS={pres:DADOS.ev||[],ins:DADOS.ev_ins||[],staff:DADOS.ev_staff||[]};
+// ENTRADA: cada irmão conta a partir do primeiro evento em que aparece marcado (✅, ❌, Staff ou –).
+// Antes disso não conta; depois, se ficar sem marcação, conta como "não foi / não respondeu".
+const ENTRADA={};["pres","ins"].forEach(k=>(EV_SETS[k]||[]).forEach(e=>(e.p||[]).forEach((v,i)=>{const m=M_FULL[i];
+  if(m&&v!==null&&v!==undefined&&v!==""&&(!ENTRADA[m.n]||e.d<ENTRADA[m.n]))ENTRADA[m.n]=e.d})));
+function contaEnt(v,i,d){if(v==="-")return 0;if(v===null||v===undefined||v===""){const m=M_FULL[i],en=m&&ENTRADA[m.n];return en&&d>=en?0:null}return v}
+const evComEntrada=e=>(e.p||[]).map((v,k)=>contaEnt(v,k,e.d));
+EV=EV_SETS.pres.map((e,i)=>({...e,i,p:evComEntrada(e)}));   // já na abertura do painel, com a regra da entrada
 const ANAL_NOMES={pres:"Presença",ins:"Insights",staff:"Staff"},ANAL_TIT={pres:"Presença nos eventos",ins:"Insights",staff:"Staff"};
 let ANAL="pres",SEM_CMD=false,IZ_MODO="analise";   // Insights: "analise" ou "preencher" (lista)   // SEM_CMD = caixa marcada na análise atual
 const OPC={ins:false,staff:false}; // Insights: sem o comando · Staff: base = quem foi ao evento (aba Presenca)
@@ -985,7 +993,9 @@ function grupoDe(m){const c=String(m.c||"").trim().toLowerCase();
 const st={nome:"",cargos:[],mes:"",data:""};
 // filtro de cargo com várias funções
 const noCargo=m=>!st.cargos.length||st.cargos.includes(grupoDe(m));
-const cargoRot=()=>st.cargos.join(" + ");let ordem="hier";
+const RANK_MIN=3;   // irmão com menos eventos que isso fica no fim do ranking, como 🆕 novo
+const cargoRot=()=>{const disp=GRUPOS.filter(g=>M.some(m=>grupoDe(m)===g));
+  return disp.length>1&&disp.every(g=>st.cargos.includes(g))?"Todas as funções":st.cargos.join(" + ")};let ordem="hier";
 const fmtD=d=>{const [y,m,dd]=d.split("-");return dd+"/"+m};
 const fmtDL=d=>{const [y,m,dd]=d.split("-");return dd+" de "+MESES[+m-1].toLowerCase()};
 const mesDe=d=>d.slice(0,7);
@@ -1069,7 +1079,9 @@ function ezListaUI(){const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
     return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lw-col">${ms.map(m=>{const v=ez.marca[m.n];
       return `<div class="lw-l"><div class="lw-lin"><span>${esc(lwNome(m))}</span><div class="seg">${(ezTipo()==="pres"?[["1","✅",1],["S","🛠️","S"],["0","❌",0],["-","–","-"]]:[["1","✅",1],["0","❌",0],["-","–","-"]]).map(([dv,rot,val])=>
         `<button type="button" data-n="${esc(m.n)}" data-v="${dv}" title="${dv==="S"?"Fez staff (conta como presença)":""}" aria-pressed="${v===val}" style="${v===val?(val===0?"background:var(--sangue)":val===1?"background:var(--presente)":val==="S"?"background:#B8942F":"background:#555"):""}">${rot}</button>`).join("")}</div></div></div>`}).join("")}</div>`}).join("")}
-function ezPct(){const base=M_FULL.filter(m=>!(ezTipo()==="ins"&&SEM_CMD&&grupoDe(m)==="Comando")),v=base.map(m=>ez.marca[m.n]),s=v.filter(ezPres).length,den=base.length;
+function ezConta(m){const v=ez.marca[m.n],d=$("ezData")?$("ezData").value:"";
+  if(v!==undefined&&v!==null&&v!=="")return true;const en=ENTRADA[m.n];return !!en&&(!d||d>=en)}
+function ezPct(){const base=M_FULL.filter(m=>!(ezTipo()==="ins"&&SEM_CMD&&grupoDe(m)==="Comando")&&ezConta(m)),v=base.map(m=>ez.marca[m.n]),s=v.filter(ezPres).length,den=base.length;
   return den?Math.round(s*100/den):0}   // % do evento: SIM ÷ todos (sem marcação e "–" contam como "não respondeu")
 function ezTexto(){const SEPR="-----------------------------------",tit=$("ezTit").value.trim()||"Evento",obs=$("ezObs").value.trim();
   const cab=[`*💀 ${tit} 💀*`,$("ezBase").value.trim()?`*${$("ezBase").value.trim()}*`:"",SEPR,`*🗓️ Data: ${lwBR($("ezData").value)}*`,SEPR];
@@ -1218,7 +1230,7 @@ function aplicarAnalise(){
     const pres={};(EV_SETS.pres||[]).forEach(e=>{const a=pres[e.d]=pres[e.d]||new Set();e.p.forEach((v,k)=>{if(v===1)a.add(k)})});
     evs=base.map(e=>{const a=pres[e.d];if(!a)return e;return {...e,p:e.p.map((v,k)=>a.has(k)?(v===1?1:0):"-")}});
   }
-  M=ids.map(i=>M_FULL[i]);EV=evs.map((e,k)=>({...e,i:k,p:ids.map(i=>e.p[i]==="-"?0:e.p[i])}));   // "–" = não respondeu: conta como NÃO
+  M=ids.map(i=>M_FULL[i]);EV=evs.map((e,k)=>({...e,i:k,p:ids.map(i=>contaEnt(e.p[i],i,e.d))}));   // "–" e sem marcação depois da entrada = NÃO
   if(st.nome&&!M.some(m=>m.n===st.nome))st.nome="";
   if(ANAL==="ins"&&SEM_CMD)st.cargos=st.cargos.filter(c=>c!=="Comando");
   const h=document.querySelector("header h1");if(h&&h.firstChild)h.firstChild.nodeValue=ANAL_TIT[ANAL];
@@ -1583,10 +1595,11 @@ async function imagemEvento(){
   T(`🗓️ ${lwBR($("ezData").value)}`,60,y,34,"#D9B26A",700);
   // números
   const semCmdC=ezTipo()==="ins"&&SEM_CMD,MC=M_FULL.filter(m=>!(semCmdC&&grupoDe(m)==="Comando")),comLista=ezComLista();
-  const v=MC.map(m=>ez.marca[m.n]),pres=v.filter(ezPres).length,aus=v.filter(x=>x===0||x==="-").length,nc=v.filter(x=>x!==1&&x!=="S"&&x!==0&&x!=="-").length;
-  const pc=MC.length?Math.round(pres*100/MC.length):null;   // SIM ÷ todos ("–" = não respondeu)
+  const MV=MC.filter(ezConta);   // quem conta neste evento: marcado ou já tinha entrado (regra da entrada)
+  const v=MV.map(m=>ez.marca[m.n]),pres=v.filter(ezPres).length,aus=v.filter(x=>x===0||x==="-").length,nc=v.filter(x=>x!==1&&x!=="S"&&x!==0&&x!=="-").length;
+  const pc=MV.length?Math.round(pres*100/MV.length):null;   // SIM ÷ quem conta ("–" e sem marcação = não)
   let tp=0,tt=0;const ehIns=ezTipo()==="ins";
-  (EV_SETS[ezTipo()]||[]).forEach(e=>e.p.forEach((x,i)=>{if(semCmdC&&M_FULL[i]&&grupoDe(M_FULL[i])==="Comando")return;if(x===1){tp++;tt++}else if(x===0||x==="-"||(ehIns&&x==null&&M_FULL[i]&&grupoDe(M_FULL[i])!=="Comando"))tt++}));const media=tt?Math.round(tp*100/tt):null;
+  (EV_SETS[ezTipo()]||[]).forEach(e=>e.p.forEach((x,i)=>{if(semCmdC&&M_FULL[i]&&grupoDe(M_FULL[i])==="Comando")return;const w=contaEnt(x,i,e.d);if(w===1){tp++;tt++}else if(w===0)tt++}));const media=tt?Math.round(tp*100/tt):null;
   const topo=y+40,cx=270;const cor=await desenharCaveira(g,cx,topo,290,pc);
   T(pc==null?"–":pc+"%",cx,topo+372,92,cor[1],800,tit,"center");T(TT.pc,cx,topo+412,28,"#B8B2A6",500,null,"center");
   const kx=500,kw=520,lin=[[`${pres}`,TT.sim],[`${aus}`,TT.nao],[`${nc}`,"sem marcação"],[media==null?"–":media+"%","média dos eventos"]];
@@ -1594,7 +1607,7 @@ async function imagemEvento(){
     T(val,kx+22,yy+46,38,k===0?"#4CAF6A":k===1?"#D25A57":"#ECE7DC",800,tit);T(r,kx+kw-22,yy+42,26,"#B8B2A6",500,null,"right")});
   // adesão por função
   let fy=topo+480;T(TT.func+(semCmdC?" · sem o comando":""),60,fy,34,"#ECE7DC",700,tit);fy+=28;
-  GRUPOS.forEach(gp=>{const ms=MC.filter(m=>grupoDe(m)===gp);if(!ms.length)return;const s=ms.filter(m=>ezPres(ez.marca[m.n])).length,n=ms.length-s;
+  GRUPOS.forEach(gp=>{const ms=MV.filter(m=>grupoDe(m)===gp);if(!ms.length)return;const s=ms.filter(m=>ezPres(ez.marca[m.n])).length,n=ms.length-s;
     const p2=s+n?Math.round(s*100/(s+n)):null;   // por função também: SIM ÷ todos do grupo
     T(gp,60,fy+30,26,"#B8B2A6",600);
     caixa(240,fy+10,560,26,8,"rgba(236,231,220,.08)");if(p2){caixa(240,fy+10,560*p2/100,26,8,corFaixa(p2)[0])}
@@ -1648,14 +1661,14 @@ function dashCalc(ym){
   const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?i:-1).filter(i=>i>=0));
   const tipo=(k,semCmd)=>{const evs=(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym));let p=0,a=0;const porM={},porG={},evPc=[];
     evs.forEach(e=>{let ep=0,ea=0;e.p.forEach((v,i)=>{if(semCmd&&cmd.has(i))return;const m=M_FULL[i];if(!m)return;
-      if(v==="-")v=0;   // "–" = não respondeu
+      v=contaEnt(v,i,e.d);   // "–" e sem marcação depois da entrada = NÃO
       if(v===1||v===0){const g=grupoDe(m);porM[i]=porM[i]||{p:0,a:0};porG[g]=porG[g]||{p:0,a:0};if(v===1){p++;ep++;porM[i].p++;porG[g].p++}else{a++;ea++;porM[i].a++;porG[g].a++}}});
       if(ep+ea)evPc.push({e,pc:pct(ep,ea)})});
     return {p,a,pc:pct(p,a),n:evPc.length,porM,porG,evPc}};
   const pres=tipo("pres"),ins=tipo("ins",true);
   return {ym,pres,ins}}
 function dashDestaques(c,ant){const d=[],nome=i=>M_FULL[i]?M_FULL[i].n:"";
-  const pm=Object.entries(c.pres.porM).map(([i,x])=>({i:+i,pc:pct(x.p,x.a),n:x.p+x.a})).filter(x=>x.n>=2);
+  const pm=Object.entries(c.pres.porM).map(([i,x])=>({i:+i,pc:pct(x.p,x.a),n:x.p+x.a})).filter(x=>x.n>=Math.min(RANK_MIN,2));
   if(pm.length){const mx=Math.max(...pm.map(x=>x.pc));const q=pm.filter(x=>x.pc===mx).map(x=>nome(x.i));d.push(["🏆 Mais presente",`${q.slice(0,3).join(", ")}${q.length>3?` +${q.length-3}`:""} · ${mx}%`])}
   if(ant){const ev=pm.map(x=>{const y=ant.pres.porM[x.i];return y&&y.p+y.a?{i:x.i,dif:x.pc-pct(y.p,y.a)}:null}).filter(Boolean).sort((a,b)=>b.dif-a.dif);
     if(ev.length&&ev[0].dif>0)d.push(["📈 Maior evolução",`${nome(ev[0].i)} · +${ev[0].dif} pts`])}
@@ -1665,15 +1678,18 @@ function dashDestaques(c,ant){const d=[],nome=i=>M_FULL[i]?M_FULL[i].n:"";
   const an=M_FULL.filter(m=>m.nasc&&m.nasc.slice(5,7)===c.ym.slice(5)).map(m=>m.n);if(an.length)d.push(["🎂 Aniversariantes",an.join(", ")]);
   d.push(["🗓️ Eventos · insights no mês",`${c.pres.n} · ${c.ins.n}`]);return d}
 function dashDelta(v,a){if(v==null||a==null)return '<small class="eq">sem mês anterior</small>';const d=v-a;return d>0?`<small class="up">▲ +${d} pts (${a}%)</small>`:d<0?`<small class="dn">▼ ${d} pts (${a}%)</small>`:`<small class="eq">= igual (${a}%)</small>`}
-function dashSvg(meses,series){const Wd=Math.max(320,Math.min(760,($("dashCorpo").clientWidth||700)-30)),Hd=200,ml=38,mr=30,mt=14,mb=28,gw=Wd-ml-mr,gh=Hd-mt-mb,n=meses.length;
-  const x=i=>ml+(n===1?gw/2:gw*i/(n-1)),y=v=>mt+gh-gh*v/100;let s=`<svg viewBox="0 0 ${Wd} ${Hd}" style="width:100%;height:auto;display:block" role="img" aria-label="Tendência mensal">`;
+function dashSvg(meses,series){const Wd=Math.max(320,Math.min(760,($("dashCorpo").clientWidth||700)-30)),Hd=220,ml=38,mr=12,mt=22,mb=28,gw=Wd-ml-mr,gh=Hd-mt-mb,n=meses.length;
+  // gráfico de COLUNAS: um grupo por mês, uma coluna por série (presença e insights), com a % em cima
+  const y=v=>mt+gh-gh*v/100,gl=gw/Math.max(1,n),ns=series.length,bw=Math.max(8,Math.min(34,gl*.72/ns)),gap=Math.min(6,bw*.25);
+  let s=`<svg viewBox="0 0 ${Wd} ${Hd}" style="width:100%;height:auto;display:block" role="img" aria-label="Gráfico de colunas por mês">`;
   [0,25,50,75,100].forEach(v=>{s+=`<line x1="${ml}" x2="${Wd-mr}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(236,231,220,.08)"/><text x="${ml-6}" y="${y(v)+4}" fill="#8c867b" font-size="11" text-anchor="end">${v}%</text>`});
-  meses.forEach((m,i)=>{s+=`<text x="${x(i)}" y="${Hd-8}" fill="#8c867b" font-size="11" text-anchor="middle">${ymNome(m,true)}</text>`});
-  series.forEach(([cor,vals,tr])=>{const pts=vals.map((v,i)=>v==null?null:[x(i),y(v),v]).filter(Boolean);if(!pts.length)return;
-    s+=`<polyline fill="none" stroke="${cor}" stroke-width="2.5" ${tr?'stroke-dasharray="6 4"':""} stroke-linejoin="round" stroke-linecap="round" points="${pts.map(p=>p[0]+","+p[1]).join(" ")}"/>`;
-    pts.forEach(p=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${cor}"/>`});const u=pts[pts.length-1];s+=`<text x="${u[0]}" y="${u[1]-9}" fill="${cor}" font-size="12" font-weight="700" text-anchor="middle">${u[2]}%</text>`});
+  meses.forEach((m,i)=>{const cx=ml+gl*i+gl/2,larg=ns*bw+(ns-1)*gap;
+    s+=`<text x="${cx}" y="${Hd-8}" fill="#8c867b" font-size="11" text-anchor="middle">${ymNome(m,true)}</text>`;
+    series.forEach(([cor,vals],k)=>{const v=vals[i];if(v==null)return;const x0=cx-larg/2+k*(bw+gap),h=Math.max(2,gh*v/100);
+      s+=`<rect x="${x0}" y="${y(v)}" width="${bw}" height="${h}" rx="4" fill="${cor}" opacity=".92"><title>${ymNome(m)}: ${v}%</title></rect>`;
+      if(bw>=12)s+=`<text x="${x0+bw/2}" y="${y(v)-5}" fill="${cor}" font-size="${bw>=22?12:10}" font-weight="700" text-anchor="middle">${v}%</text>`})});
   return s+"</svg>"}
-const DLEG=`<div class="dleg"><span><i style="background:#4CAF6A"></i>Presença</span><span><i style="background:#D9B26A;height:0;border-top:3px dashed #D9B26A"></i>Insights (sem o comando)</span></div>`;
+const DLEG=`<div class="dleg"><span><i style="background:#4CAF6A"></i>Presença</span><span><i style="background:#D9B26A"></i>Insights (sem o comando)</span></div>`;
 function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice(0,1);DASH_SEL=DASH_SEL.filter(m=>meses.includes(m));
   $("dashMesOp").innerHTML=meses.map(m=>`<label><input type="checkbox" value="${m}"${DASH_SEL.includes(m)?" checked":""}> ${ymNome(m)}</label>`).join("")+'<button type="button" class="multi-lim" data-lim="1">Só o mês mais recente</button>';
   $("dashMesBt").textContent=DASH_SEL.length?[...DASH_SEL].sort().map(m=>ymNome(m,DASH_SEL.length>2)).join(" + "):"Escolha o mês";
@@ -1715,7 +1731,7 @@ function dashPorIntegrante(cs,ant){const L=dashLinhasInt(cs);
 // ---- fly mensal para o Comando VIII: resumo pequeno, com TUDO do mês dentro do QR (compactado) ----
 // QR: "C8Z1" + JSON compactado {v,d:divisão,r:regional,m:"aaaa-mm",e:[[dia,nome,presentes,ausentes]],i:[[dia,nome,responderam,não]]}
 function c8Dados(ym){const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?i:-1).filter(i=>i>=0));
-  const lista=(k,semCmd)=>(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym)).map(e=>{let p=0,a=0;e.p.forEach((v,i)=>{if(semCmd&&cmd.has(i))return;if(v===1)p++;else if(v===0||v==="-")a++});return [+e.d.slice(8,10),String(e.e).slice(0,40),p,a]}).filter(x=>x[2]+x[3]);
+  const lista=(k,semCmd)=>(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym)).map(e=>{let p=0,a=0;e.p.forEach((v,i)=>{if(semCmd&&cmd.has(i))return;const w=contaEnt(v,i,e.d);if(w===1)p++;else if(w===0)a++});return [+e.d.slice(8,10),String(e.e).slice(0,40),p,a]}).filter(x=>x[2]+x[3]);
   return {v:1,d:DIV_NOME,r:DIV_REG,m:ym,e:lista("pres"),i:lista("ins",true)}}
 async function c8Compactar(obj){const bytes=new TextEncoder().encode(JSON.stringify(obj));
   const s=new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));const z=new Uint8Array(await new Response(s).arrayBuffer());
@@ -1929,7 +1945,7 @@ const filtroSub=()=>`${FX[ANAL].an}${ANAL==="ins"&&SEM_CMD?" · sem o comando":"
 async function imagemFiltro(){
   const X=FX[ANAL],evs=EV.filter(e=>!st.mes||e.d.startsWith(st.mes)),mem=M.map((m,i)=>({...m,i})).filter(noCargo);
   let P=0,A=0;const lin=mem.map(m=>{let p=0,a=0;evs.forEach(e=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});P+=p;A+=a;return {m,p,a,v:pct(p,a)}})
-    .filter(x=>x.p+x.a).sort((x,y)=>(y.v??-1)-(x.v??-1)||y.p-x.p||x.m.o-y.m.o);
+    .filter(x=>x.p+x.a).sort((x,y)=>((y.p+y.a>=RANK_MIN)-(x.p+x.a>=RANK_MIN))||(y.v??-1)-(x.v??-1)||y.p-x.p||x.m.o-y.m.o);
   const comReg=evs.filter(e=>mem.some(m=>e.p[m.i]===1||e.p[m.i]===0));
   const ult=[...comReg].sort((x,y)=>x.d<y.d?1:x.d>y.d?-1:0).slice(0,4).map(e=>{let p=0,a=0;mem.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,v:pct(p,a),p,a}});
   const pc=pct(P,A);
@@ -1953,7 +1969,8 @@ async function imagemFiltro(){
   // ranking dos irmãos do filtro
   let y=topo+500;T("Ranking",60,y,34,"#ECE7DC",700,tit);y+=20;
   lin.forEach((x,k)=>{y+=48;const v=x.v,cr=corFaixa(v)[1];
-    T(`${k+1}º`,60,y,26,"#7d776d",700);T(corta(x.m.n,330,28,700),120,y,28,"#ECE7DC",700);
+    const novo=x.p+x.a<RANK_MIN;
+    T(novo?"🆕":`${k+1}º`,60,y,26,"#7d776d",700);T(corta(x.m.n+(novo?" · novo":""),330,28,700),120,y,28,novo?"#B8B2A6":"#ECE7DC",700);
     caixa(470,y-22,380,22,11,"rgba(236,231,220,.08)");if(v!=null)caixa(470,y-22,Math.max(12,380*v/100),22,11,cr);
     T(v==null?"–":v+"%",W-150,y,28,cr,800,tit,"right");T(`${x.p}/${x.p+x.a}`,W-60,y,24,"#7d776d",600,null,"right")});
   if(!lin.length){y+=48;T("Nenhuma marcação nesse período.",60,y,26,"#B8B2A6",500)}
@@ -2023,7 +2040,7 @@ function render(){
   let P=0,A=0;
   const stats=mem.map(m=>{let p=0,a=0;evs.forEach(e=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});P+=p;A+=a;return {...m,p,a,pc:pct(p,a)}});
   let semMarca=0;
-  if(st.data)evs.forEach(e=>{semMarca+=mem.filter(m=>{const v=e.p[m.i];return v!==1&&v!==0&&v!=="-"}).length});
+  // (quem está sem marcação depois da entrada já conta como NÃO; antes da entrada, não conta)
   const tx=pct(P,A+semMarca);atualizarRoda(P,A,tx,semMarca);   // um evento: SIM ÷ (todos − "não conta")
   // eventos com mais de 50% de adesão (considera o cargo filtrado, não o integrante selecionado)
   const alvoU=MODO==="individual"?M[0]:(st.nome?M.find(m=>m.n===st.nome):null);
@@ -2038,7 +2055,7 @@ function render(){
   if(MODO!=="individual"){
     const grp=M.map((m,i)=>({...m,i})).filter(noCargo);
     let comReg50=0,acima=0,acima75=0;
-    evs.forEach(e=>{let p=0,a=0;grp.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});const tot=grp.length;   // % do evento: SIM ÷ todos do filtro
+    evs.forEach(e=>{let p=0,a=0;grp.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});const tot=p+a;   // % do evento: SIM ÷ quem já tinha entrado
       if(p+a){comReg50++;if(p*2>tot)acima++;if(p*4>tot*3)acima75++}});
     const pcE=comReg50?Math.round(acima*100/comReg50):null,pcE75=comReg50?Math.round(acima75*100/comReg50):null;
     const porG=GRUPOS.map(g=>{let p=0,a=0;M.forEach((m,i)=>{if(grupoDe(m)!==g)return;evs.forEach(e=>{if(e.p[i]===1)p++;else if(e.p[i]===0)a++})});return {g,p,a,pc:pct(p,a)}}).filter(x=>x.p+x.a);
@@ -2048,8 +2065,8 @@ function render(){
     // no Insights: os 3 últimos insights com a % de resposta de cada um (no lugar das metas de 50% e 75%)
     const ult3=()=>{const l=evs.map(e=>{let p=0,a=0;grp.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a}})
         .filter(x=>x.p+x.a).sort((x,y)=>x.e.d<y.e.d?1:x.e.d>y.e.d?-1:y.e.i-x.e.i).slice(0,3);
-      return `<div class="metas ultimos"><h4>ÚLTIMOS 3 INSIGHTS${st.cargos.length?" · "+esc(cargoRot().toUpperCase()):""}</h4>${l.length?l.map(x=>{const v=grp.length?Math.round(x.p*100/grp.length):null,dd=x.e.d.slice(8,10)+"/"+x.e.d.slice(5,7);   // SIM ÷ todos do filtro
-        return `<div class="item ult" tabindex="0" data-data="${x.e.d}"><div class="big" style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</div><div class="txt"><b>${esc(x.e.e)}</b><br>${dd} · ${x.p} de ${grp.length} responderam</div></div>`}).join("")
+      return `<div class="metas ultimos"><h4>ÚLTIMOS 3 INSIGHTS${st.cargos.length?" · "+esc(cargoRot().toUpperCase()):""}</h4>${l.length?l.map(x=>{const v=pct(x.p,x.a),dd=x.e.d.slice(8,10)+"/"+x.e.d.slice(5,7);   // SIM ÷ quem já tinha entrado
+        return `<div class="item ult" tabindex="0" data-data="${x.e.d}"><div class="big" style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</div><div class="txt"><b>${esc(x.e.e)}</b><br>${dd} · ${x.p} de ${x.p+x.a} responderam</div></div>`}).join("")
         :`<div class="txt">Nenhum insight com resposta nesse período.</div>`}</div>`};
     $("meta").innerHTML=`${alvoU?ultimos():ANAL==="ins"?ult3():`<div class="metas">${linhaMeta(pcE,50,acima)}${linhaMeta(pcE75,75,acima75)}</div>`}
       <div class="mini"><h4>ADESÃO POR FUNÇÃO</h4>${porG.map(x=>{const o=selG&&x.g!==selG?"off":"";
@@ -2086,7 +2103,7 @@ function render(){
   $("hTopMais").textContent=topEv?"Top 5 eventos com mais participação":"Top 5 mais presentes";
   $("hTopMenos").textContent=topEv?"Top 5 eventos com menos participação":"Top 5 menos presentes";
   $("subTop").textContent=topEv?"Considera o mês e o cargo filtrados.":"Considera o mês, a data e o cargo filtrados.";
-  $("subTopMenos").textContent=topEv?"Só entram eventos com pelo menos uma marcação.":"Só entra quem tem pelo menos uma marcação no período.";
+  $("subTopMenos").textContent=topEv?"Só entram eventos com pelo menos uma marcação.":`Só entra quem tem pelo menos ${RANK_MIN} eventos no período (irmãos novos ficam de fora).`;
   if(topEv){
     const evsT=EV.filter(e=>!st.mes||e.d.slice(0,7)===st.mes);
     const cE=evsT.map(e=>{let p=0,a=0;todos.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a,pc:pct(p,a)}}).filter(c=>c.p+c.a>0);
@@ -2096,8 +2113,9 @@ function render(){
     const menosE=[...cE].sort((x,y)=>x.pc-y.pc||y.a-x.a||(x.e.d<y.e.d?1:-1)).slice(0,5);
     [["topMais",maisE],["topMenos",menosE]].forEach(([id,l])=>{$(id).classList.remove("foco");$(id).innerHTML=l.length?l.map(colE).join(""):vz});
   }else{
-  const mais=[...base].sort((x,y)=>y.pc-x.pc||y.p-x.p||x.o-y.o).slice(0,5);
-  const menos=[...base].sort((x,y)=>x.pc-y.pc||y.a-x.a||x.o-y.o).slice(0,5);
+  const classif=base.filter(s=>s.p+s.a>=RANK_MIN||st.nome===s.n);   // irmãos novos (poucos eventos) ficam fora do Top 5
+  const mais=[...classif].sort((x,y)=>y.pc-x.pc||y.p-x.p||x.o-y.o).slice(0,5);
+  const menos=[...classif].sort((x,y)=>x.pc-y.pc||y.a-x.a||x.o-y.o).slice(0,5);
   ["topMais","topMenos"].forEach((id,j)=>{const l=j?menos:mais;
     $(id).classList.toggle("foco",!!sel&&l.some(s=>s.n===sel.n));
     $(id).innerHTML=l.length?l.map(colTop).join(""):vz;});
@@ -2130,7 +2148,7 @@ function render(){
       ?`<b style="color:var(--osso)">${esc(sel.n)}</b> esteve em <b style="color:var(--presente)">${fo}</b> e faltou em <b style="color:#D25A57">${fa}</b> dos eventos. Os eventos em que ele foi ficam em destaque; os que faltou ficam apagados.`
       :"Cada coluna é um evento, em ordem de data. Toque ou passe o mouse para ver o nome; clique para ver só aquela data.";
     $("legEventos").style.display="";
-    const cont=evs.map(e=>{let p=0,a=0;todos.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a:p+a?todos.length-p:0}});   // SIM ÷ todos do filtro
+    const cont=evs.map(e=>{let p=0,a=0;todos.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a}});   // SIM ÷ quem já tinha entrado (regra da entrada)iltro
     const maxE=Math.max(1,...cont.map(c=>c.p+c.a));
     $("colEventos").classList.toggle("foco",!!st.data);
     $("colEventos").innerHTML=cont.length?cont.map(({e,p,a})=>{const v=sel?e.p[sel.i]:undefined;
@@ -2268,7 +2286,7 @@ function irPara(v){
    document.querySelectorAll("section h2").forEach(h2=>{h2.hidden=!!TELA_TIT[v]&&nz(h2.firstChild&&h2.firstChild.nodeValue||h2.textContent)===nz(TELA_TIT[v])})}
   if($("insZap")&&INS_CASA&&v!=="lancar")lancTipo(LANC_TIPO==="insight"?"insight":"evento");
   if(v==="painel"){aplicarAnalise();montarFiltros();render()}
-  else{M=M_FULL;EV=EV_SETS.pres.map((e,i)=>({...e,i}));document.body.classList.remove("iz-preencher")}
+  else{M=M_FULL;EV=EV_SETS.pres.map((e,i)=>({...e,i,p:evComEntrada(e)}));document.body.classList.remove("iz-preencher")}
   // abriu a tela Pagamentos: o ponto verde da tela de CPF some neste aparelho
   if(v==="acessos"){try{acBuscar()}catch(e){}}
   if(v==="dash"){try{dashMostrar()}catch(e){console.error(e)}}
