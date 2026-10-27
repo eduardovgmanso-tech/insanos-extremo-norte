@@ -136,7 +136,7 @@ def aplicar_pagamento(api, pid, d):
         for i, row in enumerate(v[1:], start=2):
             rot = str((row + ["", ""])[1]); atual = str((row + ["", "", ""])[2])
             if _sa(rot).endswith(_sa(nome)):
-                if "pago" in _sa(atual) and "aguard" not in _sa(atual):
+                if "pago" in _sa(atual) and "aguard" not in _sa(atual) and "ades" not in _sa(atual) and "ades" not in _sa(st or ""):
                     break
                 gr.append((f"'{aba}'!C{i}", st or "")); feitos.append(nome); break
     _gravar(api, pid, gr)
@@ -227,6 +227,38 @@ def _cols_integrantes(v):
 def _linha_adesao(v):
     return next((r for r in range(8, len(v) + 1) if _sa((list(v[r - 1]) + [""])[0]).startswith("ades")), None)
 
+ABAS_SEM_USO = ["Staff", "Capa", "Sobrecapa", "Colete"]   # o painel não lê nenhuma delas (pedido do comando: remover)
+
+def remover_abas_sem_uso(api, pid):
+    """Apaga da planilha as abas que o painel não usa (só se ainda existirem). Dá para recuperar pelo Histórico de versões."""
+    ids, pedidos, nomes = _ids(api, pid), [], []
+    for n in ABAS_SEM_USO:
+        real = _aba_real(api, pid, n)
+        if real and real in ids:
+            pedidos.append({"deleteSheet": {"sheetId": ids[real]}}); nomes.append(real)
+    if pedidos and len(ids) - len(pedidos) >= 1:
+        _estrutura(api, pid, pedidos)
+        print("Abas sem uso apagadas da planilha: " + ", ".join(nomes))
+    return nomes
+
+def limpar_totais(api, pid):
+    """Apaga as fórmulas de Sim, Não e % ao lado dos integrantes nas abas de eventos.
+    O painel não usa essas contas (calcula sozinho) e, na planilha em português, elas davam #ERROR!."""
+    feito = 0
+    for aba in _abas_eventos(api, pid):
+        v = _ler(api, pid, f"'{aba}'!A1:CZ60")
+        cols, ult = _cols_integrantes(v)
+        if ult < 4:
+            continue
+        fim = _linha_adesao(v)
+        ate = (fim - 2) if fim else 42
+        f = _ler_f(api, pid, f"'{aba}'!{_col(ult + 1)}8:{_col(ult + 3)}{ate}") or []
+        if any(str(c).strip() for linha in f for c in linha):
+            _gravar(api, pid, [(f"'{aba}'!{_col(c)}{r}", "") for r in range(8, ate + 1) for c in (ult + 1, ult + 2, ult + 3)])
+            print(f"Aba {aba}: contas de Sim, Não e % apagadas (o painel calcula sozinho).")
+            feito += 1
+    return feito
+
 def _colunas_nas_abas(api, pid, ap, cargo, apos, log):
     ids = _ids(api, pid)
     for aba in _abas_eventos(api, pid):
@@ -245,10 +277,6 @@ def _colunas_nas_abas(api, pid, ap, cargo, apos, log):
         _gravar(api, pid, [(f"'{aba}'!{_col(pos)}6", ap), (f"'{aba}'!{_col(pos)}7", cargo_curto)])
         v = _ler(api, pid, f"'{aba}'!A1:CZ60"); ult += 1
         fim = _linha_adesao(v)
-        gr = []
-        for r in range(8, ((fim - 2) if fim else 42) + 1):
-            gr += _totais_linha(aba, v, r, ult)
-        _gravar(api, pid, gr)
         if fim:   # "Adesão Integrante" da coluna nova: mesma fórmula do vizinho
             vz = pos - 1 if pos - 1 >= 4 else pos + 1
             _estrutura(api, pid, [{"copyPaste": {"source": _faixa(sid, fim, fim, vz, vz), "destination": _faixa(sid, fim, fim, pos, pos), "pasteType": "PASTE_FORMULA"}}])
@@ -323,11 +351,6 @@ def aplicar_integrante(api, pid, d):
             if not alvo:
                 continue
             _estrutura(api, pid, [{"deleteDimension": {"range": {"sheetId": _ids(api, pid)[ae], "dimension": "COLUMNS", "startIndex": alvo - 1, "endIndex": alvo}}}])
-            v = _ler(api, pid, f"'{ae}'!A1:CZ60"); ult -= 1
-            fim = _linha_adesao(v); gr = []
-            for rr in range(8, ((fim - 2) if fim else 42) + 1):
-                gr += _totais_linha(ae, v, rr, ult)
-            _gravar(api, pid, gr)
             log.append(f"coluna apagada da aba {ae}")
         aba, C, linhas, fim_tab, ult_col = _di_mapa(api, pid)
         r = linhas.get(_sa(ap))
@@ -583,7 +606,10 @@ def _resumo_item(d):
             pc = f" · {round(100 * sim / len(marc))}% de {'resposta' if ins else 'adesão'} ({sim} de {len(marc)})" if marc else ""
             return f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({dt}){pc}"
         if tp == "pagamento_manual":
-            return "Compensação: " + ", ".join(k for k, v in (d.get("status") or {}).items() if v)
+            st = d.get("status") or {}
+            ades = [k for k, v in st.items() if "ades" in _sa(str(v))]
+            comp = [k for k, v in st.items() if v and "ades" not in _sa(str(v))]
+            return " · ".join(([f"Adesão paga: {', '.join(ades)}"] if ades else []) + ([f"Compensação: {', '.join(comp)}"] if comp else [])) or "Pagamentos"
         if tp == "boletos_sistema":
             m = str(d.get("mes", ""))
             return f"Boletos do Sistema Insanos ({m[5:7]}/{m[:4]})" if len(m) >= 7 else "Boletos do Sistema Insanos"
@@ -656,6 +682,9 @@ def verificar_boletos(api, pid, g):
         rotulo, atual = str(row[1]).strip(), str(row[2]).strip()
         if any(rotulo.lower().endswith(ap) for ap in inativos):
             print(f"  {rotulo}: afastado/excluído (não verificado)"); continue
+        if "ades" in _sa(atual) and f"{ciclo:%m/%Y}" in atual:     # pagou a adesão neste mês: não cobra a mensalidade
+            itens.append({"rotulo": rotulo, "selo": None, "venc_boleto": None, "status": atual, "obs": "adesão paga no mês em que entrou"})
+            print(f"  {rotulo}: adesão paga ({atual})"); continue
         item = {"rotulo": rotulo, "selo": None, "venc_boleto": None, "status": atual, "obs": ""}
         try:
             selo, vb = g._ler_boleto(link)
@@ -821,6 +850,14 @@ def main():
     else:
         print("Notificações: ligadas.")
     # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
+    try:
+        remover_abas_sem_uso(api, planilha_id)
+    except Exception as e:
+        print(f"Aviso: não consegui apagar as abas sem uso ({type(e).__name__}: {e}).")
+    try:
+        limpar_totais(api, planilha_id)
+    except Exception as e:
+        print(f"Aviso: limpeza das contas de Sim/Não/% falhou ({type(e).__name__}: {e}).")
     try:                                         # virada do mês: boletos do mês seguinte (coluna K) passam para a J
         if promover_antecipados(api, planilha_id):
             montar_planilha(ler_google(planilha_id, cred, api), xlsx)

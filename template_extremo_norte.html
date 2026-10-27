@@ -473,6 +473,7 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .pag-grupo .pg-tag.novo{background:rgba(63,174,106,.16);color:#7fd89f}
 .pag-grupo .pg-seta{margin-left:auto;transition:transform .2s;color:var(--osso2)}.pag-grupo[open] .pg-seta{transform:rotate(180deg)}
 .pag-lista-int{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;padding:0 12px 12px}
+.btn-comp.ades{margin-left:6px}.btn-comp.ades.on{background:#1f8f4e;color:#fff;border-color:#1f8f4e}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2283,6 +2284,9 @@ function classeSt(s){s=String(s||"");return /pago/i.test(s)?"pago":/aguard/i.tes
 const pagPend={};
 function pagStatus(n){const P=DADOS.pag;return n in pagPend?pagPend[n]:(P.status[n]||"")}
 function pagTravado(n){const P=DADOS.pag;return !!(P.travado||{})[n]||/pago/i.test(P.status[n]||"")}
+// adesão: irmão novo que pagou a adesão no mês em que entrou (sem boleto de mensalidade) conta como pago só neste mês
+function pagAdesMes(){const v=String((DADOS.pag||{}).venc||"");return v.length>=7?v.slice(5,7)+"/"+v.slice(0,4):""}
+function pagAdesao(n){return /ades/i.test(pagStatus(n))}
 // mensagem para o comando: cabeçalho e final vêm da aba Pagamentos; a lista de irmãos e o total são montados aqui,
 // sempre na ordem da hierarquia (não depende da ordem das linhas na planilha)
 function pagMsgLocal(){const P=DADOS.pag;const linhas=String(P.msg||"").split("\n");
@@ -2291,9 +2295,10 @@ function pagMsgLocal(){const P=DADOS.pag;const linhas=String(P.msg||"").split("\
   let i1=i0;linhas.forEach((l,i)=>{if(ehIrmao(l))i1=i});
   const ord=[...M].sort((a,b)=>a.o-b.o);
   const rot=m=>{const lg=String(m.lg||"").replace(/\s+$/,"")||String(m.num||"");return grupoDe(m)==="Comando"?`${m.lg||lg+" "} - ${m.c} ${m.n}`:`${lg} - ${m.n}`};
-  const marca=m=>pagTravado(m.n)?"🏦":/aguard/i.test(pagStatus(m.n))?"⏰":"";
+  const pagoAgora=n=>pagAdesao(n)||(pagTravado(n)&&!(n in pagPend));
+  const marca=m=>pagoAgora(m.n)?"🏦":/aguard/i.test(pagStatus(m.n))?"⏰":"";
   const blocos=blocosPorGrau(ord).map(b=>b.map(m=>rot(m)+marca(m)).join("\n"));
-  const pagos=ord.filter(m=>pagTravado(m.n)).length,pct=ord.length?Math.round(pagos*100/ord.length):0;
+  const pagos=ord.filter(m=>pagoAgora(m.n)).length,pct=ord.length?Math.round(pagos*100/ord.length):0;
   const fim=linhas.slice(i1+1).map(l=>l.replace(/(Total de pagamentos efetuados:\s*)\d+(\.?)/i,`$1${pagos}$2`).replace(/representa\s*\d+%/i,`representa ${pct}%`));
   return zapFormatar([...linhas.slice(0,i0),blocos.join(ENTRE_GRAUS),...fim].join("\n"))}
 // envio de boleto e agradecimento pelo WhatsApp (registro guardado no aparelho, por mês)
@@ -2320,7 +2325,7 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     $("pagLer").onclick=()=>{$("pagLerArq").value="";$("pagLerArq").click()};$("pagLerArq").onchange=()=>{const f=$("pagLerArq").files[0];if(f)lerImagemPagamentos(f)}}
   const P=DADOS.pag;if(!P){$("pagView").innerHTML='<div class="vazio">A planilha não tem as abas PGTO e Pagamentos.</div>';return}
   const ord=[...M].sort((a,b)=>a.o-b.o);
-  const cls=n=>pagTravado(n)?"pago":/aguard/i.test(pagStatus(n))?"aguard":"aberto";
+  const cls=n=>pagAdesao(n)||(pagTravado(n)&&!(n in pagPend))?"pago":/aguard/i.test(pagStatus(n))?"aguard":"aberto";
   const cont={pago:0,aguard:0,aberto:0};ord.forEach(m=>cont[cls(m.n)]++);
   const tot=ord.length,venc=P.venc?P.venc.slice(8,10)+"/"+P.venc.slice(5,7)+"/"+P.venc.slice(0,4):"–";
   const hoje=new Date();hoje.setHours(0,0,0,0);
@@ -2359,8 +2364,10 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     const bEnv=c!=="pago"&&link&&doMes&&tel?`<a class="btn-zap" data-env="${esc(m.n)}" ${pgZapAttr(tel,pgMsgBoleto(link))}>📤 ${env?"Reenviar":"Enviar boleto"}</a>`:"";
     const bAgr=c==="pago"&&tel?`<a class="btn-zap" data-agr="${esc(m.n)}" ${pgZapAttr(tel,pgMsgAgradece())}>🙏 ${agr?"Agradecer de novo":"Agradecer"}</a>`:"";
     const info=[env?`✓ boleto enviado ${env}`:"",agr?`✓ agradecido ${agr}`:""].filter(Boolean).join(" · "),aviso=[c!=="pago"&&link&&!doMes?"boleto do mês ainda não cadastrado":"",!tel?"sem telefone na planilha":""].filter(Boolean).join(" · ");
-    const dir=c==="pago"?`<span class="st pago">Pago em Dia</span><span class="trava" title="Pago no boleto: não pode ser alterado">🔒</span>`
-      :`<button type="button" class="btn-comp ${c==="aguard"?"on":""}" data-comp="${esc(m.n)}" title="${c==="aguard"?"Clique para tirar a compensação":"Marcar que ele mandou o comprovante"}">${c==="aguard"?"⏰ Em compensação":"Marcar ⏰"}</button>`;
+    const semBoleto=!link,ades=pagAdesao(m.n);
+    const bAdes=semBoleto&&(c!=="pago"||ades)?`<button type="button" class="btn-comp ades ${ades?"on":""}" data-ades="${esc(m.n)}" title="${ades?"Clique para desfazer":"Irmão novo: pagou a adesão no mês em que entrou (sem boleto de mensalidade)"}">${ades?"✅ Adesão paga":"✅ Adesão paga?"}</button>`:"";
+    const dir=ades?bAdes:c==="pago"?`<span class="st pago">Pago em Dia</span><span class="trava" title="Pago no boleto: não pode ser alterado">🔒</span>`
+      :`<button type="button" class="btn-comp ${c==="aguard"?"on":""}" data-comp="${esc(m.n)}" title="${c==="aguard"?"Clique para tirar a compensação":"Marcar que ele mandou o comprovante"}">${c==="aguard"?"⏰ Em compensação":"Marcar ⏰"}</button>${bAdes}`;
     return `<div class="pag-l ${m.n in pagPend?"pend":""}"><div class="nome">${esc(m.n)}<span>Nº ${esc(m.num)} · ${esc(m.c)}</span>${ob?`<span class="pag-obs">${esc(ob)}</span>`:""}${info?`<span class="pag-env">${esc(info)}</span>`:""}${aviso?`<span class="pag-obs">${esc(aviso)}</span>`:""}</div>
       <div class="dir">${P.boleto[m.n]?`<a href="${esc(P.boleto[m.n])}" target="_blank" rel="noopener noreferrer">boleto</a>`:""}${dir}${bEnv}${bAgr}</div></div>`};
   // dois blocos: falta pagar (sem pagamento e depois em compensação) e pagos (o pagamento mais recente primeiro)
@@ -2393,6 +2400,9 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     `<br>🙏 Agradecimentos: <b>${nAgr}</b> de ${pagos.length} pagos`+(pagos.length-nAgr?` · falta agradecer: ${esc(pagos.filter(m=>!pgReg("agr")[m.n]).map(m=>m.n).join(", "))}`:" ✓");
   $("pagLista").onclick=ev=>{const z=ev.target.closest("[data-env],[data-agr]");
     if(z){const tipo=z.dataset.env?"env":"agr",n=z.dataset.env||z.dataset.agr;pgMarcar(tipo,n);setTimeout(montarPagamentos,400);return}
+    const ba=ev.target.closest("[data-ades]");
+    if(ba){const n=ba.dataset.ades,orig=P.status[n]||"",novo=pagAdesao(n)?"Em aberto":`Pago (adesão ${pagAdesMes()})`;
+      if(novo===orig||(!/ades/i.test(orig)&&novo==="Em aberto"&&!/pago/i.test(orig)&&!/aguard/i.test(orig)))delete pagPend[n];else pagPend[n]=novo;montarPagamentos();return}
     const b=ev.target.closest("[data-comp]");if(!b)return;const n=b.dataset.comp;if(pagTravado(n))return;
     const atual=pagStatus(n),novo=/aguard/i.test(atual)?"Em aberto":"Aguardando Compensação";
     const orig=/aguard/i.test(P.status[n]||"")?"Aguardando Compensação":"Em aberto";
