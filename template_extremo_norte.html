@@ -493,6 +493,7 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
   .dcomp th:first-child,.dcomp td:first-child{width:80px;min-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px}
   .dcomp th.ddel,.dcomp td.ddel{width:36px}.dd{font-size:10px}.dcomp .dmes{padding:3px 7px;font-size:12px}
   .dcomp th:not(:first-child),.dcomp td:not(:first-child){padding:7px 1px}.dtxt{font-size:11px}}
+.lw-campos label.chk{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:600}.lw-campos label.chk input{width:auto}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -871,6 +872,19 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       </div>
       <div class="lw-bts" style="margin-top:12px"><button type="button" class="btn" id="sitGerar">Gerar alteração</button></div>
       <p class="nota" id="sitAviso"></p>
+    </div>
+    <div class="cad-bloco">
+      <h2>🔁 Mudar cargo</h2>
+      <p class="sub">Promoção, troca de função ou de grau. O painel ajusta a planilha inteira: o cargo, a ordem da lista e as colunas da Presença e dos Insights (com todas as marcações), e a situação dos pagamentos acompanha o irmão.</p>
+      <div class="lw-campos">
+        <label>Integrante<select id="mcQuem"></select></label>
+        <label>Novo cargo<input type="text" id="mcCargo" list="cadCargos" placeholder="Ex.: ADM (Estágio)"></label>
+        <label>Grau<select id="mcGrau"><option value="">(mantém)</option><option>VI</option><option>VIII</option><option>IX</option><option>X</option></select></label>
+        <label>Fica na lista depois de<select id="mcApos"></select></label>
+        <label class="inteiro chk"><input type="checkbox" id="mcAssina"> Passa a assinar a mensagem de pagamentos (no lugar do ADM atual)</label>
+      </div>
+      <div class="lw-bts" style="margin-top:12px"><button type="button" class="btn" id="mcGerar">Gerar alteração</button></div>
+      <p class="nota" id="mcAviso"></p>
     </div>
   </section>
 
@@ -3001,6 +3015,21 @@ function montarCadastro(){if(!$("cadCampos"))return;
   const ord=cadOrdem();
   const opsApos='<option value="">Escolha…</option>'+ord.map(m=>`<option value="${esc(m.n)}">${esc(m.lg||"")} ${esc(m.n)} (${esc(m.c)})</option>`).join("");
   $("cadApos").innerHTML=opsApos;$("sitApos").innerHTML=opsApos;
+  // mudar cargo
+  if($("mcQuem")){
+    $("mcQuem").innerHTML='<option value="">Escolha…</option>'+cadOrdem().map(m=>`<option value="${esc(m.n)}">${esc(m.n)} · ${esc(m.c||"")}</option>`).join("");
+    $("mcApos").innerHTML='<option value="">(não muda de lugar)</option>'+cadOrdem().map(m=>`<option value="${esc(m.n)}">${esc(m.n)}</option>`).join("");
+    $("mcQuem").onchange=()=>{const m=M_FULL.find(x=>x.n===$("mcQuem").value);$("mcCargo").value=m?m.c||"":"";
+      const gr=m?String(m.lg||"").replace(/^\d+\.\s*/,"").trim():"";$("mcGrau").value=["VI","VIII","IX","X"].includes(gr)?gr:"";
+      $("mcAssina").checked=false;$("mcAviso").textContent=""};
+    $("mcCargo").oninput=()=>{if(/\badm\b/i.test($("mcCargo").value))$("mcAssina").checked=true};
+    $("mcGerar").onclick=async()=>{const ap=$("mcQuem").value;if(!ap){alert("Escolha o integrante.");return}
+      const cargo=$("mcCargo").value.trim();if(!cargo){alert("Informe o novo cargo.");return}
+      const apos=$("mcApos").value;if(apos===ap){alert("Escolha outro irmão em \"Fica na lista depois de\".");return}
+      const g=$("mcGrau").value,d={tipo:"integrante",acao:"cargo",apelido:ap,cargo,grau:g?(g.length<=2?" ":"")+g:"",apos,assina:$("mcAssina").checked};
+      if(!confirm(`${ap} passa a ser ${cargo}${g?` (grau ${g})`:""}${apos?`, depois de ${apos} na lista`:""}${d.assina?", e assina a mensagem de pagamentos":""}?\n\nAs marcações de presença e insights dele são mantidas.`))return;
+      if(await cadArquivo(d,`integrante_cargo_${cadSlug(ap)}_${Date.now()}.json`))
+        $("mcAviso").innerHTML=DADOS.nuvem?`✅ Enviado para a planilha. Em uns 3 minutos ${esc(ap)} aparece com o cargo novo.`:`✅ Arquivo gerado.`}}
   $("cadCargos").innerHTML=[...new Set(M_FULL.map(m=>m.c).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join("");
   $("cadGraus").innerHTML=[...new Set(M_FULL.map(m=>String(m.lg||"").replace(/^\d+\.\s*/,"").trim()).filter(Boolean))].map(g=>`<option value="${esc(g)}">`).join("");
   const desenharSel=()=>{const l=cadLista();if(!l.length){l.push({id:Date.now(),d:{}});cadGuardar(l)}

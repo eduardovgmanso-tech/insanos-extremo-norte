@@ -301,14 +301,110 @@ def _linha_pgto(api, pid, ap, r_di, log):
                        (f"'{aba}'!C{ult + 1}", "Em aberto"), (f"'{aba}'!J{ult + 1}", "")])
     log.append("linha criada na aba PGTO")
 
+def _mudar_cargo(api, pid, d, aba, C, linhas, fim_tab, ult_col):
+    """Mudança de cargo: novo cargo e grau e, se pedido, nova posição na lista ('apos').
+    Dados Integrantes: os dados trocam de linha (as fórmulas ficam); PGTO: situação e links acompanham cada irmão;
+    Presença e Insights: a coluna do irmão muda de lugar com todas as marcações."""
+    ap = str(d.get("apelido", "")).strip()
+    cargo, grau, apos = str(d.get("cargo") or "").strip(), str(d.get("grau") or "").strip(), str(d.get("apos") or "").strip()
+    r = linhas.get(_sa(ap))
+    if not r or r > fim_tab:
+        return f"{ap} não está entre os integrantes (nada feito)"
+    log = []
+    # 1) Dados Integrantes: nova ordem das linhas
+    rows = list(range(2, fim_tab + 1))
+    lst = rows[:]
+    r_apos = linhas.get(_sa(apos)) if apos else None
+    if r_apos and r_apos != r and r_apos <= fim_tab:
+        lst = [x for x in rows if x != r]
+        lst.insert(lst.index(r_apos) + 1, r)
+    ult = _col(ult_col)
+    v = _ler(api, pid, f"'{aba}'!A1:{ult}{fim_tab}")
+    f = _ler_f(api, pid, f"'{aba}'!A1:{ult}{fim_tab}") or []
+    cel = lambda grade, rr, c: str((list(grade[rr - 1]) + [""] * ult_col)[c - 1]) if rr - 1 < len(grade) else ""
+    membro_antes = {rr: _sa(cel(v, rr, 2)) for rr in rows}
+    gr, movidos = [], 0
+    for alvo, origem in zip(rows, lst):
+        if alvo == origem:
+            continue
+        movidos += 1
+        for c in range(1, ult_col + 1):
+            if cel(f, alvo, c).startswith("="):
+                continue                                  # fórmula da linha fica onde está
+            gr.append((f"'{aba}'!{_col(c)}{alvo}", (list(f[origem - 1]) + [""] * ult_col)[c - 1] if origem - 1 < len(f) else ""))
+    r_novo = rows[lst.index(r)]
+    if cargo:
+        gr.append((f"'{aba}'!{_col(C['cargo'])}{r_novo}", cargo))
+    if grau and C.get("grau"):
+        gr.append((f"'{aba}'!{_col(C['grau'])}{r_novo}", grau))
+    _gravar(api, pid, gr)
+    membro_depois = {alvo: membro_antes[origem] for alvo, origem in zip(rows, lst)}
+    log.append(f"cargo: {cargo or 'mantido'}" + (f", grau {grau}" if grau else "") + (f"; agora fica depois de {apos}" if movidos else ""))
+    # 2) PGTO: situação (C) e links (J, K) acompanham cada irmão
+    pg = _aba_real(api, pid, "PGTO")
+    if pg and movidos:
+        vv, ff = _ler(api, pid, f"'{pg}'!A1:K400"), _ler_f(api, pid, f"'{pg}'!A1:B400") or []
+        ref = {}
+        for p_ in range(2, len(vv) + 1):
+            m = re.search(r"Dados Integrantes'?!\$?[A-Z]+\$?(\d+)", str((list(ff[p_ - 1]) + ["", ""])[1]) if p_ - 1 < len(ff) else "")
+            if m:
+                ref[p_] = int(m.group(1))
+        guardado = {}
+        for p_, k in ref.items():
+            linha = list(vv[p_ - 1]) + [""] * 11
+            if k in membro_antes:
+                guardado[membro_antes[k]] = (linha[2], linha[9], linha[10])
+        gp = []
+        for p_, k in ref.items():
+            novo_m = membro_depois.get(k)
+            if novo_m is not None and novo_m != membro_antes.get(k) and novo_m in guardado:
+                c_, j_, k_ = guardado[novo_m]
+                gp += [(f"'{pg}'!C{p_}", c_), (f"'{pg}'!J{p_}", j_), (f"'{pg}'!K{p_}", k_)]
+        _gravar(api, pid, gp)
+        if gp:
+            log.append("PGTO acompanhou a nova ordem")
+    # 3) Presença e Insights: a coluna muda de lugar (com as marcações) e o cargo da linha 7 é atualizado
+    ids = _ids(api, pid)
+    curto = re.sub(r"\s*\([^)]*\)\s*", " ", cargo).strip()
+    for ae in _abas_eventos(api, pid):
+        vv = _ler(api, pid, f"'{ae}'!A1:CZ60")
+        cols, _ = _cols_integrantes(vv)
+        c_ap, c_apos = cols.get(_sa(ap)), cols.get(_sa(apos)) if apos else None
+        if not c_ap:
+            continue
+        if c_apos and c_apos not in (c_ap, c_ap - 1):
+            _estrutura(api, pid, [{"moveDimension": {"source": {"sheetId": ids[ae], "dimension": "COLUMNS", "startIndex": c_ap - 1, "endIndex": c_ap},
+                                                     "destinationIndex": c_apos}}])
+            vv = _ler(api, pid, f"'{ae}'!A1:CZ60")
+            cols, _ = _cols_integrantes(vv)
+            c_ap = cols.get(_sa(ap))
+            log.append(f"coluna movida na aba {ae}")
+        if curto and c_ap:
+            _gravar(api, pid, [(f"'{ae}'!{_col(c_ap)}7", curto)])
+    # 4) assinatura da mensagem de pagamentos
+    if d.get("assina"):
+        pa = _aba_real(api, pid, "Pagamentos")
+        if pa:
+            vp = _ler(api, pid, f"'{pa}'!C1:C80")
+            for i_, linha in enumerate(vp, start=1):
+                txt = str((list(linha) + [""])[0])
+                m = re.match(r"^\*\s*(.+?)\s+-\s+(.+?)\s+(Div\b.*?)\*\s*$", txt)
+                if m:
+                    _gravar(api, pid, [(f"'{pa}'!C{i_}", f"*{ap} - {cargo or m.group(2)} {m.group(3)}*")])
+                    log.append(f"assinatura dos pagamentos: {ap}")
+                    break
+    return f"{ap}: " + "; ".join(log)
+
 def aplicar_integrante(api, pid, d):
     ap, acao = str(d.get("apelido", "")).strip(), d.get("acao")
-    if not ap or acao not in ("novo", "afastar", "reativar", "excluir"):
+    if not ap or acao not in ("novo", "afastar", "reativar", "excluir", "cargo"):
         return "pedido incompleto"
     aba, C, linhas, fim_tab, ult_col = _di_mapa(api, pid)
     sid = _ids(api, pid)[aba]
     r = linhas.get(_sa(ap))
     log = []
+    if acao == "cargo":
+        return _mudar_cargo(api, pid, d, aba, C, linhas, fim_tab, ult_col)
     if acao == "novo":
         if r:
             return f"{ap} já está na Dados Integrantes (nada feito)"
@@ -614,6 +710,8 @@ def _resumo_item(d):
             m = str(d.get("mes", ""))
             return f"Boletos do Sistema Insanos ({m[5:7]}/{m[:4]})" if len(m) >= 7 else "Boletos do Sistema Insanos"
         if tp == "integrante":
+            if d.get("acao") == "cargo":
+                return f"Cadastro: {d.get('apelido', '')} agora é {d.get('cargo', '')}"
             return f"Cadastro: {({'novo': 'novo integrante', 'afastar': 'afastado', 'reativar': 'reativado', 'excluir': 'excluído'}).get(d.get('acao'), d.get('acao'))} {d.get('apelido', '')}"
     except Exception:
         pass
