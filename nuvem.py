@@ -7,7 +7,7 @@ Nada de dados pessoais fica no repositório: a planilha temporária existe só d
 import os, sys, json, datetime, unicodedata, re
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
-ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO", "Pagamentos"]
+ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
 COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17]}   # colunas de data (0 = A): B, J e R
 
 def _serial_para_data(v):
@@ -363,22 +363,35 @@ def _mudar_cargo(api, pid, d, aba, C, linhas, fim_tab, ult_col):
         _gravar(api, pid, gp)
         if gp:
             log.append("PGTO acompanhou a nova ordem")
-    # 3) Presença e Insights: a coluna muda de lugar (com as marcações) e o cargo da linha 7 é atualizado
-    ids = _ids(api, pid)
+    # 3) Presença e Insights: o conteúdo das colunas é reescrito na ordem nova (nome, cargo e marcações).
+    #    Não "arrasta" a coluna: o Google não deixa mover coluna que atravessa células mescladas do cabeçalho.
     curto = re.sub(r"\s*\([^)]*\)\s*", " ", cargo).strip()
     for ae in _abas_eventos(api, pid):
         vv = _ler(api, pid, f"'{ae}'!A1:CZ60")
-        cols, _ = _cols_integrantes(vv)
+        cols, ult = _cols_integrantes(vv)
         c_ap, c_apos = cols.get(_sa(ap)), cols.get(_sa(apos)) if apos else None
         if not c_ap:
             continue
+        fim = _linha_adesao(vv)
+        ate = (fim - 1) if fim else 43
         if c_apos and c_apos not in (c_ap, c_ap - 1):
-            _estrutura(api, pid, [{"moveDimension": {"source": {"sheetId": ids[ae], "dimension": "COLUMNS", "startIndex": c_ap - 1, "endIndex": c_ap},
-                                                     "destinationIndex": c_apos}}])
-            vv = _ler(api, pid, f"'{ae}'!A1:CZ60")
-            cols, _ = _cols_integrantes(vv)
-            c_ap = cols.get(_sa(ap))
-            log.append(f"coluna movida na aba {ae}")
+            ordem = [c for c in range(4, ult + 1) if c != c_ap]
+            ordem.insert(ordem.index(c_apos) + 1, c_ap)
+            alvo_ini, alvo_fim = min(c_ap, c_apos + 1), max(c_ap, c_apos)
+            ff = _ler_f(api, pid, f"'{ae}'!A1:{_col(ult)}{ate}") or []
+            cel = lambda r, c: (list(ff[r - 1]) + [""] * (ult + 1))[c - 1] if r - 1 < len(ff) else ""
+            gr = []
+            for t_, s_ in zip(range(4, ult + 1), ordem):
+                if t_ == s_ or not (alvo_ini <= t_ <= alvo_fim):
+                    continue
+                for r in range(6, ate + 1):
+                    if str(cel(r, t_)).startswith("="):
+                        continue                       # fórmula fica onde está
+                    origem = cel(r, s_)
+                    gr.append((f"'{ae}'!{_col(t_)}{r}", "" if str(origem).startswith("=") else origem))
+            _gravar(api, pid, gr)
+            c_ap = ordem.index(c_ap) + 4
+            log.append(f"coluna reorganizada na aba {ae}")
         if curto and c_ap:
             _gravar(api, pid, [(f"'{ae}'!{_col(c_ap)}7", curto)])
     # 4) assinatura da mensagem de pagamentos

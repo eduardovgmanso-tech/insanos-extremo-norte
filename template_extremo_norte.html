@@ -881,7 +881,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
         <label>Novo cargo<input type="text" id="mcCargo" list="cadCargos" placeholder="Ex.: ADM (Estágio)"></label>
         <label>Grau<select id="mcGrau"><option value="">(mantém)</option><option>VI</option><option>VIII</option><option>IX</option><option>X</option></select></label>
         <label>Fica na lista depois de<select id="mcApos"></select></label>
-        <label class="inteiro chk"><input type="checkbox" id="mcAssina"> Passa a assinar a mensagem de pagamentos (no lugar do ADM atual)</label>
+        <p class="nota inteiro" style="margin:0">A assinatura da mensagem de pagamentos é automática: assina quem tem o cargo de ADM.</p>
       </div>
       <div class="lw-bts" style="margin-top:12px"><button type="button" class="btn" id="mcGerar">Gerar alteração</button></div>
       <p class="nota" id="mcAviso"></p>
@@ -3021,13 +3021,12 @@ function montarCadastro(){if(!$("cadCampos"))return;
     $("mcApos").innerHTML='<option value="">(não muda de lugar)</option>'+cadOrdem().map(m=>`<option value="${esc(m.n)}">${esc(m.n)}</option>`).join("");
     $("mcQuem").onchange=()=>{const m=M_FULL.find(x=>x.n===$("mcQuem").value);$("mcCargo").value=m?m.c||"":"";
       const gr=m?String(m.lg||"").replace(/^\d+\.\s*/,"").trim():"";$("mcGrau").value=["VI","VIII","IX","X"].includes(gr)?gr:"";
-      $("mcAssina").checked=false;$("mcAviso").textContent=""};
-    $("mcCargo").oninput=()=>{if(/\badm\b/i.test($("mcCargo").value))$("mcAssina").checked=true};
+      $("mcAviso").textContent=""};
     $("mcGerar").onclick=async()=>{const ap=$("mcQuem").value;if(!ap){alert("Escolha o integrante.");return}
       const cargo=$("mcCargo").value.trim();if(!cargo){alert("Informe o novo cargo.");return}
       const apos=$("mcApos").value;if(apos===ap){alert("Escolha outro irmão em \"Fica na lista depois de\".");return}
-      const g=$("mcGrau").value,d={tipo:"integrante",acao:"cargo",apelido:ap,cargo,grau:g?(g.length<=2?" ":"")+g:"",apos,assina:$("mcAssina").checked};
-      if(!confirm(`${ap} passa a ser ${cargo}${g?` (grau ${g})`:""}${apos?`, depois de ${apos} na lista`:""}${d.assina?", e assina a mensagem de pagamentos":""}?\n\nAs marcações de presença e insights dele são mantidas.`))return;
+      const g=$("mcGrau").value,d={tipo:"integrante",acao:"cargo",apelido:ap,cargo,grau:g?(g.length<=2?" ":"")+g:"",apos};
+      if(!confirm(`${ap} passa a ser ${cargo}${g?` (grau ${g})`:""}${apos?`, depois de ${apos} na lista`:""}?\n\nAs marcações de presença e insights dele são mantidas.`))return;
       if(await cadArquivo(d,`integrante_cargo_${cadSlug(ap)}_${Date.now()}.json`))
         $("mcAviso").innerHTML=DADOS.nuvem?`✅ Enviado para a planilha. Em uns 3 minutos ${esc(ap)} aparece com o cargo novo.`:`✅ Arquivo gerado.`}}
   $("cadCargos").innerHTML=[...new Set(M_FULL.map(m=>m.c).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join("");

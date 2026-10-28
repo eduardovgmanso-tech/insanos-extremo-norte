@@ -168,6 +168,31 @@ def feriados(ano):
         dias.add(p + datetime.timedelta(days=delta))
     return dias
 
+MESES_NOME = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
+
+def mensagem_pagamentos(venc, membros):
+    """Molde da mensagem do status da mensalidade (WhatsApp). O painel troca a linha "01." pela lista dos irmãos
+    e acerta o total e a %. A assinatura é de quem tem o cargo ADM (ou, se não houver, do Diretor)."""
+    ordem = sorted(membros, key=lambda m: m.get("o", 999))
+    assina = (next((m for m in ordem if re.search(r"\badm\b", str(m.get("c", "")), re.I)), None)
+              or next((m for m in ordem if re.search(r"diretor", str(m.get("c", "")), re.I)), None))
+    assinatura = f"*{assina['n']} - {assina['c']} Div {DIV['nome']}*" if assina else f"*ADM Div {DIV['nome']}*"
+    return "\n".join([
+        f"*🚨🚨🚨 DIVISÃO {DIV['nome'].upper()} - {DIV['regional'].upper()} 🚨🚨🚨*", "",
+        f"*STATUS DA MENSALIDADE DE {MESES_NOME[venc.month - 1]} DE {venc.year} $$$ (Vencimento {venc:%d/%m/%Y})*", "",
+        "*Srs. Bom Dia / Tarde / Noite*", "",
+        "*Todos nós sabemos o quanto é importante cumprirmos com a nossa responsabilidade para com o clube. Portanto, vamos evitar deixar para o último dia.*", "",
+        "*Legenda:*", "",
+        "*❗- 1 MÊS DE ATRASO*",
+        "*❗❗- 2 MESES DE ATRASO ( TEREMOS QUE RECOLHER CAMISETA OU COLETE E PRAZO DE 10 DIAS PARA QUITAR OU SERÁ DESLIGADO)*",
+        "🏦 - PAGO",
+        "⏰ - AGUARDANDO COMPENSAÇÃO", "",
+        "01. (lista dos irmãos)", "",
+        "*💀 Total de pagamentos efetuados: 0.💀 O que representa 0% dos boletos pagos.💀*", "",
+        "*Conto com os senhores. Qualquer dúvida ou necessidade me chame no Privado!*", "",
+        "*Somente ADM altera a listagem.*", "",
+        assinatura])
+
 def vencimento(ano, mes):
     """Data de vencimento do mês: dia VENCIMENTO_DIA ou o primeiro dia útil depois dele."""
     d = datetime.date(ano, mes, VENCIMENTO_DIA)
@@ -2123,11 +2148,10 @@ def main():
                 if link.startswith("http"):
                     pag["boleto"][ap] = link
                 break
-    while msg_pag and msg_pag[-1] in (None, ""):
-        msg_pag.pop()
-    pag["msg"] = "\n".join(texto(x) for x in msg_pag)
     hoje = datetime.date.today()
-    pag["venc"] = vencimento(hoje.year, hoje.month).isoformat()
+    venc = vencimento(hoje.year, hoje.month)
+    pag["venc"] = venc.isoformat()
+    pag["msg"] = mensagem_pagamentos(venc, membros)   # o texto é fixo: só mudam o mês/vencimento, a lista e a assinatura
     import re as _re
     _v = vencimento(hoje.year, hoje.month)
     pag["msg"] = _re.sub(r"\(Vencimento\s*\d{1,2}/\d{1,2}/\d{2,4}\)", f"(Vencimento {_v:%d/%m/%Y})", pag["msg"])
