@@ -494,6 +494,18 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
   .dcomp th.ddel,.dcomp td.ddel{width:36px}.dd{font-size:10px}.dcomp .dmes{padding:3px 7px;font-size:12px}
   .dcomp th:not(:first-child),.dcomp td:not(:first-child){padding:7px 1px}.dtxt{font-size:11px}}
 .lw-campos label.chk{display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:600}.lw-campos label.chk input{width:auto}
+.dvis{display:flex;gap:8px;margin:0 0 12px}.dvis button{flex:1;padding:10px;border-radius:999px;border:1px solid var(--linha);background:transparent;color:var(--osso);font-weight:700;cursor:pointer}
+.dvis button.on{background:#E9B949;color:#141210;border-color:#E9B949}
+.dcavs{display:flex;justify-content:space-around;gap:10px;flex-wrap:wrap}.dcav{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.dcav b{font-size:32px;font-weight:800;line-height:1.05}.dcav>span:not(.cav-dash){font-size:14px}.dcav small{font-size:12px;color:var(--osso2)}.dcav small.up{color:#7fd89f}.dcav small.dn{color:#f0b6b4}
+.cav-dash{position:relative;display:inline-block;width:var(--w);height:calc(var(--w)*1.2);isolation:isolate}
+.cav-dash::before{content:"";position:absolute;inset:0;background:var(--cav) center/contain no-repeat;filter:grayscale(1) brightness(.75) contrast(1.1)}
+.cav-dash::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,var(--c) var(--p),transparent var(--p));-webkit-mask:var(--cav) center/contain no-repeat;mask:var(--cav) center/contain no-repeat;mix-blend-mode:multiply}
+.dmapa{display:grid;gap:4px;align-items:center;font-size:12.5px}.dmapa .hd{text-align:center;color:var(--osso2);font-size:11px}.dmapa .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dmapa i{height:16px;border-radius:4px}.dmapa i.f,.dleg2 i.f{background:#4CAF6A}.dmapa i.x,.dleg2 i.x{background:#C55a58}.dmapa i.n,.dleg2 i.n{background:rgba(236,231,220,.08)}
+.dleg2{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--osso2)}.dleg2 i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.dqr{display:flex;align-items:center;gap:14px;margin-top:14px}.dqr canvas{width:120px;height:120px;border-radius:10px;flex:0 0 120px}.dqr p{margin:0}
+.dlido td,.dlido th{padding:8px 6px;text-align:left}.dlido td:not(:first-child),.dlido th:not(:first-child){text-align:center;white-space:nowrap}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1566,6 +1578,8 @@ async function lerImagemEvento(f){const stEl=$("ezLidoGeral");stEl.textContent="
   if(bin.length>4&&String.fromCharCode(...bin.slice(0,4))==="C8Z1"){try{const D=await c8Ler(bin);
       stEl.innerHTML=`📤 Card para o Comando VIII: <b>${esc(D.d)} ${esc(D.r)}</b> · ${esc(ymNome(D.m))} · ${D.e.length} eventos e ${D.i.length} insights. Esse card é lido no painel do Comando VIII.`}
     catch(e){stEl.textContent="Card do Comando VIII, mas não consegui abrir o conteúdo."}return}
+  if(bin.length>4&&String.fromCharCode(...bin.slice(0,4))==="DBZ1"){try{DB_LIDO=await c8Ler(bin);stEl.textContent="";irPara("dash");if(typeof dashMostrar==="function")dashMostrar()}
+    catch(e){stEl.textContent="Card do Dashboard, mas não consegui abrir o conteúdo."}return}
   const pt=txt.split("|");
   if(pt[0]==="IPG1"){irPara("pag");lerImagemPagamentos(f);return}
   if(pt[0]==="IDB1"){DASH_SEL=(pt[1]||"").split(",").filter(Boolean);irPara("dash");return}
@@ -1685,7 +1699,7 @@ async function qrDesenhar(g,qx,qy,qs,texto,T){await carregarQR();
   const cv=await _img(CAVEIRA);if(cv){const ch=qs*0.2,cw=ch*cv.width/cv.height,cx2=qx+qs/2,cy2=qy+qs/2;g.fillStyle="#fff";g.beginPath();g.arc(cx2,cy2,Math.max(ch,cw)*0.62,0,Math.PI*2);g.fill();g.drawImage(_tinta(cv,cw,ch,"#151515"),cx2-cw/2,cy2-ch/2,cw,ch)}
   if(T)T("Código para leitura no painel",qx+qs/2,qy+qs+30,20,"#7d776d",500,null,"center");return qy+qs+40}
 // ---- Dashboard: resumo de 1 mês (comparado ao anterior) ou comparativo de vários meses ----
-let DASH_SEL=null;
+let DASH_SEL=null,DASH_VIS="A";try{DASH_VIS=localStorage.getItem("dashVis")==="B"?"B":"A"}catch(e){}
 const ymAnt=ym=>{let [a,m]=ym.split("-").map(Number);m--;if(!m){m=12;a--}return `${a}-${String(m).padStart(2,"0")}`};
 const ymNome=(ym,curto)=>{const n=MESES[+ym.slice(5)-1];return curto?n.slice(0,3)+"/"+ym.slice(2,4):n+"/"+ym.slice(0,4)};
 function dashMeses(){const s=new Set();["pres","ins"].forEach(k=>(EV_SETS[k]||[]).forEach(e=>s.add(e.d.slice(0,7))));return [...s].sort().reverse()}
@@ -1726,16 +1740,42 @@ function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice
   $("dashMesOp").innerHTML=meses.map(m=>`<label><input type="checkbox" value="${m}"${DASH_SEL.includes(m)?" checked":""}> ${ymNome(m)}</label>`).join("")+'<button type="button" class="multi-lim" data-lim="1">Só o mês mais recente</button>';
   $("dashMesBt").textContent=DASH_SEL.length?[...DASH_SEL].sort().map(m=>ymNome(m,DASH_SEL.length>2)).join(" + "):"Escolha o mês";
   if($("dashC8")){$("dashC8").hidden=!DASH_SEL.length;$("dashC8").textContent=DASH_SEL.length>1?`📤 Para o Comando VIII (${DASH_SEL.length} flys, um por mês)`:"📤 Para o Comando VIII"}
-  const el=$("dashCorpo");if(!DASH_SEL.length){el.innerHTML='<p class="nota">Escolha pelo menos um mês.</p>';return}
+  const el=$("dashCorpo");
+  if(DB_LIDO){const D=DB_LIDO,cel=(p,n)=>{if(!n)return '<span class="nota">–</span>';const v=Math.round(p*100/n);return `<span style="color:${corFaixa(v)[1]};font-weight:700">${p} de ${n} · ${v}%</span>`};
+    el.innerHTML=`<div class="dbox"><button type="button" class="btn" id="dbVoltar">← Voltar ao Dashboard</button>
+      <h3 style="margin-top:12px">📷 ${esc(D.d)} ${esc(D.r)} · ${esc(ymNome(D.m))}</h3><p class="nota">${D.ne} ${D.ne===1?"evento":"eventos"} · ${D.ni} ${D.ni===1?"insight":"insights"} no mês</p>
+      <div style="overflow-x:auto"><table class="dtab dlido"><thead><tr><th>Irmão</th><th>Eventos</th><th>Insights</th></tr></thead><tbody>
+      ${D.g.map(x=>`<tr><td>${esc(x[0])} <span class="nota">· ${esc(x[1])}${x[6]?" · novo":""}</span></td><td>${cel(x[2],x[3])}</td><td>${cel(x[4],x[5])}</td></tr>`).join("")}</tbody></table></div></div>`;
+    $("dbVoltar").onclick=()=>{DB_LIDO=null;dashMostrar()};return}
+  if(!DASH_SEL.length){el.innerHTML='<p class="nota">Escolha pelo menos um mês.</p>';return}
   if(DASH_SEL.length===1){const ym=DASH_SEL[0],c=dashCalc(ym),ant=dashCalc(ymAnt(ym)),temAnt=ant.pres.n||ant.ins.n;
-    const k=(rot,v,a,sub)=>`<div><span>${rot}</span><b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b>${dashDelta(v,temAnt||a!=null?a:null)}${sub?`<span style="font-size:12px">${sub}</span>`:""}</div>`;
-    const seis=[];let m=ym;for(let i=0;i<6;i++){seis.unshift(m);m=ymAnt(m)}const cs=seis.map(dashCalc);
-    el.innerHTML=`<div class="dk">${k("Presença",c.pres.pc,ant.pres.pc,`${c.pres.p} presenças · ${c.pres.n} eventos`)}${k("Insights (sem o comando)",c.ins.pc,ant.ins.pc,`${c.ins.p} respostas · ${c.ins.n} insights`)}</div>
-      <div class="dbox"><h3>Tendência · últimos 6 meses</h3>${DLEG}${dashSvg(seis,[["#4CAF6A",cs.map(x=>x.pres.pc)],["#D9B26A",cs.map(x=>x.ins.pc),1]])}</div>
-      <div class="dgrid"><div class="dbox"><h3>Presença por função · ${ymNome(ym,true)} x ${ymNome(ymAnt(ym),true)}</h3>${GRUPOS.map(g=>{const a=c.pres.porG[g],b=ant.pres.porG[g];if(!a&&!b)return"";const v=a?pct(a.p,a.a):null,w=b?pct(b.p,b.a):null;
-        return `<div class="drow"><span>${esc(g)}</span><div class="dbar"><i style="width:${v||0}%;background:${corFaixa(v)[1]}"></i></div><b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b><span style="color:var(--osso2)">${w==null?"–":w+"%"}</span></div>`}).join("")}</div>
-      <div class="dbox"><h3>Destaques de ${ymNome(ym)}</h3>${dashDestaques(c,temAnt?ant:null).map(([a,b])=>`<div class="dli"><span>${a}</span><b>${esc(b)}</b></div>`).join("")}</div></div>
-      ${dashPorIntegrante([c],ant)}`;
+    const sel=`<div class="dvis">${[["A","Visual A · medidores"],["B","Visual B · mapa"]].map(([k,r])=>`<button type="button" data-vis="${k}" class="${DASH_VIS===k?"on":""}">${r}</button>`).join("")}</div>`;
+    const dl=(v,a)=>v==null||a==null||!temAnt?"":v>a?`<small class="up">▲ +${v-a}</small>`:v<a?`<small class="dn">▼ −${a-v}</small>`:`<small class="eq">=</small>`;
+    const cav=(v,rot,sub,w,a)=>`<div class="dcav"><span class="cav-dash" style="--w:${w}px;--cav:url('${CAVEIRA}');--c:${v==null?"transparent":corFaixa(v)[0]};--p:${v||0}%"></span>
+      <b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b>${dl(v,a)}<span>${rot}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+    const cmd=c.pres.porG.Comando,cmdA=ant.pres.porG.Comando,pcC=cmd?pct(cmd.p,cmd.a):null;
+    const pl=(n,s,p)=>`${n} ${n===1?s:p}`,tit=`<h3>${ymNome(ym)} <span class="nota">· ${pl(c.pres.n,"evento","eventos")} · ${pl(c.ins.n,"insight","insights")}</span></h3>`;
+    const qr=`<div class="dqr"><canvas id="dashQR" width="300" height="300"></canvas><p class="nota">Detalhe de cada irmão no QR code: o regional lê pelo painel (📷 Ler imagem).</p></div>`;
+    let corpo;
+    if(DASH_VIS==="B"){
+      const evs=(EV_SETS.pres||[]).filter(e=>e.d.startsWith(ym)).sort((a,b)=>a.d<b.d?-1:1);
+      const ord=M_FULL.map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o).filter(({i})=>evs.some(e=>contaEnt(e.p[i],i,e.d)!==null));
+      const mapa=evs.length?`<div class="dmapa" style="grid-template-columns:minmax(70px,110px) repeat(${evs.length},minmax(0,1fr))"><span></span>${evs.map(e=>`<span class="hd" title="${esc(e.e)}">${e.d.slice(8,10)}</span>`).join("")}
+        ${ord.map(({m,i})=>`<span class="nm">${esc(m.n)}</span>`+evs.map(e=>{const w=contaEnt(e.p[i],i,e.d);return `<i class="${w===1?"f":w===0?"x":"n"}" title="${esc(m.n)} · ${esc(e.e)}"></i>`}).join("")).join("")}</div>
+        <div class="dleg2"><span><i class="f"></i>foi</span><span><i class="x"></i>faltou</span><span><i class="n"></i>ainda não era da divisão</span></div>`:'<p class="nota">Nenhum evento no mês.</p>';
+      corpo=`<div class="dbox">${tit}<div class="dcavs">${cav(c.pres.pc,"Presença","",96,ant.pres.pc)}${cav(c.ins.pc,"Insights","sem o comando",96,ant.ins.pc)}${cav(pcC,"Comando","",96,cmdA?pct(cmdA.p,cmdA.a):null)}</div></div>
+        <div class="dbox"><h3>Quem foi em cada evento</h3>${mapa}${qr}</div>`;
+    }else{
+      const seis=[];let m=ym;for(let i=0;i<6;i++){seis.unshift(m);m=ymAnt(m)}const cs=seis.map(dashCalc);
+      const barras=GRUPOS.map(g=>{const a=c.pres.porG[g];if(!a)return"";const v=pct(a.p,a.a);
+        return `<div class="drow"><span>${esc(g)}</span><div class="dbar"><i style="width:${v||0}%;background:${corFaixa(v)[1]}"></i></div><b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b></div>`}).join("");
+      corpo=`<div class="dbox">${tit}<div class="dcavs">${cav(c.pres.pc,"Presença",`${c.pres.n} eventos`,140,ant.pres.pc)}${cav(c.ins.pc,"Insights","sem o comando",140,ant.ins.pc)}</div></div>
+        <div class="dbox"><h3>Presença por função</h3>${barras}</div>
+        <div class="dbox"><h3>Tendência · últimos 6 meses</h3>${DLEG}${dashSvg(seis,[["#4CAF6A",cs.map(x=>x.pres.pc)],["#D9B26A",cs.map(x=>x.ins.pc),1]])}${qr}</div>`;
+    }
+    el.innerHTML=sel+corpo;
+    el.querySelectorAll("[data-vis]").forEach(b=>b.onclick=()=>{DASH_VIS=b.dataset.vis;try{localStorage.setItem("dashVis",DASH_VIS)}catch(e){}dashMostrar()});
+    (async()=>{const cv=$("dashQR");if(!cv)return;try{const g=cv.getContext("2d");g.clearRect(0,0,300,300);await qrBin(g,0,0,300,await dbCompactar(dbDados(ym)))}catch(e){cv.replaceWith(Object.assign(document.createElement("p"),{className:"nota",textContent:"Não consegui gerar o QR code (precisa de internet)."}))}})();
   }else{const ms=[...DASH_SEL].sort(),cs=ms.map(dashCalc);
     const destaque=x=>{const d=dashDestaques(x,null).find(z=>z[0].includes("Mais presente"));return d?d[1]:null};
     el.innerHTML=`<div class="dbox"><h3>Comparativo · ${ms.map(m=>ymNome(m,true)).join(", ")}</h3>${DLEG}${dashSvg(ms,[["#4CAF6A",cs.map(x=>x.pres.pc)],["#D9B26A",cs.map(x=>x.ins.pc),1]])}</div>
@@ -1776,6 +1816,21 @@ function c8Dados(ym){const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?
 async function c8Compactar(obj){const bytes=new TextEncoder().encode(JSON.stringify(obj));
   const s=new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));const z=new Uint8Array(await new Response(s).arrayBuffer());
   let out="C8Z1";for(const b of z)out+=String.fromCharCode(b);return out}
+// ---- Dashboard: detalhe de cada irmão no QR ("DBZ1" + JSON compactado), para o regional ler no painel
+// {v,d,r,m:"aaaa-mm",ne,ni,g:[[nome,cargo,presenças,eventos que contam,respostas,insights que contam,novo]]}
+function dbDados(ym){const c=dashCalc(ym),cargo=s=>String(s||"").replace(/\s*\([^)]*\)\s*/g," ").trim();
+  const conta=(k,i)=>{let p=0,n=0;(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym)).forEach(e=>{const w=contaEnt(e.p[i],i,e.d);if(w===1){p++;n++}else if(w===0)n++});return [p,n]};
+  const g=M_FULL.map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o).map(({m,i})=>{const [pp,pn]=conta("pres",i),[ip,inn]=conta("ins",i);
+    return [m.n,cargo(m.c),pp,pn,ip,inn,String(ENTRADA[m.n]||"").startsWith(ym)?1:0]}).filter(x=>x[3]||x[5]);
+  return {v:1,d:DIV_NOME,r:DIV_REG,m:ym,ne:c.pres.n,ni:(EV_SETS.ins||[]).filter(e=>e.d.startsWith(ym)).length,g}}
+async function dbCompactar(obj){const z=await c8Compactar(obj);return "DBZ1"+z.slice(4)}
+async function qrBin(g,qx,qy,qs,dados){await carregarQR();let qr=null;
+  for(const nivel of ["Q","M","L"]){try{const q=qrcode(0,nivel);q.addData(dados,"Byte");q.make();qr=q;break}catch(e){}}
+  if(!qr)throw new Error("grande");const n=qr.getModuleCount(),mod=qs/(n+8);
+  g.beginPath();g.roundRect?g.roundRect(qx,qy,qs,qs,14):g.rect(qx,qy,qs,qs);g.fillStyle="#fff";g.fill();g.fillStyle="#000";
+  for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(qr.isDark(r,k))g.fillRect(qx+(k+4)*mod,qy+(r+4)*mod,Math.ceil(mod),Math.ceil(mod));
+  const cv=await _img(CAVEIRA);if(cv){const ch=qs*0.12,cw=ch*cv.width/cv.height,cx2=qx+qs/2,cy2=qy+qs/2;g.fillStyle="#fff";g.beginPath();g.arc(cx2,cy2,Math.max(ch,cw)*0.62,0,Math.PI*2);g.fill();g.drawImage(_tinta(cv,cw,ch,"#151515"),cx2-cw/2,cy2-ch/2,cw,ch)}}
+let DB_LIDO=null;   // QR do Dashboard lido (de outra divisão ou desta): mostra o detalhe de cada irmão
 async function c8Ler(bin){const z=bin.slice(4),s=new Blob([z]).stream().pipeThrough(new DecompressionStream("deflate-raw"));return JSON.parse(await new Response(s).text())}
 async function imagemC8(ym){const D=c8Dados(ym);
   if(!D.e.length&&!D.i.length)throw new Error("vazio");
@@ -1844,22 +1899,44 @@ async function imagemDash(){const ms=[...DASH_SEL].sort();if(!ms.length)throw ne
     T("INSANOS M.C.",176,92,40,"#ECE7DC",800,tit);T(`Divisão ${DIV_NOME} · Regional ${DIV_REG}`,176,134,26,"#B8B2A6",500);
     g.fillStyle="rgba(236,231,220,.18)";g.fillRect(60,182,W-120,2);
     if(ms.length===1){const ym=ms[0],cc=dashCalc(ym),an=dashCalc(ymAnt(ym)),tem=an.pres.n||an.ins.n;
-      T("RESUMO DO MÊS",60,268,70,"#ECE7DC",800,tit);T(`${MESES[+ym.slice(5)-1]} de ${ym.slice(0,4)} · comparado a ${MESES[+ymAnt(ym).slice(5)-1].toLowerCase()}`,60,316,30,"#D9B26A",600);
-      const ks=[["Presença",cc.pres.pc,an.pres.pc],["Insights (s/ comando)",cc.ins.pc,an.ins.pc]];
-      ks.forEach(([r,v,a],i)=>{const x=60+i*490,yy=360;caixa(x,yy,470,200,16,"rgba(0,0,0,.45)");
-        T(r,x+22,yy+42,24,"#B8B2A6",500);T(v==null?"–":v+"%",x+22,yy+122,68,corFaixa(v)[1],800,tit);
-        if(v!=null&&a!=null&&tem){const d=v-a;T(d>0?`▲ +${d} pts`:d<0?`▼ ${d} pts`:"= igual",x+22,yy+168,24,d>0?"#8FD9A3":d<0?"#F2A3A3":"#B8B2A6",700);T(`antes ${a}%`,x+448,yy+168,20,"#7d776d",500,null,"right")}});
-      y=650;T(`Presença por função · ${MESES[+ym.slice(5)-1].slice(0,3)} x ${MESES[+ymAnt(ym).slice(5)-1].slice(0,3)}`,60,y,34,"#ECE7DC",700,tit);
-      GRUPOS.forEach(gp=>{const a=cc.pres.porG[gp],b=an.pres.porG[gp];if(!a&&!b)return;const v=a?pct(a.p,a.a):null,w=b?pct(b.p,b.a):null;y+=56;
-        T(gp,60,y,28,"#ECE7DC",600);caixa(270,y-20,520,22,11,"rgba(236,231,220,.08)");if(v!=null)caixa(270,y-20,Math.max(12,520*v/100),22,11,corFaixa(v)[1]);
-        T(v==null?"–":v+"%",900,y,30,corFaixa(v)[1],800,tit,"right");T(w==null?"–":w+"%",W-60,y,24,"#7d776d",600,null,"right")});
-      y+=90;T("Destaques",60,y,34,"#ECE7DC",700,tit);
-      dashDestaques(cc,tem?an:null).forEach(([a,b])=>{y+=52;T(a.replace(/^\S+\s/,""),60,y,26,"#B8B2A6",500);T(corta(b,560,26,700),W-60,y,26,"#ECE7DC",700,null,"right")});
-      // por integrante: barra da presença no mês, e a do mês anterior ao lado
-      y+=90;T("Presença por integrante",60,y,34,"#ECE7DC",700,tit);const Ls=dashLinhasInt([cc]),La=dashLinhasInt([an]);
-      [...Ls].sort((a,b)=>(b.v[0]??-1)-(a.v[0]??-1)||a.m.o-b.m.o).forEach(x=>{const v=x.v[0],aa=(La.find(z=>z.i===x.i)||{v:[null]}).v[0];y+=44;
-        T(corta(x.m.n,230,24,600),60,y,24,"#ECE7DC",600);caixa(310,y-17,500,18,9,"rgba(236,231,220,.08)");if(v!=null)caixa(310,y-17,Math.max(10,500*v/100),18,9,corFaixa(v)[1]);
-        T(v==null?"–":v+"%",900,y,26,corFaixa(v)[1],800,tit,"right");T(aa==null?"–":aa+"%",W-60,y,22,"#7d776d",600,null,"right")});
+      T("RESUMO DO MÊS",60,268,70,"#ECE7DC",800,tit);T(`${MESES[+ym.slice(5)-1]} de ${ym.slice(0,4)} · ${cc.pres.n} ${cc.pres.n===1?"evento":"eventos"} · ${cc.ins.n} ${cc.ins.n===1?"insight":"insights"}`,60,316,30,"#D9B26A",600);
+      const cavG=async(cx,top,h,v,a,rot,sub)=>{await desenharCaveira(g,cx,top,h,v);const yy=top+h+64;T(v==null?"–":v+"%",cx,yy,h>=260?76:58,corFaixa(v)[1],800,tit,"center");
+        let y2=yy+(h>=260?44:36);T(rot,cx,y2,h>=260?30:26,"#ECE7DC",600,null,"center");
+        if(v!=null&&a!=null&&tem){const d=v-a;y2+=34;T(d>0?`▲ +${d} pts`:d<0?`▼ −${-d} pts`:"= igual",cx,y2,22,d>0?"#8FD9A3":d<0?"#F2A3A3":"#B8B2A6",700,null,"center")}
+        else if(sub){y2+=34;T(sub,cx,y2,22,"#7d776d",500,null,"center")}return y2};
+      const cmd=cc.pres.porG.Comando,cmdA=an.pres.porG.Comando;
+      if(DASH_VIS==="B"){
+        let yb=0;for(const [k,[cx,v,a,r]] of [[0,[200,cc.pres.pc,an.pres.pc,"Presença"]],[1,[540,cc.ins.pc,an.ins.pc,"Insights"]],[2,[880,cmd?pct(cmd.p,cmd.a):null,cmdA?pct(cmdA.p,cmdA.a):null,"Comando"]]].map(x=>x))
+          yb=Math.max(yb,await cavG(cx,370,220,v,a,r,k===1?"sem o comando":""));
+        y=yb+90;T("Quem foi em cada evento",60,y,34,"#ECE7DC",700,tit);
+        const evs=(EV_SETS.pres||[]).filter(e=>e.d.startsWith(ym)).sort((a,b)=>a.d<b.d?-1:1);
+        const ord=M_FULL.map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o).filter(({i})=>evs.some(e=>contaEnt(e.p[i],i,e.d)!==null));
+        const x0=300,larg=W-60-x0,cw=evs.length?larg/evs.length:0;y+=50;
+        evs.forEach((e,k)=>T(e.d.slice(8,10),x0+cw*k+cw/2,y,22,"#9c958a",600,null,"center"));
+        ord.forEach(({m,i})=>{y+=40;T(corta(m.n,220,24,600),60,y,24,"#ECE7DC",600);
+          evs.forEach((e,k)=>{const w=contaEnt(e.p[i],i,e.d);caixa(x0+cw*k+4,y-24,cw-8,28,7,w===1?"#4CAF6A":w===0?"#C55a58":"rgba(236,231,220,.08)")})});
+        y+=50;[["#4CAF6A","foi"],["#C55a58","faltou"],["rgba(236,231,220,.18)","ainda não era da divisão"]].reduce((x,[c,r])=>{caixa(x,y-18,20,20,5,c);T(r,x+30,y,22,"#9c958a",500);return x+60+g.measureText(r).width},60);
+      }else{
+        const yb=Math.max(await cavG(300,380,300,cc.pres.pc,an.pres.pc,"Presença",`${cc.pres.n} eventos`),await cavG(780,380,300,cc.ins.pc,an.ins.pc,"Insights","sem o comando"));
+        y=yb+90;T("Presença por função",60,y,34,"#ECE7DC",700,tit);
+        GRUPOS.forEach(gp=>{const a=cc.pres.porG[gp];if(!a)return;const v=pct(a.p,a.a);y+=58;
+          T(gp,60,y,28,"#ECE7DC",600);caixa(270,y-20,600,22,11,"rgba(236,231,220,.08)");if(v!=null)caixa(270,y-20,Math.max(12,600*v/100),22,11,corFaixa(v)[1]);
+          T(v==null?"–":v+"%",W-60,y,30,corFaixa(v)[1],800,tit,"right")});
+        y+=100;T("Tendência · últimos 6 meses",60,y,34,"#ECE7DC",700,tit);
+        const seis=[];let m=ym;for(let k=0;k<6;k++){seis.unshift(m);m=ymAnt(m)}const cs=seis.map(dashCalc);
+        const gx=60,gw=W-120,gh=260,base=y+60+gh,gl=gw/6,bw=Math.min(56,gl*.34);
+        for(let k=0;k<=4;k++){g.fillStyle="rgba(236,231,220,.07)";g.fillRect(gx,base-gh*k/4,gw,1)}
+        seis.forEach((mm,k)=>{const cx=gx+gl*k+gl/2;[[cs[k].pres.pc,"#4CAF6A",-1],[cs[k].ins.pc,"#D9B26A",1]].forEach(([v,cor,lado])=>{if(v==null)return;const h=Math.max(4,gh*v/100),x=cx+(lado<0?-bw-3:3);
+            caixa(x,base-h,bw,h,6,cor);T(v+"%",x+bw/2,base-h-10,20,cor,800,null,"center")});
+          T(ymNome(mm,true),cx,base+32,22,"#9c958a",600,null,"center")});
+        y=base+72;[["#4CAF6A","Presença"],["#D9B26A","Insights (sem o comando)"]].reduce((x,[c,r])=>{caixa(x,y-18,20,20,5,c);T(r,x+30,y,22,"#9c958a",500);return x+60+g.measureText(r).width},60);
+      }
+      // QR com o detalhe de cada irmão (o regional lê no painel)
+      try{const qs=330,qx=W-60-qs,qy=y+60;await qrBin(g,qx,qy,qs,await dbCompactar(dbDados(ym)));
+        T("Detalhe de cada irmão:",60,qy+60,26,"#ECE7DC",700);T("eventos e insights do mês.",60,qy+96,24,"#B8B2A6",500);T("Leia no painel (📷 Ler imagem).",60,qy+130,24,"#B8B2A6",500);
+        T(`Atualizado em ${GERADO}`,60,qy+qs-10,22,"#7d776d",500);T("Insanos Sempre, Sempre Insanos",60,qy+qs+24,22,"#7d776d",500);y=qy+qs+40}
+      catch(e){y+=90;T(`Atualizado em ${GERADO} · Insanos Sempre, Sempre Insanos`,W/2,y,22,"#7d776d",500,null,"center")}
+      return;
     }else{const cs=ms.map(dashCalc);
       T("COMPARATIVO",60,268,70,"#ECE7DC",800,tit);T(ms.map(m=>MESES[+m.slice(5)-1].slice(0,3)+"/"+m.slice(2,4)).join(" · "),60,316,30,"#D9B26A",600);
       // colunas: os meses (etiquetas coloridas) e, entre um mês e outro, quanto subiu (▲) ou desceu (▼)
