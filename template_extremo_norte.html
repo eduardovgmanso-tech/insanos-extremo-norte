@@ -1265,7 +1265,7 @@ async function izSalvar(){const d=$("izData").value,n=$("izNum").value.trim();
   alert("Insight salvo em Downloads. Rode o GerarPainel: ele grava na aba Insights da planilha (se o insight já existir, atualiza as marcações).")}
 function aplicarAnalise(){
   const base=EV_SETS[ANAL]||[];
-  SEM_CMD=ANAL!=="pres"&&!!OPC[ANAL];
+  SEM_CMD=ANAL==="staff"&&!!OPC.staff;   // insights contam sempre todos (inclusive o comando)
   let ids=M_FULL.map((m,i)=>i);
   if(ANAL==="ins"&&SEM_CMD)ids=ids.filter(i=>grupoDe(M_FULL[i])!=="Comando");
   let evs=base;
@@ -1278,7 +1278,7 @@ function aplicarAnalise(){
   if(st.nome&&!M.some(m=>m.n===st.nome))st.nome="";
   if(ANAL==="ins"&&SEM_CMD)st.cargos=st.cargos.filter(c=>c!=="Comando");
   const h=document.querySelector("header h1");if(h&&h.firstChild)h.firstChild.nodeValue=ANAL_TIT[ANAL];
-  $("analCmd").hidden=ANAL==="pres";$("semCmd").checked=SEM_CMD;
+  $("analCmd").hidden=ANAL!=="staff";$("semCmd").checked=SEM_CMD;
   if($("ezLerBox"))$("ezLerBox").hidden=!(MODO==="adm"&&(ANAL==="pres"||ANAL==="ins"));
   if(typeof ez!=="undefined"&&!aplicarAnalise._lendo){ez.d=null}
   const izOn=MODO==="adm"&&ANAL==="ins";
@@ -1711,7 +1711,7 @@ function dashCalc(ym){
       if(v===1||v===0){const g=grupoDe(m);porM[i]=porM[i]||{p:0,a:0};porG[g]=porG[g]||{p:0,a:0};if(v===1){p++;ep++;porM[i].p++;porG[g].p++}else{a++;ea++;porM[i].a++;porG[g].a++}}});
       if(ep+ea)evPc.push({e,pc:pct(ep,ea)})});
     return {p,a,pc:pct(p,a),n:evPc.length,porM,porG,evPc}};
-  const pres=tipo("pres"),ins=tipo("ins",true);
+  const pres=tipo("pres"),ins=tipo("ins");
   return {ym,pres,ins}}
 function dashDestaques(c,ant){const d=[],nome=i=>M_FULL[i]?M_FULL[i].n:"";
   const pm=Object.entries(c.pres.porM).map(([i,x])=>({i:+i,pc:pct(x.p,x.a),n:x.p+x.a})).filter(x=>x.n>=Math.min(RANK_MIN,2));
@@ -1735,7 +1735,7 @@ function dashSvg(meses,series){const Wd=Math.max(320,Math.min(760,($("dashCorpo"
       s+=`<rect x="${x0}" y="${y(v)}" width="${bw}" height="${h}" rx="4" fill="${cor}" opacity=".92"><title>${ymNome(m)}: ${v}%</title></rect>`;
       if(bw>=12)s+=`<text x="${x0+bw/2}" y="${y(v)-5}" fill="${cor}" font-size="${bw>=22?12:10}" font-weight="700" text-anchor="middle">${v}%</text>`})});
   return s+"</svg>"}
-const DLEG=`<div class="dleg"><span><i style="background:#4CAF6A"></i>Presença</span><span><i style="background:#D9B26A"></i>Insights (sem o comando)</span></div>`;
+const DLEG=`<div class="dleg"><span><i style="background:#4CAF6A"></i>Presença</span><span><i style="background:#D9B26A"></i>Insights</span></div>`;
 function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice(0,1);DASH_SEL=DASH_SEL.filter(m=>meses.includes(m));
   $("dashMesOp").innerHTML=meses.map(m=>`<label><input type="checkbox" value="${m}"${DASH_SEL.includes(m)?" checked":""}> ${ymNome(m)}</label>`).join("")+'<button type="button" class="multi-lim" data-lim="1">Só o mês mais recente</button>';
   $("dashMesBt").textContent=DASH_SEL.length?[...DASH_SEL].sort().map(m=>ymNome(m,DASH_SEL.length>2)).join(" + "):"Escolha o mês";
@@ -1763,13 +1763,13 @@ function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice
       const mapa=evs.length?`<div class="dmapa" style="grid-template-columns:minmax(70px,110px) repeat(${evs.length},minmax(0,1fr))"><span></span>${evs.map(e=>`<span class="hd" title="${esc(e.e)}">${e.d.slice(8,10)}</span>`).join("")}
         ${ord.map(({m,i})=>`<span class="nm">${esc(m.n)}</span>`+evs.map(e=>{const w=contaEnt(e.p[i],i,e.d);return `<i class="${w===1?"f":w===0?"x":"n"}" title="${esc(m.n)} · ${esc(e.e)}"></i>`}).join("")).join("")}</div>
         <div class="dleg2"><span><i class="f"></i>foi</span><span><i class="x"></i>faltou</span><span><i class="n"></i>ainda não era da divisão</span></div>`:'<p class="nota">Nenhum evento no mês.</p>';
-      corpo=`<div class="dbox">${tit}<div class="dcavs">${cav(c.pres.pc,"Presença","",96,ant.pres.pc)}${cav(c.ins.pc,"Insights","sem o comando",96,ant.ins.pc)}${cav(pcC,"Comando","",96,cmdA?pct(cmdA.p,cmdA.a):null)}</div></div>
+      corpo=`<div class="dbox">${tit}<div class="dcavs">${cav(c.pres.pc,"Presença","",96,ant.pres.pc)}${cav(c.ins.pc,"Insights","",96,ant.ins.pc)}${cav(pcC,"Comando","",96,cmdA?pct(cmdA.p,cmdA.a):null)}</div></div>
         <div class="dbox"><h3>Quem foi em cada evento</h3>${mapa}${qr}</div>`;
     }else{
       const seis=[];let m=ym;for(let i=0;i<6;i++){seis.unshift(m);m=ymAnt(m)}const cs=seis.map(dashCalc);
       const barras=GRUPOS.map(g=>{const a=c.pres.porG[g];if(!a)return"";const v=pct(a.p,a.a);
         return `<div class="drow"><span>${esc(g)}</span><div class="dbar"><i style="width:${v||0}%;background:${corFaixa(v)[1]}"></i></div><b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b></div>`}).join("");
-      corpo=`<div class="dbox">${tit}<div class="dcavs">${cav(c.pres.pc,"Presença",`${c.pres.n} eventos`,140,ant.pres.pc)}${cav(c.ins.pc,"Insights","sem o comando",140,ant.ins.pc)}</div></div>
+      corpo=`<div class="dbox">${tit}<div class="dcavs">${cav(c.pres.pc,"Presença",`${c.pres.n} eventos`,140,ant.pres.pc)}${cav(c.ins.pc,"Insights",`${c.ins.n} ${c.ins.n===1?"insight":"insights"}`,140,ant.ins.pc)}</div></div>
         <div class="dbox"><h3>Presença por função</h3>${barras}</div>
         <div class="dbox"><h3>Tendência · últimos 6 meses</h3>${DLEG}${dashSvg(seis,[["#4CAF6A",cs.map(x=>x.pres.pc)],["#D9B26A",cs.map(x=>x.ins.pc),1]])}${qr}</div>`;
     }
@@ -1780,7 +1780,7 @@ function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice
     const destaque=x=>{const d=dashDestaques(x,null).find(z=>z[0].includes("Mais presente"));return d?d[1]:null};
     el.innerHTML=`<div class="dbox"><h3>Comparativo · ${ms.map(m=>ymNome(m,true)).join(", ")}</h3>${DLEG}${dashSvg(ms,[["#4CAF6A",cs.map(x=>x.pres.pc)],["#D9B26A",cs.map(x=>x.ins.pc),1]])}</div>
       <div class="dbox" style="overflow-x:auto">${dashTabMeses(ms,[
-        {rot:"Presença",vals:cs.map(x=>x.pres.pc)},{rot:`Insights<small class="dsub">sem o comando</small>`,vals:cs.map(x=>x.ins.pc)},
+        {rot:"Presença",vals:cs.map(x=>x.pres.pc)},{rot:"Insights",vals:cs.map(x=>x.ins.pc)},
         {rot:"Nº de eventos",vals:cs.map(x=>x.pres.n),num:1},{rot:"Nº de insights",vals:cs.map(x=>x.ins.n),num:1},
         {sec:"Presença por função"},
         ...GRUPOS.map(g=>({rot:esc(g),vals:cs.map(x=>{const a=x.pres.porG[g];return a&&a.p+a.a?pct(a.p,a.a):null})})),
@@ -1812,7 +1812,7 @@ function dashPorIntegrante(cs,ant){const L=dashLinhasInt(cs);
 // QR: "C8Z1" + JSON compactado {v,d:divisão,r:regional,m:"aaaa-mm",e:[[dia,nome,presentes,ausentes]],i:[[dia,nome,responderam,não]]}
 function c8Dados(ym){const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?i:-1).filter(i=>i>=0));
   const lista=(k,semCmd)=>(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ym)).map(e=>{let p=0,a=0;e.p.forEach((v,i)=>{if(semCmd&&cmd.has(i))return;const w=contaEnt(v,i,e.d);if(w===1)p++;else if(w===0)a++});return [+e.d.slice(8,10),String(e.e).slice(0,40),p,a]}).filter(x=>x[2]+x[3]);
-  return {v:1,d:DIV_NOME,r:DIV_REG,m:ym,e:lista("pres"),i:lista("ins",true)}}
+  return {v:1,d:DIV_NOME,r:DIV_REG,m:ym,e:lista("pres"),i:lista("ins")}}
 async function c8Compactar(obj){const bytes=new TextEncoder().encode(JSON.stringify(obj));
   const s=new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));const z=new Uint8Array(await new Response(s).arrayBuffer());
   let out="C8Z1";for(const b of z)out+=String.fromCharCode(b);return out}
@@ -1850,7 +1850,7 @@ async function imagemC8(ym){const D=c8Dados(ym);
   T("INSANOS M.C.",176,92,40,"#ECE7DC",800,tit);T(`Divisão ${DIV_NOME} · Regional ${DIV_REG}`,176,134,26,"#B8B2A6",500);
   g.fillStyle="rgba(236,231,220,.18)";g.fillRect(60,182,W-120,2);
   T("PARA O COMANDO VIII",60,262,62,"#ECE7DC",800,tit);T(`${mes} de ${ym.slice(0,4)} · resumo da divisão`,60,308,30,"#D9B26A",600);
-  [["Presença",pcE,`${D.e.length} eventos`],["Insights (s/ comando)",pcI,`${D.i.length} insights`]].forEach(([r,v,s],k)=>{const x=60+k*490,y=345;caixa(x,y,470,170,16,"rgba(0,0,0,.45)");
+  [["Presença",pcE,`${D.e.length} eventos`],["Insights",pcI,`${D.i.length} insights`]].forEach(([r,v,s],k)=>{const x=60+k*490,y=345;caixa(x,y,470,170,16,"rgba(0,0,0,.45)");
     T(r,x+24,y+42,26,"#B8B2A6",500);T(v==null?"–":v+"%",x+24,y+122,70,corFaixa(v)[1],800,tit);T(s,x+446,y+122,28,"#ECE7DC",700,null,"right")});
   let y=580;const bloco=(rot,arr)=>{if(!arr.length)return;T(rot,60,y,30,"#ECE7DC",700,tit);
     arr.forEach(x=>{y+=40;const v=pct(x[2],x[3]);T(`${String(x[0]).padStart(2,"0")}/${ym.slice(5)}`,60,y,24,"#ECE7DC",700);T(corta(x[1],620,24,500),160,y,24,"#B8B2A6",500);
@@ -1907,7 +1907,7 @@ async function imagemDash(){const ms=[...DASH_SEL].sort();if(!ms.length)throw ne
       const cmd=cc.pres.porG.Comando,cmdA=an.pres.porG.Comando;
       if(DASH_VIS==="B"){
         let yb=0;for(const [k,[cx,v,a,r]] of [[0,[200,cc.pres.pc,an.pres.pc,"Presença"]],[1,[540,cc.ins.pc,an.ins.pc,"Insights"]],[2,[880,cmd?pct(cmd.p,cmd.a):null,cmdA?pct(cmdA.p,cmdA.a):null,"Comando"]]].map(x=>x))
-          yb=Math.max(yb,await cavG(cx,370,220,v,a,r,k===1?"sem o comando":""));
+          yb=Math.max(yb,await cavG(cx,370,220,v,a,r,""));
         y=yb+90;T("Quem foi em cada evento",60,y,34,"#ECE7DC",700,tit);
         const evs=(EV_SETS.pres||[]).filter(e=>e.d.startsWith(ym)).sort((a,b)=>a.d<b.d?-1:1);
         const ord=M_FULL.map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o).filter(({i})=>evs.some(e=>contaEnt(e.p[i],i,e.d)!==null));
@@ -1917,7 +1917,7 @@ async function imagemDash(){const ms=[...DASH_SEL].sort();if(!ms.length)throw ne
           evs.forEach((e,k)=>{const w=contaEnt(e.p[i],i,e.d);caixa(x0+cw*k+4,y-24,cw-8,28,7,w===1?"#4CAF6A":w===0?"#C55a58":"rgba(236,231,220,.08)")})});
         y+=50;[["#4CAF6A","foi"],["#C55a58","faltou"],["rgba(236,231,220,.18)","ainda não era da divisão"]].reduce((x,[c,r])=>{caixa(x,y-18,20,20,5,c);T(r,x+30,y,22,"#9c958a",500);return x+60+g.measureText(r).width},60);
       }else{
-        const yb=Math.max(await cavG(300,380,300,cc.pres.pc,an.pres.pc,"Presença",`${cc.pres.n} eventos`),await cavG(780,380,300,cc.ins.pc,an.ins.pc,"Insights","sem o comando"));
+        const yb=Math.max(await cavG(300,380,300,cc.pres.pc,an.pres.pc,"Presença",`${cc.pres.n} eventos`),await cavG(780,380,300,cc.ins.pc,an.ins.pc,"Insights",`${cc.ins.n} ${cc.ins.n===1?"insight":"insights"}`));
         y=yb+90;T("Presença por função",60,y,34,"#ECE7DC",700,tit);
         GRUPOS.forEach(gp=>{const a=cc.pres.porG[gp];if(!a)return;const v=pct(a.p,a.a);y+=58;
           T(gp,60,y,28,"#ECE7DC",600);caixa(270,y-20,600,22,11,"rgba(236,231,220,.08)");if(v!=null)caixa(270,y-20,Math.max(12,600*v/100),22,11,corFaixa(v)[1]);
@@ -1929,7 +1929,7 @@ async function imagemDash(){const ms=[...DASH_SEL].sort();if(!ms.length)throw ne
         seis.forEach((mm,k)=>{const cx=gx+gl*k+gl/2;[[cs[k].pres.pc,"#4CAF6A",-1],[cs[k].ins.pc,"#D9B26A",1]].forEach(([v,cor,lado])=>{if(v==null)return;const h=Math.max(4,gh*v/100),x=cx+(lado<0?-bw-3:3);
             caixa(x,base-h,bw,h,6,cor);T(v+"%",x+bw/2,base-h-10,20,cor,800,null,"center")});
           T(ymNome(mm,true),cx,base+32,22,"#9c958a",600,null,"center")});
-        y=base+72;[["#4CAF6A","Presença"],["#D9B26A","Insights (sem o comando)"]].reduce((x,[c,r])=>{caixa(x,y-18,20,20,5,c);T(r,x+30,y,22,"#9c958a",500);return x+60+g.measureText(r).width},60);
+        y=base+72;[["#4CAF6A","Presença"],["#D9B26A","Insights"]].reduce((x,[c,r])=>{caixa(x,y-18,20,20,5,c);T(r,x+30,y,22,"#9c958a",500);return x+60+g.measureText(r).width},60);
       }
       // QR com o detalhe de cada irmão (o regional lê no painel)
       try{const qs=330,qx=W-60-qs,qy=y+60;await qrBin(g,qx,qy,qs,await dbCompactar(dbDados(ym)));
@@ -1950,7 +1950,7 @@ async function imagemDash(){const ms=[...DASH_SEL].sort();if(!ms.length)throw ne
       y=400;ms.forEach((m,i)=>{const r=MESES[+m.slice(5)-1].slice(0,3)+"/"+m.slice(2,4),cx=mx(i);caixa(cx-58,y-30,116,40,20,"rgba(233,185,73,.16)");T(r,cx,y,24,"#E9B949",800,null,"center")});
       const lin=(rot,vals,pc)=>{y+=62;g.fillStyle="rgba(236,231,220,.10)";g.fillRect(60,y-44,W-120,1);T(corta(rot,c0-80,28,600),60,y,28,"#ECE7DC",600);
         vals.forEach((v,i)=>{if(pc)chip(v,mx(i),y,46,30);else T(v==null?"–":String(v),mx(i),y,32,"#ECE7DC",800,tit,"center");if(i)delta(vals[i-1],v,dx(i),y-3,20)})};
-      lin("Presença",cs.map(x=>x.pres.pc),1);lin("Insights (s/ comando)",cs.map(x=>x.ins.pc),1);
+      lin("Presença",cs.map(x=>x.pres.pc),1);lin("Insights",cs.map(x=>x.ins.pc),1);
       lin("Nº de eventos",cs.map(x=>x.pres.n));lin("Nº de insights",cs.map(x=>x.ins.n));
       y+=52;T("PRESENÇA POR FUNÇÃO",60,y,22,"#7d776d",700);y-=10;
       GRUPOS.forEach(gp=>lin(gp,cs.map(x=>{const a=x.pres.porG[gp];return a&&a.p+a.a?pct(a.p,a.a):null}),1));
