@@ -623,6 +623,48 @@ def verificar_antecipados(api, pid, g):
                            f"Já são {len(ant['pagos'])} pago(s) antecipado(s).", None, False))
     return bool(novos)
 
+def _json_ler(nome, padrao):
+    try:
+        with open(os.path.join(PASTA, nome), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return padrao
+
+def _json_gravar(nome, dados):
+    with open(os.path.join(PASTA, nome), "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=1)
+
+def aplicar_adm_extra(d):
+    """Irmãos liberados como ADM pela tela Acessos (além dos fixos do divisao.json): adm_extra.json."""
+    ap, acao = str(d.get("apelido", "")).strip(), d.get("acao")
+    lista = [x for x in _json_ler("adm_extra.json", []) if isinstance(x, str)]
+    if not ap:
+        return "pedido incompleto"
+    if acao == "liberar" and ap.lower() not in [x.lower() for x in lista]:
+        lista.append(ap)
+    elif acao == "retirar":
+        lista = [x for x in lista if x.lower() != ap.lower()]
+    _json_gravar("adm_extra.json", lista)
+    return f"acesso de ADM {'liberado para' if acao == 'liberar' else 'retirado de'} {ap}"
+
+def aplicar_visitante(d):
+    """Acesso de visitante: uma entrada só, com validade (visitantes.json)."""
+    lista = [v for v in _json_ler("visitantes.json", []) if isinstance(v, dict)]
+    email = str(d.get("email", "")).strip().lower()
+    if d.get("acao") == "cancelar":
+        lista = [v for v in lista if v.get("email") != email]
+        _json_gravar("visitantes.json", lista)
+        return f"visitante cancelado: {email}"
+    if "@" not in email:
+        return "e-mail inválido"
+    horas = max(1, min(int(d.get("horas") or 24), 24 * 30))
+    agora = datetime.datetime.now()
+    lista = [v for v in lista if v.get("email") != email] + [{
+        "email": email, "nome": str(d.get("nome", "")).strip()[:60], "criado": agora.strftime("%Y-%m-%d %H:%M"),
+        "expira": (agora + datetime.timedelta(hours=horas)).strftime("%Y-%m-%d %H:%M"), "usado": ""}]
+    _json_gravar("visitantes.json", lista)
+    return f"visitante liberado: {email} (uma entrada, até {lista[-1]['expira'][8:10]}/{lista[-1]['expira'][5:7]} às {lista[-1]['expira'][11:]})"
+
 def processar_fila(api, pid):
     aba = _aba_real(api, pid, "Fila")
     if not aba:
@@ -643,6 +685,10 @@ def processar_fila(api, pid):
                 res, sit = aplicar_integrante(api, pid, d), "feito"
             elif tp == "boletos_sistema":
                 res, sit = aplicar_boletos(api, pid, d), "feito"
+            elif tp == "adm_extra":
+                res, sit = aplicar_adm_extra(d), "feito"
+            elif tp == "visitante":
+                res, sit = aplicar_visitante(d), "feito"
             elif tp == "teste_pagamento":     # botão de teste: não mexe em nada; manda o aviso só para quem pediu
                 AVISOS_PAG.append(("💵 Pagamento novo (teste)", "Teste do aviso de pagamento: toque em 📲 Enviar no WhatsApp para ver a lista.",
                                    str(row[1]).strip().lower()))
@@ -653,7 +699,7 @@ def processar_fila(api, pid):
             res, sit = f"{type(e).__name__}: {e}", "erro"
         _gravar(api, pid, [(f"'{aba}'!E{i}", sit), (f"'{aba}'!F{i}", f"{datetime.datetime.now():%d/%m/%Y %H:%M} · {res}")])
         print(f"Fila linha {i}: {sit} · {res}"); n += 1
-        if sit == "feito" and tp != "teste_pagamento":
+        if sit == "feito" and tp not in ("teste_pagamento", "adm_extra", "visitante"):   # estes não avisam o comando
             resumo.append((_resumo_item(d), str(row[1]).strip().lower(), d))
     return resumo
 
@@ -734,7 +780,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):

@@ -1,0 +1,12 @@
+{
+  "_ajuda": "Configuração da Divisão Extremo Norte. Para mudar quem acessa o painel ADM, edite a lista 'autorizados' (apelidos iguais aos da aba Dados Integrantes). Quem sai da lista e tem e-mail na planilha passa a ver o 'Meu painel'.",
+  "nome": "Extremo Norte",
+  "regional": "SP3",
+  "estado": "SP",
+  "comando_superior": "Comando VIII",
+  "sede_local": "Sede Extremo Norte sp3 ( Quintos bar burg )",
+  "sede_endereco": "Rua Silvio Brant correia, n° 313 - Vila Ema - SP.",
+  "assinatura_local": "Extremo Norte SP3 - Vila Ema",
+  "autorizados": ["Queijo", "Brawl", "Maycon", "Edu", "Demonão"],
+  "acessos_somente": ["Edu"]
+}

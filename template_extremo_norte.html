@@ -511,6 +511,7 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .dleg2{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--osso2)}.dleg2 i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .dqr{display:flex;align-items:center;gap:14px;margin-top:14px}.dqr canvas{width:120px;height:120px;border-radius:10px;flex:0 0 120px}.dqr p{margin:0}
 .dlido td,.dlido th{padding:8px 6px;text-align:left}.dlido td:not(:first-child),.dlido th:not(:first-child){text-align:center;white-space:nowrap}
+.ac-p{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--linha)}.ac-p>div{display:flex;flex-direction:column}.ac-p .nota{font-size:12.5px}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -822,6 +823,14 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   </section>
 
   <section class="painel js so-adm" id="fichaView">
+    <div class="cad-bloco" style="margin-top:0;border-top:0;padding-top:0">
+      <h2>📇 Dados do integrante</h2>
+      <p class="sub">Escolha o irmão: todos os dados dele saem prontos para copiar e mandar no WhatsApp.</p>
+      <div class="lw-campos"><label class="inteiro">Integrante<select id="diQuem"></select></label>
+        <label class="inteiro chk"><input type="checkbox" id="diCpf"> Incluir o CPF (só se for necessário: é um dado pessoal sensível)</label></div>
+      <pre class="lw-prev" id="diTexto" style="white-space:pre-wrap;margin-top:10px" hidden></pre>
+      <div class="lw-bts" id="diBts" hidden><button type="button" class="btn" id="diCopiar">📋 Copiar</button><button type="button" class="btn zap" id="diZap">Abrir no WhatsApp</button></div>
+    </div>
     <div class="pag-cab"><div><h2 style="margin:0">Ficha de cadastro</h2><p class="sub" style="margin:4px 0 0">Mande a ficha para o novo irmão preencher e devolver pelo WhatsApp.</p></div></div>
     <div class="lw-grade">
       <div class="lw-campos" id="fcCampos">
@@ -849,11 +858,13 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       <h2>➕ Novo integrante</h2>
       <p class="sub">O cadastro fica guardado neste aparelho até você apagar. Quando ele entrar de fato, toque em <b>Efetivar entrada</b>.</p>
       <div class="lanc-acoes" style="margin:10px 0">
-        <label style="flex:1 1 240px">Cadastros<select id="cadSel"></select></label>
-        <button type="button" class="btn" id="cadNovo">+ Novo cadastro</button>
-        <button type="button" class="btn lw-limpar" id="cadApagar">🗑️ Apagar cadastro</button>
+        <label hidden>Cadastros<select id="cadSel"></select></label>
+        <button type="button" class="btn" id="cadNovo" hidden style="display:none">+ Novo cadastro</button>
+        <button type="button" class="btn" id="cadColarZap">📋 Colar a resposta do irmão (WhatsApp)</button>
+        <button type="button" class="btn lw-limpar" id="cadApagar">🗑️ Limpar campos</button>
       </div>
-      <details class="pag-prev" style="margin:0 0 10px"><summary>📋 Colar a resposta da ficha (preenche sozinho)</summary>
+      <p class="nota" style="margin:0 0 8px">Copie no WhatsApp a ficha que o irmão devolveu e toque em <b>Colar a resposta</b>: os campos abaixo se preenchem sozinhos. Também dá para preencher à mão.</p>
+      <details class="pag-prev" style="margin:0 0 10px" id="cadColarBox"><summary>Colar à mão (se o botão não conseguir)</summary>
         <textarea id="cadColar" rows="6" placeholder="Cole aqui a ficha que o irmão devolveu pelo WhatsApp"></textarea>
         <button type="button" class="btn" id="cadLerFicha" style="margin-top:8px">Preencher com a ficha</button></details>
       <div class="lw-campos" id="cadCampos">
@@ -865,7 +876,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
         <label class="inteiro">Nome completo<input type="text" data-cad="nome"></label>
         <label>Nascimento<input type="date" data-cad="nasc"></label>
         <label>Telefone (WhatsApp)<input type="tel" data-cad="tel" inputmode="tel"></label>
-        <label>E-mail<input type="email" data-cad="email"></label>
+        <label>E-mail<input type="email" data-cad="email"><small class="nota" style="font-weight:400">Com e-mail, ele entra no painel pelo mesmo link e vê só os dados dele (Meu painel). O painel ADM completo é só para quem está na lista de acesso do comando.</small></label>
         <label>CPF<input type="text" data-cad="cpf" inputmode="numeric"></label>
         <label>Colete<select data-cad="colete"><option value=""></option><option>COURO</option><option>JEANS</option></select></label>
         <label>Tamanho<select data-cad="tam"><option value=""></option><option>P</option><option>M</option><option>G</option><option>GG</option><option>G3</option><option>G4</option><option>G5</option><option>G6</option></select></label>
@@ -943,6 +954,28 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="pag-kpis" id="acKpis"></div>
     <div class="lw-tipos" id="acFiltro" style="margin:6px 0 12px"><button type="button" data-acf="" aria-selected="true">Todos</button><button type="button" data-acf="Entrou" aria-selected="false">Entraram</button><button type="button" data-acf="Sem acesso" aria-selected="false">Sem acesso</button></div>
     <div id="acLista"></div>
+    <div class="cad-bloco">
+      <h2>🔑 Acesso de ADM</h2>
+      <p class="sub">Quem entra no painel ADM completo. Libere um irmão para ver tudo como o comando, ou retire depois. Ele precisa ter e-mail na aba Dados Integrantes. A tela Acessos continua só sua.</p>
+      <div id="acQuemVe"></div>
+      <div class="lanc-acoes" style="margin-top:10px"><label style="flex:1 1 220px">Irmão<select id="acLibQuem"></select></label>
+        <button type="button" class="btn" id="acLiberar">Liberar como ADM</button></div>
+      <p class="nota" id="acLibAviso"></p>
+      <div class="lw-bts" id="acLibZapBox" hidden><button type="button" class="btn zap" id="acLibZap">📲 Avisar o irmão no WhatsApp</button></div>
+    </div>
+    <div class="cad-bloco">
+      <h2>🎟️ Acesso de visitante</h2>
+      <p class="sub">Uma entrada só, com validade. O visitante vê o painel de presença <b>sem dados pessoais</b> (sem telefones, CPF, pagamentos e sem as telas do comando). Depois que ele entra, o acesso é apagado na atualização seguinte do painel.</p>
+      <div class="lw-campos">
+        <label>Nome do visitante<input type="text" id="vNome" placeholder="Ex.: João (Regional)"></label>
+        <label>E-mail do visitante<input type="email" id="vEmail" placeholder="visitante@email.com"></label>
+        <label>WhatsApp (opcional)<input type="tel" id="vTel" inputmode="tel" placeholder="(11) 91234-5678"></label>
+        <label>Validade<select id="vHoras"><option value="6">6 horas</option><option value="24" selected>24 horas</option><option value="72">3 dias</option><option value="168">7 dias</option></select></label>
+      </div>
+      <div class="lw-bts" style="margin-top:10px"><button type="button" class="btn" id="vCriar">Criar acesso</button><button type="button" class="btn zap" id="vZap" hidden>📲 Enviar no WhatsApp</button></div>
+      <p class="nota" id="vAviso"></p>
+      <div id="vLista"></div>
+    </div>
   </section>
 
   
@@ -969,6 +1002,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <p class="nota" id="pagVerif"></p>
     <p class="nota" id="pagEnvios" style="line-height:1.6"></p>
     <div class="pag-lista" id="pagLista"></div>
+    <div class="lw-bts" style="margin:10px 0 4px"><button type="button" class="btn zap" id="pagSalvar2" hidden>Salvar alterações</button></div>
     <div class="lw-bts pag-fim">
       <button type="button" class="btn zap" id="pagCopiar">Copiar mensagem para o comando</button>
       <a class="btn" id="pagZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
@@ -1840,6 +1874,15 @@ function dbDados(ym){const c=dashCalc(ym),cargo=s=>String(s||"").replace(/\s*\([
   const g=M_FULL.map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o).map(({m,i})=>{const [pp,pn]=conta("pres",i),[ip,inn]=conta("ins",i);
     return [m.n,cargo(m.c),pp,pn,ip,inn,String(ENTRADA[m.n]||"").startsWith(ym)?1:0]}).filter(x=>x[3]||x[5]);
   return {v:1,d:DIV_NOME,r:DIV_REG,m:ym,ne:c.pres.n,ni:(EV_SETS.ins||[]).filter(e=>e.d.startsWith(ym)).length,g}}
+function diTexto(n,comCpf){const m=M_FULL.find(x=>x.n===n);if(!m)return "";const x=m.x||{},i=M_FULL.indexOf(m),ano=String(new Date().getFullYear());
+  const br=d=>d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";const tel=String(m.tel||"").replace(/^55/,"").replace(/^(\d{2})(\d{4,5})(\d{4})$/,"($1) $2-$3");
+  const conta=k=>{let p=0,t=0;(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ano)).forEach(e=>{const w=contaEnt(e.p[i],i,e.d);if(w===1){p++;t++}else if(w===0)t++});return t?`${p} de ${t} (${Math.round(p*100/t)}%)`:"–"};
+  const af=(DADOS.afastados||[]).find(a=>a.n===m.n);
+  const L=[`*📇 ${m.n}*`,"",x.nc?`*Nome completo:* ${x.nc}`:null,`*Nº do sistema:* ${m.num||"–"}`,`*Cargo/função:* ${m.c||"–"}`,`*Posição na lista:* ${String(m.lg||"").trim()||"–"}`,
+    m.nasc?`*Nascimento:* ${br(m.nasc)}${m.idade?` (${m.idade} anos)`:""}`:null,tel?`*Telefone:* ${tel}`:null,comCpf&&x.cpf?`*CPF:* ${x.cpf}`:null,
+    x.col?`*Colete:* ${x.col}`:null,x.tamc?`*Camiseta:* ${x.tamc}`:null,ENTRADA[m.n]?`*Na divisão desde:* ${br(ENTRADA[m.n])} (1º evento marcado)`:null,
+    af?`*Situação:* afastado${af.desde?" desde "+br(af.desde):""}`:"*Situação:* ativo","",`*Presença em ${ano}:* ${conta("pres")}`,`*Insights em ${ano}:* ${conta("ins")}`,"",`_${DIV_NOME} ${DIV_REG}_`];
+  return L.filter(l=>l!==null).join("\n").trim()}
 function dbDadosMeses(ms){const um=ms.map(dbDados),nomes=[];um.forEach(D=>D.g.forEach(x=>{if(!nomes.some(y=>y[0]===x[0]))nomes.push([x[0],x[1]])}));
   const ordem=M_FULL.map(m=>m.n);nomes.sort((a,b)=>ordem.indexOf(a[0])-ordem.indexOf(b[0]));
   return {v:2,d:DIV_NOME,r:DIV_REG,ms,ne:um.map(D=>D.ne),ni:um.map(D=>D.ni),
@@ -2490,6 +2533,9 @@ function montarAntecipados(){const el=$("pagAntec");if(!el)return;const A=(DADOS
   if(!A||!A.lista||!A.lista.length){el.innerHTML="";return}
   const MS=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"],mes=MS[+A.mes.slice(5,7)-1]+"/"+A.mes.slice(0,4);
   el.innerHTML=`<div class="afast antec"><h3>💵 Pagos antecipados · ${esc(mes)}</h3><p class="nota" style="margin:0 0 8px">Pagaram o boleto do mês seguinte antes do dia 1º. No dia 1º entram como “Pago em Dia” sozinhos.</p>${A.lista.map(a=>`<p>✅ <b>${esc(a.n)}</b> · identificado ${esc(a.quando)}</p>`).join("")}</div>`}
+// o botão de salvar de baixo (depois dos grupos) espelha o de cima
+(()=>{const a=$("pagSalvar"),b=$("pagSalvar2");if(!a||!b)return;const espelha=()=>{b.hidden=a.hidden;b.textContent=a.textContent;b.disabled=a.disabled};
+  new MutationObserver(espelha).observe(a,{attributes:true,childList:true,characterData:true,subtree:true});b.onclick=()=>a.click();espelha()})();
 function montarPagamentos(){montarAfastados();montarAntecipados();
   if($("pagImg")&&!$("pagImg").onclick){$("pagImg").onclick=()=>entregarImagemPagamentos($("pagImg"));
     $("pagLer").onclick=()=>{$("pagLerArq").value="";$("pagLerArq").click()};$("pagLerArq").onchange=()=>{const f=$("pagLerArq").files[0];if(f)lerImagemPagamentos(f)}}
@@ -3119,6 +3165,13 @@ function montarCadastro(){if(!$("cadCampos"))return;
   const ord=cadOrdem();
   const opsApos='<option value="">Escolha…</option>'+ord.map(m=>`<option value="${esc(m.n)}">${esc(m.lg||"")} ${esc(m.n)} (${esc(m.c)})</option>`).join("");
   $("cadApos").innerHTML=opsApos;$("sitApos").innerHTML=opsApos;
+  // dados do integrante
+  if($("diQuem")){
+    $("diQuem").innerHTML='<option value="">Escolha…</option>'+cadOrdem().map(m=>`<option value="${esc(m.n)}">${esc(m.n)} · ${esc(m.c||"")}</option>`).join("");
+    const diMostrar=()=>{const n=$("diQuem").value,tx=n?diTexto(n,$("diCpf").checked):"";$("diTexto").textContent=tx;$("diTexto").hidden=!tx;$("diBts").hidden=!tx};
+    $("diQuem").onchange=diMostrar;$("diCpf").onchange=diMostrar;
+    $("diCopiar").onclick=async()=>{try{await navigator.clipboard.writeText($("diTexto").textContent);$("diCopiar").textContent="✅ Copiado"}catch(e){alert("Não consegui copiar. Selecione o texto e copie.")}setTimeout(()=>$("diCopiar").textContent="📋 Copiar",1800)};
+    $("diZap").onclick=()=>window.open("https://wa.me/?text="+encodeURIComponent($("diTexto").textContent),"_blank")}
   // mudar cargo
   if($("mcQuem")){
     $("mcQuem").innerHTML='<option value="">Escolha…</option>'+cadOrdem().map(m=>`<option value="${esc(m.n)}">${esc(m.n)} · ${esc(m.c||"")}</option>`).join("");
@@ -3148,11 +3201,15 @@ function montarCadastro(){if(!$("cadCampos"))return;
   $("cadNovo").onclick=()=>{const l=cadLista(),n={id:Date.now(),d:{}};l.push(n);cadGuardar(l);cadAtual=n.id;desenharSel()};
   $("cadApagar").onclick=()=>{const l=cadLista(),c=l.find(x=>x.id===cadAtual);if(!c)return;
     if(!confirm(`Apagar o cadastro de "${c.d.ap||"(sem apelido)"}" deste aparelho?`))return;cadGuardar(l.filter(x=>x.id!==cadAtual));cadAtual=null;desenharSel()};
+  $("cadColarZap").onclick=async()=>{let tx="";try{tx=await navigator.clipboard.readText()}catch(e){}
+    if(!tx||!/:/.test(tx)){$("cadColarBox").open=true;$("cadColar").focus();alert("Não consegui ler o que foi copiado. Cole a ficha no campo que abriu e toque em \"Preencher com a ficha\".");return}
+    $("cadColar").value=tx;$("cadLerFicha").click()};
   $("cadLerFicha").onclick=()=>{const tx=$("cadColar").value;if(!tx.trim())return;const ach={};
     tx.split("\n").forEach(l=>{const m=l.replace(/[*_]/g,"").match(/^\s*([^:]{2,40}):\s*(.+)$/);if(!m)return;const k=zNorm(m[1]),v=m[2].trim();if(!v)return;
       if(/tarjeta/.test(k))ach.ap=v;else if(/completo/.test(k))ach.nome=v;else if(/^cpf/.test(k))ach.cpf=v;else if(/nasc/.test(k)){const d=v.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(d){let a=+d[3];if(a<100)a+=a>30?1900:2000;ach.nasc=`${a}-${d[2].padStart(2,"0")}-${d[1].padStart(2,"0")}`}}
-      else if(/whats/.test(k))ach.tel=v.replace(/\D/g,"");else if(/mail/.test(k))ach.email=v.toLowerCase();else if(/couro|jeans/.test(k))ach.colete=zNorm(v).includes("jeans")?"JEANS":"COURO";
-      else if(/tamanho/.test(k)&&/colete/.test(k))ach.tam=v.toUpperCase().replace(/\s/g,"")});
+      else if(/whats|telefone|celular|fone/.test(k))ach.tel=v.replace(/\D/g,"");else if(/mail/.test(k))ach.email=v.toLowerCase();
+      else if((/couro|jeans/.test(k)||/colete/.test(k))&&!/tamanho/.test(k)){const z=zNorm(v);if(/jeans|couro/.test(z))ach.colete=z.includes("jeans")?"JEANS":"COURO"}
+      else if(/tamanho/.test(k)){const tm=v.toUpperCase().replace(/\s/g,"").match(/G[3-6]|GG|P|M|G/);if(tm)ach.tam=tm[0]}});
     $("cadCampos").querySelectorAll("[data-cad]").forEach(el=>{if(ach[el.dataset.cad])el.value=ach[el.dataset.cad]});salvarCampo();
     $("cadAviso").textContent=`Preenchi ${Object.keys(ach).length} campo(s) com a ficha. Complete Nº do sistema, cargo, grau e a posição na lista.`};
   $("cadEfetivar").onclick=async()=>{salvarCampo();const l=cadLista(),c=l.find(x=>x.id===cadAtual);if(!c)return;const d=c.d;
@@ -3307,9 +3364,44 @@ async function montarAcessos(){const bt=document.querySelector('.lateral button[
   ACX=await acAbrir();if(!ACX)return;if(bt)bt.hidden=false;const A=ACX;acRegs=A.regs||[];
   if(A.planilha&&$("plan18")){$("plan18").href=A.planilha;$("plan18").hidden=false}   // atalho da planilha: só para quem vê a tela Acessos
   $("acAtualizar").onclick=()=>acBuscar(true);
+  acExtras(A);
   $("acFiltro").onclick=ev=>{const b=ev.target.closest("[data-acf]");if(!b)return;acFiltro=b.dataset.acf;
     $("acFiltro").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",x===b));acDesenhar()};
   acDesenhar()}
+// liberar a tela Acessos e visitantes de uma entrada (pedidos vão para a planilha pela nuvem)
+function acExtras(A){const fx=A.fixos||[],ex=A.extra||[],ce=A.comEmail||[],br=s=>s?`${s.slice(8,10)}/${s.slice(5,7)} às ${s.slice(11,16)}`:"";
+  $("acQuemVe").innerHTML=[...fx.map(n=>`<div class="ac-p"><b>${esc(n)}</b><span class="nota">fixo (divisao.json)</span></div>`),
+    ...ex.map(n=>`<div class="ac-p"><b>${esc(n)}</b><button type="button" class="btn lw-limpar" data-acret="${esc(n)}">Retirar</button></div>`)].join("");
+  const ja=new Set([...fx,...ex].map(x=>x.toLowerCase()));
+  $("acLibQuem").innerHTML='<option value="">Escolha…</option>'+cadOrdem().filter(m=>ce.includes(m.n.toLowerCase())&&!ja.has(m.n.toLowerCase())).map(m=>`<option value="${esc(m.n)}">${esc(m.n)}</option>`).join("");
+  let apLib="";
+  $("acLiberar").onclick=async()=>{const ap=$("acLibQuem").value;if(!ap){alert("Escolha o irmão.");return}
+    if(!confirm(`Liberar ${ap} como ADM? Ele passa a ver o painel completo, como o comando (inclusive telefones e pagamentos).`))return;
+    if(await nuvemEnviar({tipo:"adm_extra",acao:"liberar",apelido:ap},"Pedido enviado.")){apLib=ap;
+      $("acLibAviso").textContent=`✅ Em uns 3 minutos ${ap} entra como ADM, com o e-mail dele.`;$("acLibZapBox").hidden=false}};
+  $("acLibZap").onclick=()=>{const m=M_FULL.find(x=>x.n===apLib),tel=String((m&&m.tel)||"").replace(/\D/g,""),link=location.href.split("#")[0].split("?")[0];
+    const tx=`Fala, ${apLib}! 🤝\n\nSeu acesso ao *painel ADM* da *Divisão ${DIV_NOME} ${DIV_REG}* está liberado.\n\n🔗 ${link}\n📧 Entre com o seu e-mail cadastrado na divisão.\n\n_Insanos Sempre, Sempre Insanos_`;
+    window.open(`https://wa.me/${tel}?text=`+encodeURIComponent(tx),"_blank")};
+  $("acQuemVe").onclick=async ev=>{const b=ev.target.closest("[data-acret]");if(!b)return;const ap=b.dataset.acret;
+    if(!confirm(`Retirar o acesso de ADM de ${ap}? Ele volta a ver só o "Meu painel".`))return;
+    if(await nuvemEnviar({tipo:"adm_extra",acao:"retirar",apelido:ap},"Pedido enviado.")){$("acLibAviso").textContent=`✅ Em uns 3 minutos ${ap} deixa de entrar como ADM.`;$("acLibZapBox").hidden=true}};
+  // visitantes
+  const st={aguardando:["⏳","aguardando a entrada"],usado:["✅","já entrou"],vencido:["⌛","venceu sem entrar"]};
+  const vs=(A.vis||[]).slice().reverse();
+  $("vLista").innerHTML=vs.length?`<p class="nota" style="margin:12px 0 4px">Visitantes (últimos 30 dias)</p>`+vs.map(v=>{const s=st[v.status]||st.aguardando;
+    return `<div class="ac-p"><div><b>${s[0]} ${esc(v.nome||v.email)}</b><span class="nota">${esc(v.email)} · ${s[1]}${v.usado?" em "+br(v.usado):v.status==="aguardando"?" · vale até "+br(v.expira):""}</span></div>
+      ${v.status==="aguardando"?`<button type="button" class="btn lw-limpar" data-vcan="${esc(v.email)}">Cancelar</button>`:""}</div>`}).join(""):"";
+  $("vLista").onclick=async ev=>{const b=ev.target.closest("[data-vcan]");if(!b)return;if(!confirm("Cancelar o acesso deste visitante?"))return;
+    if(await nuvemEnviar({tipo:"visitante",acao:"cancelar",email:b.dataset.vcan},"Pedido enviado."))$("vAviso").textContent="✅ Cancelado. Some na próxima atualização do painel."};
+  const msg=()=>{const n=$("vNome").value.trim(),e=$("vEmail").value.trim().toLowerCase(),h=+$("vHoras").value,link=location.href.split("#")[0].split("?")[0];
+    const val=h>=24?`${h/24} ${h/24===1?"dia":"dias"}`:`${h} horas`;
+    return `Olá${n?", "+n.split(" ")[0]:""}! 👋\n\nSeu acesso de *visitante* ao painel de presença da *Divisão ${DIV_NOME} ${DIV_REG}* está liberado.\n\n🔗 ${link}\n📧 Entre com o e-mail: *${e}*\n\n⚠️ Vale para *uma entrada só*, por até ${val} (a partir de uns 3 minutos depois desta mensagem).\n\n_Insanos Sempre, Sempre Insanos_`};
+  $("vCriar").onclick=async()=>{const e=$("vEmail").value.trim().toLowerCase();if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){alert("Digite um e-mail válido.");return}
+    if(!confirm(`Criar acesso de visitante para ${e}? Ele vê o painel de presença sem dados pessoais, uma vez só.`))return;
+    if(await nuvemEnviar({tipo:"visitante",acao:"criar",nome:$("vNome").value.trim(),email:e,horas:+$("vHoras").value},"Acesso enviado para a planilha.")){
+      $("vAviso").textContent="✅ Acesso criado. Em uns 3 minutos ele já consegue entrar. Agora envie o link:";$("vZap").hidden=false}};
+  $("vZap").onclick=()=>{const tel=$("vTel").value.replace(/\D/g,""),num=tel?(tel.length<=11?"55"+tel:tel):"";
+    window.open(`https://wa.me/${num}?text=`+encodeURIComponent(msg()),"_blank")}}
 async function acBuscar(manual){const A=ACX;if(!A||!A.url||acBuscando)return;acBuscando=true;
   $("acAtualizar").textContent="Atualizando…";
   try{const r=await fetch(A.url+"?chave="+encodeURIComponent(A.chave)+"&t="+Date.now());const j=await r.json();

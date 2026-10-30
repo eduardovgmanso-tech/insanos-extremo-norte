@@ -321,7 +321,12 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     const kek=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(P.sal),iterations:P.it,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
     let chave=null;
     for(const s of P.slots){try{chave=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct));break}catch(e){}}
-    if(!chave)throw 0;
+    if(!chave){   // não é do comando: tenta o "Meu painel" do irmão
+      for(const s of (P.pes||[])){try{const h=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));
+        try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro"});
+          if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}}catch(_){}
+        document.open();document.write(h.split("__CAV__").join(P.cav||""));document.close();return}catch(e){}}
+      throw 0}
     const k=await crypto.subtle.importKey("raw",chave,"AES-GCM",false,["decrypt"]);
     const html=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(P.iv)},k,b64(P.ct)));
     registrar(true);
@@ -331,6 +336,169 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     if(d.includes("@")){solic.href="https://wa.me/?text="+encodeURIComponent(`Olá! Quero solicitar acesso ao ${document.title.replace(/ - Analise/," - Painel Insanos")}. Meu e-mail: ${d}`);solic.hidden=false}}
 });
 </script></body></html>"""
+
+# ---------------------------------------------------------------------
+#  "Meu painel": cada irmão (fora do comando) com e-mail na planilha vê só os dados dele
+# ---------------------------------------------------------------------
+ADM_EXTRA = []         # irmãos liberados como ADM pela tela Acessos
+GERAL_RAW = ""         # painel de presença sem dados pessoais (o que o visitante vê)
+CAVEIRA_URL = ""       # imagem da caveira (vem do template): usada no "Meu painel"
+PESSOAIS = []          # [(email, html)] trancados no mesmo cofre do painel, cada um com o e-mail do irmão
+MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Meu painel · Insanos</title><meta name="theme-color" content="#0d0c0b"><style>
+:root{--osso:#ECE7DC;--osso2:#B8B2A6;--linha:#2c2925;--ouro:#E9B949}
+*{box-sizing:border-box}body{margin:0;background:#0d0c0b;color:var(--osso);font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.w{max-width:620px;margin:0 auto;padding:18px 14px 40px}.top{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--linha);padding-bottom:12px}
+.top img{width:52px;height:52px}.top b{display:block;font-size:20px}.top span{color:var(--osso2);font-size:13px}
+h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margin:0 0 14px}
+.card{border:1px solid var(--linha);border-radius:16px;background:#161412;padding:16px;margin:12px 0}.card h2{font-size:17px;margin:0 0 12px}
+.cavs{display:flex;justify-content:space-around;gap:10px;text-align:center}.cv{display:flex;flex-direction:column;align-items:center;gap:2px}
+.cv b{font-size:34px;font-weight:800;line-height:1}.cv span{font-size:14px}.cv small{font-size:12px;color:var(--osso2)}
+.cav{position:relative;width:120px;height:146px;isolation:isolate}
+.cav:before{content:"";position:absolute;inset:0;background:var(--cav) center/contain no-repeat;filter:grayscale(1) brightness(.75) contrast(1.1)}
+.cav:after{content:"";position:absolute;inset:0;background:linear-gradient(to top,var(--c) var(--p),transparent var(--p));-webkit-mask:var(--cav) center/contain no-repeat;mask:var(--cav) center/contain no-repeat;mix-blend-mode:multiply}
+.pos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pos div{background:rgba(236,231,220,.05);border-radius:12px;padding:12px;text-align:center}
+.pos b{display:block;font-size:30px;color:var(--ouro)}.pos span{font-size:13px;color:var(--osso2)}
+.cmp{margin:6px 0 14px}.cmp p{margin:0 0 6px;font-weight:700}.br{display:grid;grid-template-columns:110px 1fr 46px;gap:8px;align-items:center;font-size:13px;margin:5px 0}
+.tr{height:10px;border-radius:6px;background:rgba(236,231,220,.08)}.tr i{display:block;height:10px;border-radius:6px}.br em{font-style:normal;font-weight:800;text-align:right}
+.mes{display:grid;grid-template-columns:70px 1fr 1fr;gap:8px;align-items:center;font-size:13px;padding:7px 0;border-top:1px solid var(--linha)}
+.mes:first-of-type{border-top:0}.ch{padding:3px 8px;border-radius:8px;font-weight:800;text-align:center}
+details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary{cursor:pointer;font-weight:700;padding:6px 0}
+.ev{display:flex;gap:10px;font-size:13.5px;padding:6px 0;border-bottom:1px solid rgba(236,231,220,.06)}.ev i{font-style:normal;width:22px}.ev span{color:var(--osso2);width:44px;flex:0 0 44px}
+.nota{color:var(--osso2);font-size:12.5px}.sair{display:block;margin:18px auto 0;background:transparent;border:1px solid var(--linha);color:var(--osso);border-radius:999px;padding:10px 22px;font-weight:700}
+</style></head><body><div class="w" id="app"></div><script>
+const D=__DADOS__,CAV="__CAV__";
+const cor=v=>v==null?["transparent","#ECE7DC"]:v>=90?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F3DE8A","#EBD27A"]:["#F2A3A3","#EE9A9A"];
+const pc=a=>a&&a[1]?Math.round(a[0]*100/a[1]):null,es=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const MS=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const cav=(v,r,sub)=>`<div class="cv"><span class="cav" style="--cav:url('${CAV}');--c:${cor(v)[0]};--p:${v||0}%"></span><b style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</b><span>${r}</span><small>${sub}</small></div>`;
+const bar=(r,v)=>`<div class="br"><span>${r}</span><div class="tr"><i style="width:${v||0}%;background:${cor(v)[1]}"></i></div><em style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</em></div>`;
+const vp=pc(D.pres),vi=pc(D.ins);
+const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
+document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
+<h1>${es(D.n)}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}</p>
+<div class="card"><h2>Minha adesão em ${D.ano}</h2><div class="cavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
+<div class="card"><h2>Minha posição (presença)</h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
+<div class="card"><h2>Comparação</h2>
+  <div class="cmp"><p>Presença</p>${bar("Eu",vp)}${bar("Média "+es(D.g),D.mf[0])}${bar("Média da divisão",D.md[0])}</div>
+  <div class="cmp"><p>Insights</p>${bar("Eu",vi)}${bar("Média "+es(D.g),D.mf[1])}${bar("Média da divisão",D.md[1])}</div></div>
+<div class="card"><h2>Mês a mês</h2><div class="mes nota"><span></span><span>Presença</span><span>Insights</span></div>${D.meses.map(m=>{const a=pc(m.p),b=pc(m.i);
+  const ch=(v,x)=>x&&x[1]?`<span class="ch" style="color:${cor(v)[1]};background:rgba(236,231,220,.05)">${x[0]}/${x[1]} · ${v}%</span>`:'<span class="nota">–</span>';
+  return `<div class="mes"><b>${MS[+m.ym.slice(5)-1]}/${m.ym.slice(2,4)}</b>${ch(a,m.p)}${ch(b,m.i)}</div>`}).join("")}
+  <details><summary>🗓️ Meus eventos em ${D.ano}</summary>${D.ev.map(e=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span>${es(e[1])}</div>`).join("")||'<p class="nota">Nenhum evento.</p>'}</details>
+  <details><summary>💬 Meus insights em ${D.ano}</summary>${D.iv.map(e=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span>${es(e[1])}</div>`).join("")||'<p class="nota">Nenhum insight.</p>'}</details></div>
+<p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
+<button class="sair" onclick="try{sessionStorage.clear()}catch(e){}location.reload()">Sair</button>`;
+</script></body></html>"""
+
+RANK_MIN_MEU = 3       # mesmo mínimo do ranking do painel
+
+def montar_pessoais(membros, eventos, eventos_ins, gerado):
+    """Uma página por irmão (fora do comando) com e-mail: só os dados dele, médias e posições sem nomes."""
+    PESSOAIS.clear()
+    ano = str(datetime.date.today().year)
+    ent = {}
+    for evs in (eventos, eventos_ins):
+        for e in evs:
+            for i, v in enumerate(e["p"]):
+                if v not in (None, "") and (i not in ent or e["d"] < ent[i]):
+                    ent[i] = e["d"]
+    def conta(v, i, d):
+        if v == "-":
+            return 0
+        if v in (None, ""):
+            return 0 if (i in ent and d >= ent[i]) else None
+        return 1 if v == 1 else 0
+    def soma(evs, i, pref):
+        p = t = 0
+        for e in evs:
+            if not e["d"].startswith(pref):
+                continue
+            w = conta(e["p"][i], i, e["d"])
+            if w is not None:
+                t += 1; p += (w == 1)
+        return [p, t]
+    grupos = [grupo_de(m.get("c")) for m in membros]
+    est = [(soma(eventos, i, ano), soma(eventos_ins, i, ano)) for i in range(len(membros))]
+    pct = lambda a: arred(a[0] * 100 / a[1]) if a[1] else None
+    def media(idx, k):
+        p = sum(est[i][k][0] for i in idx); t = sum(est[i][k][1] for i in idx)
+        return arred(p * 100 / t) if t else None
+    def posicao(i, idx):
+        eleg = [j for j in idx if est[j][0][1] >= RANK_MIN_MEU]
+        if i not in eleg:
+            return None
+        ordem = sorted(eleg, key=lambda j: (-(est[j][0][0] / est[j][0][1]), -est[j][0][0], membros[j].get("o", 999)))
+        return [ordem.index(i) + 1, len(ordem)]
+    todos = list(range(len(membros)))
+    autoriz = {a.lower() for a in AUTORIZADOS + ADM_EXTRA}
+    meses = sorted({e["d"][:7] for e in eventos + eventos_ins if e["d"].startswith(ano)})
+    for i, m in enumerate(membros):
+        email = EMAIL_APELIDO_INV.get(m["n"].lower(), "")
+        if "@" not in email or m["n"].lower() in autoriz:
+            continue
+        mesmo = [j for j in todos if grupos[j] == grupos[i]]
+        lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
+                             if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
+        dados = {"n": m["n"], "c": m.get("c", ""), "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
+                 "min": RANK_MIN_MEU, "pres": est[i][0], "ins": est[i][1],
+                 "mf": [media(mesmo, 0), media(mesmo, 1)], "md": [media(todos, 0), media(todos, 1)],
+                 "pf": posicao(i, mesmo), "pd": posicao(i, todos),
+                 "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
+                 "ev": lista(eventos), "iv": lista(eventos_ins)}
+        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False))))
+    print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
+
+def _json_estado(nome, padrao):
+    try:
+        with open(os.path.join(PASTA, nome), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return padrao
+
+def _quando(txt):
+    """Data/hora de um registro de acesso (vários formatos possíveis)."""
+    t = str(txt or "").strip()
+    for f in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M"):
+        try:
+            return datetime.datetime.strptime(t[:19].replace("Z", ""), f)
+        except ValueError:
+            pass
+    return None
+
+def atualizar_visitantes():
+    """Visitantes (uma entrada, com validade): marca quem já entrou, tira os vencidos e monta a gaveta dos que ainda podem entrar."""
+    lista = [v for v in _json_estado("visitantes.json", []) if isinstance(v, dict) and "@" in str(v.get("email", ""))]
+    if not lista:
+        return []
+    regs = (buscar_acessos() or [])[1:]
+    agora = datetime.datetime.now()
+    for v in lista:
+        if v.get("usado"):
+            continue
+        criado = _quando(v.get("criado")) or agora
+        for r in regs:
+            r = list(r) + [""] * 5
+            q = _quando(r[0])
+            if str(r[1]).strip().lower() == v["email"] and str(r[2]).strip() == "Entrou" and q and q >= criado - datetime.timedelta(minutes=5):
+                v["usado"] = q.strftime("%Y-%m-%d %H:%M"); break
+    ativos = 0
+    for v in lista:
+        vence = _quando(v.get("expira"))
+        v["status"] = "usado" if v.get("usado") else ("vencido" if vence and vence < agora else "aguardando")
+        if v["status"] == "aguardando" and GERAL_RAW:
+            PESSOAIS.append((v["email"], GERAL_RAW, "v")); ativos += 1
+    # guarda só os últimos 30 dias de histórico
+    corte = (agora - datetime.timedelta(days=30)).strftime("%Y-%m-%d")
+    lista = [v for v in lista if str(v.get("criado", ""))[:10] >= corte]
+    try:
+        with open(os.path.join(PASTA, "visitantes.json"), "w", encoding="utf-8") as f:
+            json.dump([{k: x for k, x in v.items() if k != "status"} for v in lista], f, ensure_ascii=False, indent=1)
+    except Exception as e:
+        print(f"Aviso: não consegui guardar os visitantes ({e}).")
+    if ativos:
+        print(f"Visitantes: {ativos} acesso(s) de uma entrada ativo(s).")
+    return lista
 
 def arred(x):
     """Arredonda .5 para cima, igual ao painel (Math.round), para os números baterem."""
@@ -414,7 +582,17 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
         iv_s = secrets.token_bytes(12)
         slots.append({"iv": b64(iv_s), "ct": b64(AESGCM(kek).encrypt(iv_s, chave, None))})
     secrets.SystemRandom().shuffle(slots)
-    pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots}
+    pes = []
+    for item in PESSOAIS:              # "Meu painel" (irmão) ou visitante: a página trancada com o e-mail dele
+        email, pag = item[0], item[1]
+        kek = hashlib.pbkdf2_hmac("sha256", email.encode(), sal, ITERACOES, 32)
+        iv_p = secrets.token_bytes(12)
+        g_ = {"iv": b64(iv_p), "ct": b64(AESGCM(kek).encrypt(iv_p, pag.encode("utf-8"), None))}
+        if len(item) > 2:
+            g_["t"] = item[2]
+        pes.append(g_)
+    secrets.SystemRandom().shuffle(pes)
+    pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots, "pes": pes, "cav": CAVEIRA_URL if pes else ""}
     return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
@@ -1964,6 +2142,14 @@ def main():
     EMAIL_APELIDO_INV.clear()
     EMAIL_APELIDO_INV.update({ap: e for ap, e in emails.items() if "@" in e})
     senhas = [email_de(nome) for nome in AUTORIZADOS]
+    # ADM liberados pela tela Acessos (além dos fixos do divisao.json): só quem tem e-mail na planilha
+    ADM_EXTRA[:] = [n for n in _json_estado("adm_extra.json", []) if isinstance(n, str) and n.lower() not in [a.lower() for a in AUTORIZADOS]]
+    for n in ADM_EXTRA:
+        e = emails.get(n.lower(), "")
+        if "@" in e and e not in senhas:
+            senhas.append(e)
+        elif "@" not in e:
+            print(f"Aviso: {n} foi liberado como ADM, mas não tem e-mail na aba Dados Integrantes.")
     senhas_so_geral = [e for e in (email_de(nome) for nome in AUTORIZADOS_SO_GERAL) if e not in senhas]
 
     linhas = list(wb["Presenca"].iter_rows(min_row=1, max_row=200, max_col=60, values_only=True))
@@ -2095,12 +2281,25 @@ def main():
         print("ATENÇÃO: aviso de manutenção LIGADO (para tirar, rode o DesligarManutencao.bat).")
     html = html.replace("__IMG__", img).replace("__GERADO__", gerado).replace("__MANUT__", MANUT_HTML)
 
+    # versão do vídeo de fundo (pelo conteúdo do arquivo): vídeo novo = endereço novo, e o celular baixa sozinho
+    try:
+        import hashlib
+        with open(os.path.join(PASTA, "fundo.mp4"), "rb") as fv:
+            ver_video = hashlib.md5(fv.read()).hexdigest()[:10]
+    except Exception:
+        ver_video = ""
+    com_versao = lambda t: t.replace('src="fundo.mp4"', f'src="fundo.mp4?v={ver_video}"') if ver_video else t
+
     def gravar(caminho, dados, senha=None, sem_js="", extras=(), rotulo="E-mail", so_geral=False):
-        pagina = html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1)
+        pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
+        if dados.get("modo") == "geral" and caminho == SAIDA:
+            global GERAL_RAW
+            GERAL_RAW = pagina
         if senha:
             base = senhas + (senhas_so_geral if so_geral else [])
             pagina = proteger(pagina, base + [x for x in extras if x not in base],
                               os.path.splitext(os.path.basename(caminho or SAIDA_ADM))[0], senha, img, rotulo)
+            pagina = com_versao(pagina)
         if caminho:
             with open(caminho, "w", encoding="utf-8") as f:
                 f.write(pagina)
@@ -2130,6 +2329,13 @@ def main():
         f'<span id="novoPagTxt" hidden> · novo pagamento {_up.get("hora", "")}</span>'
         f'<span id="novoPag" class="novo" data-ts="{_up.get("ts", "")}" title="Pagamento novo: abra a tela Pagamentos" hidden></span>'
         if _up.get("ts") else "")
+    global CAVEIRA_URL
+    _mc = re.search(r'const CAVEIRA="(data:image/[^"]+)"', html)
+    CAVEIRA_URL = _mc.group(1) if _mc else ""
+    try:
+        montar_pessoais(membros, eventos, eventos_ins, gerado)
+    except Exception as e:
+        PESSOAIS.clear(); print(f"Aviso: o 'Meu painel' dos irmãos não foi montado ({type(e).__name__}: {e}).")
     pagina_geral = gravar(SAIDA, {"modo": "geral", "m": sem_tel, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff}, "Painel de presença da divisão. Acesso restrito aos irmãos.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso", so_geral=True)
     # o painel individual virou imagem (botão "Gerar imagem" no ADM): o molde do HTML individual não é mais necessário
@@ -2219,11 +2425,14 @@ def main():
     PUSH = {"pub": chave_push_publica(), "url": ACESSOS_URL} if ACESSOS_URL else None
     ACESSOS = None
     if ACESSOS_URL:
-        _so = [EMAIL_APELIDO_INV.get(n.lower(), "") for n in ACESSOS_SOMENTE]
+        _so = [EMAIL_APELIDO_INV.get(n.lower(), "") for n in ACESSOS_SOMENTE]   # a tela Acessos é só de quem está em acessos_somente
         _so = [e for e in _so if "@" in e]
+        visitantes = atualizar_visitantes()
         if _so:
             ACESSOS = {"cifrado": cifrar_para({"url": ACESSOS_URL, "chave": ACESSOS_CHAVE, "mapa": dict(EMAIL_APELIDO),
-                                              "regs": (buscar_acessos() or [])[1:], "planilha": PLANILHA_URL}, _so)}
+                                              "regs": (buscar_acessos() or [])[1:], "planilha": PLANILHA_URL,
+                                              "fixos": AUTORIZADOS, "extra": ADM_EXTRA, "vis": visitantes,
+                                              "comEmail": sorted(ap for ap, e in EMAIL_APELIDO_INV.items() if "@" in e)}, _so)}
         else:
             print("Aviso: e-mail de " + ", ".join(ACESSOS_SOMENTE) + " não encontrado: a tela Acessos não vai aparecer.")
     FLY = {}      # "Gerar fly" removido: o fly oficial é feito no site do clube
