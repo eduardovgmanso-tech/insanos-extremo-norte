@@ -296,6 +296,7 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
   <button id="b" type="submit">Entrar</button>
   <div id="erro" role="alert"></div>
   <a id="solic" class="solic" hidden target="_blank" rel="noopener">📩 Solicitar acesso</a>
+  <button type="button" class="tut-abrir" id="tutLink" onclick="tutAbrir()">📲 Como instalar o app</button>
   <p class="registro">__REGISTRO__</p>
   <p class="atual">__ATUAL__</p>
   <script>try{var np=document.getElementById("novoPag");if(np&&np.dataset.ts&&np.dataset.ts>(localStorage.getItem("pag_visto")||"")){np.hidden=false;document.getElementById("novoPagTxt").hidden=false}}catch(_){}</script>
@@ -336,7 +337,8 @@ document.getElementById("f").addEventListener("submit",async ev=>{
   }catch(e){if(d.includes("@"))registrar(false);erro.textContent="Este e-mail não tem acesso a este painel. Confira se digitou certo ou solicite o acesso.";btn.disabled=false;btn.textContent="Entrar";cpf.select();
     if(d.includes("@")){solic.href="https://wa.me/?text="+encodeURIComponent(`Olá! Quero solicitar acesso ao ${document.title.replace(/ - Analise/," - Painel Insanos")}. Meu e-mail: ${d}`);solic.hidden=false}}
 });
-</script></body></html>"""
+</script>__TUTORIAL__
+</body></html>"""
 
 # ---------------------------------------------------------------------
 #  "Meu painel": cada irmão (fora do comando) com e-mail na planilha vê só os dados dele
@@ -348,7 +350,9 @@ MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu p
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PESSOAIS = []          # [(email, html)] trancados no mesmo cofre do painel, cada um com o e-mail do irmão
 MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Meu painel · Insanos</title><meta name="theme-color" content="#0d0c0b"><style>
+<title>Meu painel · Insanos</title><meta name="theme-color" content="#0d0c0b">
+<link rel="manifest" href="manifest-adm.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><style>
 :root{--osso:#ECE7DC;--osso2:#B8B2A6;--linha:#2c2925;--ouro:#E9B949}
 *{box-sizing:border-box}body{margin:0;background:#0d0c0b;color:var(--osso);font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
 .w{max-width:620px;margin:0 auto;padding:18px 14px 40px}.top{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--linha);padding-bottom:12px}
@@ -399,6 +403,8 @@ document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt
   <div class="tabs peq" id="tFil"><button data-f="" class="on">Todos</button><button data-f="x">❌ Só onde faltei</button></div>
   <div id="lista"></div>
   <p class="nota" style="margin-top:10px">Acha que alguma falta está errada? Toque em <b>Questionar</b>: a mensagem sai pronta para você mandar no WhatsApp.</p></div>
+<div class="card" id="instalar"><h2>📲 Instale o app</h2><p class="nota" style="margin:0 0 10px">Ícone na tela inicial, tela cheia e os avisos da divisão no seu celular.</p>
+  <div class="qbts"><button class="qz" onclick="tutAbrir()">Ver como instalar</button></div></div>
 <div class="card" id="avisos"><h2>🔔 Avisos no celular</h2><p class="nota" id="avSt" style="margin:0 0 10px">Receba lembretes das listas e da agenda da divisão, só para você.</p>
   <div class="qbts"><button id="avAt" class="qz">🔔 Ativar avisos</button><button id="avDes" hidden>Desativar</button></div></div>
 <p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
@@ -436,10 +442,11 @@ document.getElementById("avAt").onclick=async()=>{if(ehIph()&&!ehApp()){alert("N
 document.getElementById("avDes").onclick=async()=>{try{const r=await navigator.serviceWorker.ready,s=await r.pushManager.getSubscription();
   if(s){await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push_sair",endpoint:s.endpoint})});await s.unsubscribe()}}catch(e){}alert("Avisos desativados.");avTela()};
 avTela();
+try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.getElementById("instalar").hidden=true}catch(e){}
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 desenha();
-</script></body></html>"""
+</script>__TUTORIAL__</body></html>"""
 
 RANK_MIN_MEU = 3       # mesmo mínimo do ranking do painel
 
@@ -496,8 +503,57 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
                  "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
                  "ev": lista(eventos), "iv": lista(eventos_ins)}
-        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False))))
+        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
+
+TUTORIAL_APP = r"""<style>
+.tut-abrir{display:block;margin:12px auto 0;background:transparent;border:1px solid rgba(236,231,220,.25);color:#ECE7DC;border-radius:999px;padding:9px 18px;font-weight:700;font-size:14px;cursor:pointer}
+#tut{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.78);display:flex;align-items:flex-end;justify-content:center;padding:env(safe-area-inset-top,0) 0 0}
+#tut[hidden]{display:none}#tut .cx{background:#161412;color:#ECE7DC;width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;border:1px solid #2c2925;padding:16px 16px calc(18px + env(safe-area-inset-bottom,0));font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif}
+#tut h2{margin:0 0 4px;font-size:20px}#tut .sb{color:#B8B2A6;font-size:13.5px;margin:0 0 12px}
+#tut .tb{display:flex;gap:6px;margin:0 0 12px}#tut .tb button{flex:1;padding:10px;border-radius:999px;border:1px solid #3a3530;background:transparent;color:#ECE7DC;font-weight:700;font-size:14px}
+#tut .tb button.on{background:#E9B949;color:#141210;border-color:#E9B949}
+#tut .ps{display:flex;gap:12px;align-items:center;border-top:1px solid #2c2925;padding:12px 0}#tut .ps svg{flex:0 0 132px;width:132px;height:auto;border-radius:12px}
+#tut .ps b.tt{display:block;font-size:15px;margin-bottom:3px}#tut .ps span b{color:#ECE7DC}#tut .ps span{font-size:13.5px;color:#B8B2A6;line-height:1.35}
+#tut .n{display:inline-flex;width:24px;height:24px;border-radius:50%;background:#E9B949;color:#141210;font-weight:800;align-items:center;justify-content:center;font-size:13px;margin-right:6px}
+#tut .fx{display:block;width:100%;margin-top:10px;padding:12px;border-radius:999px;border:1px solid #3a3530;background:transparent;color:#ECE7DC;font-weight:700}
+#tut .ja{background:#1f8f4e;border:0;color:#fff;display:block;width:100%;padding:12px;border-radius:999px;font-weight:800;margin:0 0 10px}#tut .ja[hidden],#tut [hidden]{display:none!important}
+</style>
+<div id="tut" hidden onclick="if(event.target===this)tutFechar()"><div class="cx">
+<h2>📲 Instale o app</h2><p class="sb">Fica com ícone na tela inicial, abre em tela cheia e recebe os avisos da divisão.</p>
+<button class="ja" id="tutJa" hidden>⬇️ Instalar agora</button>
+<div class="tb"><button data-so="and">🤖 Android</button><button data-so="ios">🍎 iPhone</button></div>
+<div id="tutAnd">
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><rect x="8" y="10" width="116" height="18" rx="9" fill="#2a2724"/><text x="18" y="23" font-size="9" fill="#9c958a">🔒 …/adm.html</text><circle cx="112" cy="19" r="9" fill="none" stroke="#E9B949" stroke-width="2.5"/><text x="109" y="23" font-size="12" font-weight="800" fill="#ECE7DC">⋮</text><rect x="8" y="36" width="116" height="48" rx="8" fill="#1d1b19"/></svg>
+  <div><b class="tt"><span class="n">1</span>Abra o link no Chrome</b><span>Toque nos <b>três pontinhos ⋮</b>, no canto de cima à direita.</span></div></div>
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><rect x="40" y="6" width="86" height="80" rx="8" fill="#2a2724"/><text x="48" y="22" font-size="8.5" fill="#9c958a">Nova guia</text><text x="48" y="36" font-size="8.5" fill="#9c958a">Favoritos</text><rect x="44" y="43" width="78" height="17" rx="6" fill="rgba(233,185,73,.22)" stroke="#E9B949" stroke-width="1.5"/><text x="48" y="55" font-size="8.5" font-weight="700" fill="#ECE7DC">⬇ Instalar app</text><text x="48" y="74" font-size="8.5" fill="#9c958a">Configurações</text></svg>
+  <div><b class="tt"><span class="n">2</span>Toque em “Instalar app”</b><span>Em alguns celulares aparece <b>“Adicionar à tela inicial”</b>.</span></div></div>
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><rect x="14" y="18" width="104" height="58" rx="10" fill="#2a2724"/><text x="24" y="36" font-size="9" font-weight="700" fill="#ECE7DC">Instalar app?</text><text x="24" y="50" font-size="8" fill="#9c958a">Insanos</text><rect x="72" y="56" width="38" height="14" rx="7" fill="#E9B949"/><text x="78" y="66" font-size="8" font-weight="800" fill="#141210">Instalar</text></svg>
+  <div><b class="tt"><span class="n">3</span>Confirme em “Instalar”</b><span>O celular cria o ícone sozinho.</span></div></div>
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><g fill="#2a2724"><rect x="14" y="14" width="22" height="22" rx="6"/><rect x="44" y="14" width="22" height="22" rx="6"/><rect x="74" y="14" width="22" height="22" rx="6"/><rect x="14" y="48" width="22" height="22" rx="6"/></g><rect x="42" y="46" width="26" height="26" rx="7" fill="#ECE7DC" stroke="#E9B949" stroke-width="2"/><text x="47" y="65" font-size="14">💀</text><text x="40" y="84" font-size="7" fill="#ECE7DC">Insanos</text></svg>
+  <div><b class="tt"><span class="n">4</span>Pronto!</b><span>Abra pelo <b>ícone do Insanos</b> na tela inicial e entre com o seu e-mail.</span></div></div>
+</div>
+<div id="tutIos" hidden>
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><rect x="8" y="8" width="116" height="50" rx="8" fill="#1d1b19"/><rect x="8" y="64" width="116" height="20" rx="8" fill="#2a2724"/><text x="18" y="78" font-size="10" fill="#9c958a">‹  ›</text><circle cx="66" cy="74" r="9" fill="none" stroke="#E9B949" stroke-width="2.5"/><path d="M66 69v9M62.5 72l3.5-3.5 3.5 3.5" stroke="#ECE7DC" stroke-width="1.6" fill="none"/><rect x="61" y="74" width="10" height="7" rx="1.5" fill="none" stroke="#ECE7DC" stroke-width="1.4"/></svg>
+  <div><b class="tt"><span class="n">1</span>Abra o link no Safari</b><span>Toque no botão <b>Compartilhar</b> (o quadrado com a seta para cima), embaixo no meio.</span></div></div>
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><rect x="10" y="8" width="112" height="78" rx="10" fill="#2a2724"/><text x="18" y="24" font-size="8.5" fill="#9c958a">Copiar</text><text x="18" y="38" font-size="8.5" fill="#9c958a">Adicionar aos Favoritos</text><rect x="13" y="45" width="106" height="17" rx="6" fill="rgba(233,185,73,.22)" stroke="#E9B949" stroke-width="1.5"/><text x="17" y="57" font-size="7.4" font-weight="700" fill="#ECE7DC">⊞ Adicionar à Tela de Início</text><text x="18" y="76" font-size="8.5" fill="#9c958a">Buscar na Página</text></svg>
+  <div><b class="tt"><span class="n">2</span>“Adicionar à Tela de Início”</b><span>Role a lista para baixo até achar essa opção.</span></div></div>
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><rect x="8" y="8" width="116" height="22" rx="8" fill="#2a2724"/><text x="16" y="23" font-size="8.5" fill="#9c958a">Cancelar</text><rect x="76" y="12" width="44" height="14" rx="7" fill="rgba(233,185,73,.22)" stroke="#E9B949" stroke-width="1.5"/><text x="81" y="22" font-size="8" font-weight="800" fill="#ECE7DC">Adicionar</text><rect x="16" y="40" width="22" height="22" rx="6" fill="#ECE7DC"/><text x="20" y="56" font-size="12">💀</text><text x="46" y="55" font-size="9" fill="#ECE7DC">Insanos</text></svg>
+  <div><b class="tt"><span class="n">3</span>Toque em “Adicionar”</b><span>No canto de cima, à direita.</span></div></div>
+ <div class="ps"><svg viewBox="0 0 132 92"><rect width="132" height="92" rx="12" fill="#0d0c0b"/><g fill="#2a2724"><rect x="14" y="14" width="22" height="22" rx="6"/><rect x="44" y="14" width="22" height="22" rx="6"/><rect x="74" y="14" width="22" height="22" rx="6"/><rect x="14" y="48" width="22" height="22" rx="6"/></g><rect x="42" y="46" width="26" height="26" rx="7" fill="#ECE7DC" stroke="#E9B949" stroke-width="2"/><text x="47" y="65" font-size="14">💀</text><text x="40" y="84" font-size="7" fill="#ECE7DC">Insanos</text></svg>
+  <div><b class="tt"><span class="n">4</span>Abra pelo ícone</b><span>Entre de novo com o seu e-mail. No iPhone, <b>os avisos só funcionam pelo app instalado</b>.</span></div></div>
+</div>
+<button class="fx" onclick="tutFechar()">Fechar</button></div></div>
+<script>
+var tutEv=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();tutEv=e;var b=document.getElementById("tutJa"),a=document.getElementById("tutAnd");if(b)b.hidden=!(a&&!a.hidden)});
+function tutSo(so){document.getElementById("tutAnd").hidden=so!=="and";var j=document.getElementById("tutJa");if(j)j.hidden=!(tutEv&&so==="and");document.getElementById("tutIos").hidden=so!=="ios";
+  document.querySelectorAll("#tut .tb button").forEach(function(b){b.classList.toggle("on",b.dataset.so===so)})}
+function tutAbrir(){tutSo(/iPhone|iPad|iPod/.test(navigator.userAgent)?"ios":"and");document.getElementById("tut").hidden=false}
+function tutFechar(){document.getElementById("tut").hidden=true}
+function tutInstalado(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
+document.querySelectorAll("#tut .tb button").forEach(function(b){b.onclick=function(){tutSo(b.dataset.so)}});
+document.getElementById("tutJa").onclick=function(){if(tutEv){tutEv.prompt();tutEv.userChoice.then(function(){tutEv=null;tutFechar()})}};
+</script>"""
 
 def montar_lembretes(membros, eventos, eventos_ins, pag):
     """Pendências de cada irmão com e-mail: insights sem resposta (últimos 7 dias), eventos sem confirmação
@@ -679,7 +735,7 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
     return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
-                 .replace("__MANIFEST__", "manifest-adm.json").replace("__REGISTRO__", "🔎 Os acessos a este painel são registrados pelo comando." if ACESSOS_URL else "")
+                 .replace("__MANIFEST__", "manifest-adm.json").replace("__TUTORIAL__", TUTORIAL_APP).replace("__REGISTRO__", "🔎 Os acessos a este painel são registrados pelo comando." if ACESSOS_URL else "")
                  .replace("__ACESSOS_URL__", ACESSOS_URL))
 
 # ---------------------------------------------------------------------
