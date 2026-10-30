@@ -294,6 +294,11 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
   <label for="cpf">__ROTULO__</label>
   <input id="cpf" type="text" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="seu@email.com" maxlength="120" autofocus>
   <button id="b" type="submit">Entrar</button>
+  <button id="bioB" type="button" hidden style="margin-top:10px;width:100%;padding:13px;border-radius:12px;border:1px solid #E9B949;background:rgba(233,185,73,.12);color:#ECE7DC;font-weight:800;font-size:15px">👆 Entrar com a digital</button>
+  <div id="bioOf" hidden style="margin-top:12px;padding:12px;border-radius:12px;background:rgba(233,185,73,.10);border:1px solid rgba(233,185,73,.45);text-align:left">
+    <p style="margin:0 0 10px;font-size:14px;line-height:1.4">👆 Quer entrar com a <b>digital</b> (ou <b>Face ID</b>) nas próximas vezes, neste celular?</p>
+    <div style="display:flex;gap:8px"><button id="bioSim" type="button" style="flex:1;padding:11px;border-radius:10px;border:0;background:#E9B949;color:#141210;font-weight:800">Ativar</button>
+    <button id="bioNao" type="button" style="flex:1;padding:11px;border-radius:10px;border:1px solid rgba(236,231,220,.3);background:transparent;color:#ECE7DC;font-weight:700">Agora não</button></div></div>
   <div id="erro" role="alert"></div>
   <a id="solic" class="solic" hidden target="_blank" rel="noopener">📩 Solicitar acesso</a>
   <button type="button" class="tut-abrir" id="tutLink" onclick="tutAbrir()">📲 Como instalar o app</button>
@@ -306,6 +311,32 @@ const P=__PACOTE__;
 const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const cpf=document.getElementById("cpf"),erro=document.getElementById("erro"),btn=document.getElementById("b");
 const solic=document.getElementById("solic");
+// ---- entrar com a digital / Face ID: o e-mail fica guardado dentro da chave de acesso do celular (passkey),
+//      e o celular só entrega depois que a digital confirma que é o dono. Nada sai do celular.
+const bioB=document.getElementById("bioB"),bioOf=document.getElementById("bioOf");
+const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
+let bioPode=false;
+(async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+  if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID"}}catch(_){}})();
+bioB.onclick=async()=>{erro.textContent="";try{
+  const a=await navigator.credentials.get({publicKey:{challenge:bioRnd(),userVerification:"required",timeout:60000,rpId:location.hostname}});
+  const em=new TextDecoder().decode(a.response.userHandle||new Uint8Array());
+  if(!em.includes("@"))throw new Error("sem e-mail");
+  cpf.value=em;document.getElementById("f").requestSubmit()}
+  catch(e){erro.textContent=e&&e.name==="NotAllowedError"?"Entrada com a digital cancelada. Você pode entrar com o e-mail.":"Não consegui usar a digital agora. Entre com o e-mail."}};
+// depois de entrar com o e-mail: oferece ativar a digital (uma vez por e-mail neste celular)
+function bioPerguntar(d,seguir){
+  let ja="";try{ja=(localStorage.getItem("bio_on")||"")+"|"+(localStorage.getItem("bio_nao")||"")}catch(_){}
+  if(!bioPode||!d.includes("@")||new TextEncoder().encode(d).length>64||ja.split("|").includes(d)){seguir();return}
+  ["cpf","b","bioB"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});
+  document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");bioOf.hidden=false;
+  document.getElementById("bioNao").onclick=()=>{try{localStorage.setItem("bio_nao",d)}catch(_){}seguir()};
+  document.getElementById("bioSim").onclick=async()=>{try{
+    await navigator.credentials.create({publicKey:{challenge:bioRnd(),rp:{name:document.title.split(" - ")[0]||"Insanos",id:location.hostname},
+      user:{id:new TextEncoder().encode(d),name:d,displayName:d},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:"platform",residentKey:"required",requireResidentKey:true,userVerification:"required"},timeout:60000}});
+    try{localStorage.setItem("bio_on",d)}catch(_){}alert("👆 Pronto! Na próxima vez, é só tocar em \"Entrar com a digital\".")}
+    catch(e){alert("Não consegui ativar a digital neste celular. Você continua entrando com o e-mail.")}seguir()}}
 document.getElementById("f").addEventListener("submit",async ev=>{
   ev.preventDefault();erro.textContent="";
   solic.hidden=true;
@@ -327,13 +358,14 @@ document.getElementById("f").addEventListener("submit",async ev=>{
         try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro"});
           if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}}catch(_){}
         try{sessionStorage.setItem("painel_email",d)}catch(_){}
-        document.open();document.write(h.split("__CAV__").join(P.cav||""));document.close();return}catch(e){}}
+        const abre=()=>{document.open();document.write(h.split("__CAV__").join(P.cav||""));document.close()};
+        if(s.t==="v")abre();else bioPerguntar(d,abre);return}catch(e){}}
       throw 0}
     const k=await crypto.subtle.importKey("raw",chave,"AES-GCM",false,["decrypt"]);
     const html=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(P.iv)},k,b64(P.ct)));
     registrar(true);
     try{sessionStorage.setItem("painel_email",d)}catch(_){}
-    document.open();document.write(html);document.close();
+    bioPerguntar(d,()=>{document.open();document.write(html);document.close()});
   }catch(e){if(d.includes("@"))registrar(false);erro.textContent="Este e-mail não tem acesso a este painel. Confira se digitou certo ou solicite o acesso.";btn.disabled=false;btn.textContent="Entrar";cpf.select();
     if(d.includes("@")){solic.href="https://wa.me/?text="+encodeURIComponent(`Olá! Quero solicitar acesso ao ${document.title.replace(/ - Analise/," - Painel Insanos")}. Meu e-mail: ${d}`);solic.hidden=false}}
 });
