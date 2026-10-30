@@ -318,8 +318,14 @@ const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
 (async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
   if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID"}}catch(_){}})();
+const bioB64=x=>btoa(String.fromCharCode(...new Uint8Array(x))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const bioDe64=x=>Uint8Array.from(atob(x.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-x.length%4)%4)),c=>c.charCodeAt(0));
 bioB.onclick=async()=>{erro.textContent="";try{
-  const a=await navigator.credentials.get({publicKey:{challenge:bioRnd(),userVerification:"required",timeout:60000,rpId:location.hostname}});
+  let ids=[];try{ids=JSON.parse(localStorage.getItem("bio_ids")||"[]")}catch(_){}
+  const pk={challenge:bioRnd(),userVerification:"required",timeout:60000,rpId:location.hostname};
+  if(ids.length)pk.allowCredentials=ids.map(i=>({type:"public-key",id:bioDe64(i),transports:["internal","hybrid"]}));   // a chave deste celular: vai direto para a digital
+  const a=await navigator.credentials.get({publicKey:pk});
+  try{const id=bioB64(a.rawId);if(!ids.includes(id))localStorage.setItem("bio_ids",JSON.stringify([...ids,id].slice(-3)))}catch(_){}
   const em=new TextDecoder().decode(a.response.userHandle||new Uint8Array());
   if(!em.includes("@"))throw new Error("sem e-mail");
   cpf.value=em;document.getElementById("f").requestSubmit()}
@@ -332,10 +338,10 @@ function bioPerguntar(d,seguir){
   document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");bioOf.hidden=false;
   document.getElementById("bioNao").onclick=()=>{try{localStorage.setItem("bio_nao",d)}catch(_){}seguir()};
   document.getElementById("bioSim").onclick=async()=>{try{
-    await navigator.credentials.create({publicKey:{challenge:bioRnd(),rp:{name:document.title.split(" - ")[0]||"Insanos",id:location.hostname},
+    const nova=await navigator.credentials.create({publicKey:{challenge:bioRnd(),rp:{name:document.title.split(" - ")[0]||"Insanos",id:location.hostname},
       user:{id:new TextEncoder().encode(d),name:d,displayName:d},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
       authenticatorSelection:{authenticatorAttachment:"platform",residentKey:"required",requireResidentKey:true,userVerification:"required"},timeout:60000}});
-    try{localStorage.setItem("bio_on",d)}catch(_){}alert("👆 Pronto! Na próxima vez, é só tocar em \"Entrar com a digital\".")}
+    try{localStorage.setItem("bio_on",d);localStorage.setItem("bio_ids",JSON.stringify([bioB64(nova.rawId)]))}catch(_){}alert("👆 Pronto! Na próxima vez, é só tocar em \"Entrar com a digital\".")}
     catch(e){alert("Não consegui ativar a digital neste celular. Você continua entrando com o e-mail.")}seguir()}}
 document.getElementById("f").addEventListener("submit",async ev=>{
   ev.preventDefault();erro.textContent="";
