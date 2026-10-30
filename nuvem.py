@@ -613,6 +613,7 @@ def verificar_antecipados(api, pid, g):
         if selo and "pag" in selo.lower() and (not vb or (vb.year, vb.month) == mk):
             ant["pagos"][rotulo] = datetime.datetime.now().strftime("%d/%m às %H:%M")
             novos.append(rotulo.split(" - ")[-1].strip())
+            AGRADECER.append((rotulo, MESES_PT[mk[1] - 1], True))
             print(f"  {rotulo}: pago antecipado")
     with open(arq, "w", encoding="utf-8") as f:
         json.dump(ant, f, ensure_ascii=False, indent=1)
@@ -664,6 +665,74 @@ def aplicar_visitante(d):
         "expira": (agora + datetime.timedelta(hours=horas)).strftime("%Y-%m-%d %H:%M"), "usado": ""}]
     _json_gravar("visitantes.json", lista)
     return f"visitante liberado: {email} (uma entrada, até {lista[-1]['expira'][8:10]}/{lista[-1]['expira'][5:7]} às {lista[-1]['expira'][11:]})"
+
+def enviar_lembretes(g):
+    """Lembretes individuais (só para o irmão): insights sem resposta (13h e 19h), eventos sem confirmação
+    (9h, 13h e 19h, até o dia do evento) e a agenda da mensalidade (9h, de 3 dias antes até o vencimento)."""
+    L = getattr(g, "LEMBRETES", None) or {}
+    if not L.get("pessoas"):
+        return
+    agora = datetime.datetime.now()
+    slot = {9: "m", 13: "t", 19: "n"}.get(agora.hour)
+    if not slot:
+        return
+    hoje = agora.date()
+    env = _json_ler("lembretes_enviados.json", {})
+    corte = (hoje - datetime.timedelta(days=3)).isoformat()
+    env = {k: v for k, v in env.items() if k[:10] >= corte}
+    br = lambda d: f"{d[8:10]}/{d[5:7]}"
+    n_env = 0
+    def manda(chave, *a, **k):
+        nonlocal n_env
+        if chave in env:
+            return
+        try:
+            g.notificar(*a, **k); env[chave] = 1; n_env += 1
+        except Exception as e:
+            print(f"Aviso: lembrete não enviado ({e}).")
+    venc = None
+    try:
+        venc = datetime.date.fromisoformat(str(L.get("venc"))[:10])
+    except Exception:
+        pass
+    for p in L["pessoas"]:
+        ap, email = p["n"], p["email"]
+        # insights sem resposta: 13h e 19h, até constar que respondeu
+        if slot in ("t", "n") and p.get("ins"):
+            xs = p["ins"]; nomes = [x["nome"] for x in xs]
+            if len(xs) > 1:
+                tit = "💬 Insights te esperando"
+                corpo = f"Fala, {ap}! Ainda faltam as suas respostas no {', '.join(nomes[:-1])} e no {nomes[-1]}. Quando puder, dá uma passada no grupo. 🤝"
+            elif xs[0]["d"] == hoje.isoformat():
+                tit = f"💬 {nomes[0]} no ar"
+                corpo = f"Fala, {ap}! Ainda falta a sua resposta no {nomes[0]}. Quando puder, dá uma passada no grupo. 🤝"
+            else:
+                tit = "💬 Só falta você, irmão"
+                corpo = f"{ap}, o {nomes[0]} já tem {xs[0]['resp']} respostas. A sua opinião também conta: responde lá quando der. 💀"
+            manda(f"{hoje}|{slot}|ins|{email}", tit, corpo, "lembrete-ins", icone="notif-insight.png", so_para=email)
+        # eventos sem confirmação: 9h, 13h e 19h, até o dia do evento
+        for ev in p.get("ev", []):
+            emoji, icone = _tipo_aviso({"tipo": "lancamento_presenca", "aba": "Presenca", "evento": ev["nome"]})
+            if ev["d"] == hoje.isoformat():
+                tit, corpo = f"{emoji} {ev['nome']} é hoje", f"Fala, {ap}! Hoje tem {ev['nome']}. Se ainda não confirmou, dá um toque no grupo. Contamos com você! 🤝"
+            else:
+                tit, corpo = f"{emoji} {ev['nome']} · {br(ev['d'])}", f"Fala, {ap}! A lista da {ev['nome']} está aberta. Confirma a sua presença no grupo? Contamos com você! 🤝"
+            manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email)
+        # mensalidade: 9h, de 3 dias antes até o dia do vencimento (só quem ainda não aparece como pago)
+        if slot == "m" and venc and not p.get("pago"):
+            k = (venc - hoje).days
+            if 0 <= k <= 3:
+                mes, dv = MESES_PT[venc.month - 1], venc.strftime("%d/%m")
+                corpo = {3: f"Fala, {ap}! Passando só para avisar que a mensalidade de {mes} vence no dia {dv}. Se já estiver em dia, obrigado e desconsidere. 🤝",
+                         2: f"{ap}, a mensalidade de {mes} vence em {dv}. O seu boleto está a um toque, aqui embaixo, se precisar. 💀",
+                         1: f"Fala, {ap}! Amanhã ({dv}) vence a mensalidade de {mes}. Se já pagou, valeu: às vezes o banco leva uns dias para confirmar, então é só desconsiderar. 🤝",
+                         0: f"{ap}, hoje é o vencimento da mensalidade de {mes}. Se já está tudo certo, obrigado pelo compromisso com o Insanos! Qualquer coisa, é só chamar o ADM no privado. 🤝"}[k]
+                link = p.get("boleto") if str(p.get("boleto", "")).startswith("http") else None
+                manda(f"{hoje}|pag|{email}", "📅 Agenda da divisão", corpo, "lembrete-pag", icone="notif-pag.png", so_para=email,
+                      link=link, link_rot="Abrir meu boleto")
+    _json_gravar("lembretes_enviados.json", env)
+    if n_env:
+        print(f"Lembretes individuais enviados: {n_env}.")
 
 def processar_fila(api, pid):
     aba = _aba_real(api, pid, "Fila")
@@ -759,7 +828,10 @@ def _resumo_item(d):
             sim = sum(1 for v in marc if v.startswith("sim") or v.startswith("staff"))
             ins = str(d.get("aba", "")).lower().startswith("insight")
             pc = f" · {round(100 * sim / len(marc))}% de {'resposta' if ins else 'adesão'} ({sim} de {len(marc)})" if marc else ""
-            return f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({dt}){pc}"
+            falta = [k for k, v in (d.get("marcacoes") or {}).items()
+                     if str(v or "").strip().lower() in ("", "-") or (ins and str(v or "").strip().lower().startswith("n"))]
+            ft = (" · Faltam: " + ", ".join(falta[:8]) + (f" e mais {len(falta) - 8}" if len(falta) > 8 else "")) if falta and len(falta) < len(marc) else ""
+            return f"{d.get('aba') or 'Presenca'}: {d.get('evento', '')} ({dt}){pc}{ft}"
         if tp == "pagamento_manual":
             st = d.get("status") or {}
             ades = [k for k, v in st.items() if "ades" in _sa(str(v))]
@@ -780,7 +852,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -816,6 +888,7 @@ def estado_salvar(api, pid, aba):
 #  Verificação dos boletos da Iugu (mesma regra do PC), gravando na aba PGTO da planilha do Google
 # ---------------------------------------------------------------------
 AVISOS_PAG = []          # avisos de pagamento novo, enviados depois de publicar o painel
+AGRADECER = []           # (rótulo do irmão, mês, antecipado): agradecimento individual depois de publicar
 
 def verificar_boletos(api, pid, g):
     hoje = datetime.date.today()
@@ -905,6 +978,7 @@ def verificar_boletos(api, pid, g):
     except Exception:
         ja_avisados = set()
     novos = [str(it.get("rotulo", "")).split(" - ")[-1].strip() for it in itens if it.get("novo_pago") and it.get("rotulo") not in ja_avisados]
+    AGRADECER.extend((it.get("rotulo", ""), MESES_PT[ciclo.month - 1], False) for it in itens if it.get("novo_pago") and it.get("rotulo") not in ja_avisados)
     if novos:
         hora = datetime.datetime.now().strftime("%d/%m às %H:%M")
         # o aviso sai DEPOIS de publicar o painel: o botão "📲 Enviar no WhatsApp" monta a lista com os dados novos
@@ -1041,6 +1115,22 @@ def main():
             except Exception as e:
                 print(f"Aviso: notificação de pagamento não enviada ({e}).")
         AVISOS_PAG.clear()
+        # agradecimento individual: só para o irmão que pagou
+        for rotulo, mes, antec in AGRADECER:
+            try:
+                rl = str(rotulo).lower()
+                ap = max((k for k in g.EMAIL_APELIDO_INV if k and rl.endswith(k)), key=len, default="")
+                email = g.EMAIL_APELIDO_INV.get(ap, "")
+                if "@" not in email:
+                    continue
+                nome = next((m for m in [str(rotulo).split(" - ")[-1].strip()] if m), ap)
+                nome = nome[-len(ap):] if len(nome) >= len(ap) else nome
+                g.notificar(f"🙏 Valeu, {nome}!",
+                            f"Recebemos o pagamento da mensalidade de {mes}{' antes do vencimento' if antec else ''}. Obrigado pelo compromisso com o Insanos M.C.! 💀🏦",
+                            "agradecimento", icone="notif-pag.png", so_para=email)
+            except Exception as e:
+                print(f"Aviso: agradecimento não enviado ({e}).")
+        AGRADECER.clear()
         # notificação para o comando: o site já foi publicado com a alteração
         try:
             if resumo_fila:
@@ -1059,6 +1149,11 @@ def main():
                 g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")
         except Exception as e:
             print(f"Aviso: notificação de atualização não enviada ({e}).")
+        if evento == "schedule":
+            try:
+                enviar_lembretes(g)
+            except Exception as e:
+                print(f"Aviso: lembretes individuais não enviados ({type(e).__name__}: {e}).")
     finally:
         try:
             estado_salvar(api, planilha_id, aba_estado)

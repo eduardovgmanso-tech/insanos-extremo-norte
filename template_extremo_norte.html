@@ -952,7 +952,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="pag-cab"><div><h2 style="margin:0">Acessos</h2><p class="sub" style="margin:4px 0 0" id="acSub">Quem entrou no painel e as tentativas com e-mail sem acesso.</p></div>
       <div class="pag-bts"><button type="button" class="btn" id="acAtualizar">🔄 Atualizar</button></div></div>
     <div class="pag-kpis" id="acKpis"></div>
-    <div class="lw-tipos" id="acFiltro" style="margin:6px 0 12px"><button type="button" data-acf="" aria-selected="true">Todos</button><button type="button" data-acf="Entrou" aria-selected="false">Entraram</button><button type="button" data-acf="Sem acesso" aria-selected="false">Sem acesso</button></div>
+    <div class="lw-tipos" id="acFiltro" style="margin:6px 0 12px"><button type="button" data-acf="" aria-selected="true">Todos</button><button type="button" data-acf="Entrou" aria-selected="false">Entraram</button><button type="button" data-acf="Sem acesso" aria-selected="false">Sem acesso</button><button type="button" data-acf="Avisos" aria-selected="false">🔔 Avisos</button></div>
     <div id="acLista"></div>
     <div class="cad-bloco">
       <h2>🔑 Acesso de ADM</h2>
@@ -2578,8 +2578,8 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
   const cartao=m=>{const c=cls(m.n),ob=(P.obs||{})[m.n];
     const tel=fcTelefone(m.tel),env=pgReg("env")[m.n],agr=pgReg("agr")[m.n],link=P.boleto[m.n],doMes=(P.boleto_mes||{})[m.n]!==false;
     const bEnv=c!=="pago"&&link&&doMes&&tel?`<a class="btn-zap" data-env="${esc(m.n)}" ${pgZapAttr(tel,pgMsgBoleto(link))}>📤 ${env?"Reenviar":"Enviar boleto"}</a>`:"";
-    const bAgr=c==="pago"&&tel?`<a class="btn-zap" data-agr="${esc(m.n)}" ${pgZapAttr(tel,pgMsgAgradece())}>🙏 ${agr?"Agradecer de novo":"Agradecer"}</a>`:"";
-    const info=[env?`✓ boleto enviado ${env}`:"",agr?`✓ agradecido ${agr}`:""].filter(Boolean).join(" · "),aviso=[c!=="pago"&&link&&!doMes?"boleto do mês ainda não cadastrado":"",!tel?"sem telefone na planilha":""].filter(Boolean).join(" · ");
+    const bAgr="";   // o agradecimento agora sai sozinho, por notificação, quando o pagamento é identificado
+    const info=[env?`✓ boleto enviado ${env}`:""].filter(Boolean).join(" · "),aviso=[c!=="pago"&&link&&!doMes?"boleto do mês ainda não cadastrado":"",!tel?"sem telefone na planilha":""].filter(Boolean).join(" · ");
     const semBoleto=!link,ades=pagAdesao(m.n);
     const bAdes=semBoleto&&(c!=="pago"||ades)?`<button type="button" class="btn-comp ades ${ades?"on":""}" data-ades="${esc(m.n)}" title="${ades?"Clique para desfazer":"Irmão novo: pagou a adesão no mês em que entrou (sem boleto de mensalidade)"}">${ades?"✅ Adesão paga":"✅ Adesão paga?"}</button>`:"";
     const dir=ades?bAdes:c==="pago"?`<span class="st pago">Pago em Dia</span><span class="trava" title="Pago no boleto: não pode ser alterado">🔒</span>`
@@ -2612,8 +2612,7 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
   const pagos=ord.filter(m=>cls(m.n)==="pago");
   const nEnv=podeEnv.filter(m=>pgReg("env")[m.n]).length,nAgr=pagos.filter(m=>pgReg("agr")[m.n]).length;
   $("pagEnvios").hidden=!faltaL.length;
-  $("pagEnvios").innerHTML=`📤 Boletos enviados: <b>${nEnv}</b> de ${podeEnv.length}`+(podeEnv.length-nEnv?` · falta enviar: ${esc(podeEnv.filter(m=>!pgReg("env")[m.n]).map(m=>m.n).join(", "))}`:" ✓")+
-    `<br>🙏 Agradecimentos: <b>${nAgr}</b> de ${pagos.length} pagos`+(pagos.length-nAgr?` · falta agradecer: ${esc(pagos.filter(m=>!pgReg("agr")[m.n]).map(m=>m.n).join(", "))}`:" ✓");
+  $("pagEnvios").innerHTML=`📤 Boletos enviados: <b>${nEnv}</b> de ${podeEnv.length}`+(podeEnv.length-nEnv?` · falta enviar: ${esc(podeEnv.filter(m=>!pgReg("env")[m.n]).map(m=>m.n).join(", "))}`:" ✓");
   $("pagLista").onclick=ev=>{const z=ev.target.closest("[data-env],[data-agr]");
     if(z){const tipo=z.dataset.env?"env":"agr",n=z.dataset.env||z.dataset.agr;pgMarcar(tipo,n);setTimeout(montarPagamentos,400);return}
     const ba=ev.target.closest("[data-ades]");
@@ -3409,9 +3408,12 @@ async function acBuscar(manual){const A=ACX;if(!A||!A.url||acBuscando)return;acB
   }catch(e){$("acSub").textContent="Não consegui atualizar agora (sem internet?). Mostrando os registros até a última geração do painel."}
   finally{acBuscando=false;$("acAtualizar").textContent="🔄 Atualizar";acDesenhar()}}
 function acDesenhar(){const A=ACX||{},mapa=A.mapa||{};
-  const regs=acRegs.map(r=>{const [q,e,res,pn,ap]=r;const d=acData(q),em=String(e||"").toLowerCase();
+  const todos=acRegs.map(r=>{const [q,e,res,pn,ap]=r;const d=acData(q),em=String(e||"").toLowerCase();
     const n=mapa[em]?(M_FULL.find(m=>m.n.toLowerCase()===String(mapa[em]).toLowerCase())||{}).n||mapa[em]:"";return {d,em:e,res,pn,ap,n}})
     .sort((a,b)=>(b.d||0)-(a.d||0));
+  const ehAviso=r=>/^(🔔|👆)/.test(String(r.pn||""));
+  if(acFiltro==="Avisos"){acAvisos(todos.filter(ehAviso));return}
+  const regs=todos.filter(r=>!ehAviso(r));
   const hoje=new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),sete=Date.now()-7*864e5;
   const dia=r=>r.d&&r.d.toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"})===hoje;
   const ent=l=>l.filter(r=>r.res==="Entrou").length,sem=l=>l.filter(r=>r.res!=="Entrou").length;
@@ -3433,6 +3435,19 @@ function acDesenhar(){const A=ACX||{},mapa=A.mapa||{};
       <div class="w"><b>${esc(r.n||(String(r.em).startsWith("(")?"Senha coletiva":"Fora da lista"))}</b><span>${esc(String(r.em).startsWith("(")?"":r.em)}${String(r.em).startsWith("(")?"":" · "}${freq}</span></div>
       <span class="r ${ok?"ok":"no"}">${ok?"Entrou":"Sem acesso"}</span></div>`}).join("")
     :'<div class="vazio">Nenhum registro ainda.</div>'}
+// controle dos avisos: quem recebeu e quem abriu (registrado pelo celular de cada irmão na aba Acessos)
+function acAvisos(av){const sete=Date.now()-7*864e5,s7=av.filter(r=>r.d&&r.d>=sete),rec=r=>String(r.pn).startsWith("🔔");
+  const nRec=s7.filter(rec).length,nAb=s7.length-nRec,por=new Map();
+  s7.forEach(r=>{const k=r.n||String(r.em).toLowerCase();if(!por.has(k))por.set(k,{n:r.n||r.em,r:0,a:0,ult:r.d});const g=por.get(k);rec(r)?g.r++:g.a++});
+  $("acKpis").innerHTML=`<div><span>Avisos recebidos (7 dias)</span><b>${nRec}</b></div><div><span>Abertos (7 dias)</span><b style="color:var(--presente)">${nAb}</b></div>
+    <div><span>Taxa de abertura</span><b>${nRec?Math.round(nAb*100/nRec)+"%":"–"}</b></div><div><span>Irmãos alcançados</span><b>${por.size}</b></div>`;
+  const resumo=[...por.values()].sort((a,b)=>b.r-a.r).map(g=>`<div class="ac-l"><div class="w"><b>${esc(g.n)}</b><span>🔔 recebeu ${g.r} · 👆 abriu ${g.a} · nos últimos 7 dias</span></div>
+    <span class="r ok">${g.r?Math.round(g.a*100/g.r)+"%":"–"}</span></div>`).join("");
+  const hist=av.slice(0,60).map(r=>`<div class="ac-l"><div class="q">${acFmt(r.d)}<small>${esc(r.ap||"")}</small></div>
+    <div class="w"><b>${esc(r.n||r.em)}</b><span>${esc(r.pn)}</span></div></div>`).join("");
+  $("acLista").innerHTML=av.length?`<p class="nota" style="margin:4px 0 6px">Por irmão (últimos 7 dias)</p>${resumo}<p class="nota" style="margin:14px 0 6px">Histórico (mais recentes)</p>${hist}
+    <p class="nota" style="margin-top:10px">"Recebeu" = o aviso apareceu no celular dele. "Abriu" = ele tocou no aviso. Quem bloqueou as notificações não aparece aqui.</p>`
+    :'<div class="vazio">Nenhum aviso registrado ainda. Os registros aparecem quando os irmãos ativarem os avisos no Meu painel.</div>'}
 // ---- Fotos (só no ADM): galeria com download ----
 let lbK=0;
 function montarFotos(){const F=DADOS.fotos||[],g=$("galeria");if(!g)return;

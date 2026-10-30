@@ -325,6 +325,7 @@ document.getElementById("f").addEventListener("submit",async ev=>{
       for(const s of (P.pes||[])){try{const h=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));
         try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro"});
           if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}}catch(_){}
+        try{sessionStorage.setItem("painel_email",d)}catch(_){}
         document.open();document.write(h.split("__CAV__").join(P.cav||""));document.close();return}catch(e){}}
       throw 0}
     const k=await crypto.subtle.importKey("raw",chave,"AES-GCM",false,["decrypt"]);
@@ -343,6 +344,8 @@ document.getElementById("f").addEventListener("submit",async ev=>{
 ADM_EXTRA = []         # irmãos liberados como ADM pela tela Acessos
 GERAL_RAW = ""         # painel de presença sem dados pessoais (o que o visitante vê)
 CAVEIRA_URL = ""       # imagem da caveira (vem do template): usada no "Meu painel"
+MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu painel
+LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PESSOAIS = []          # [(email, html)] trancados no mesmo cofre do painel, cada um com o e-mail do irmão
 MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Meu painel · Insanos</title><meta name="theme-color" content="#0d0c0b"><style>
@@ -396,6 +399,8 @@ document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt
   <div class="tabs peq" id="tFil"><button data-f="" class="on">Todos</button><button data-f="x">❌ Só onde faltei</button></div>
   <div id="lista"></div>
   <p class="nota" style="margin-top:10px">Acha que alguma falta está errada? Toque em <b>Questionar</b>: a mensagem sai pronta para você mandar no WhatsApp.</p></div>
+<div class="card" id="avisos"><h2>🔔 Avisos no celular</h2><p class="nota" id="avSt" style="margin:0 0 10px">Receba lembretes das listas e da agenda da divisão, só para você.</p>
+  <div class="qbts"><button id="avAt" class="qz">🔔 Ativar avisos</button><button id="avDes" hidden>Desativar</button></div></div>
 <p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
 <button class="sair" onclick="try{sessionStorage.clear()}catch(e){}location.reload()">Sair</button>`;
 // lista de presenças com filtro e "Questionar"
@@ -413,6 +418,24 @@ function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>!FF||e[2]!==1);
     if(b.classList.contains("q")){ABERTO=ABERTO===k?-1:k;desenha();return}
     if(b.classList.contains("qc")){try{await navigator.clipboard.writeText(texto(e));b.textContent="✅ Copiado"}catch(_){alert("Não consegui copiar: selecione o texto e copie.")}return}
     if(b.classList.contains("qz"))window.open("https://wa.me/?text="+encodeURIComponent(texto(e)),"_blank")})}
+// avisos no celular (lembretes individuais): mesmo cadastro do painel ADM, ligado ao e-mail do irmão
+const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+const ehApp=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone,ehIph=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
+async function avTela(){const st=document.getElementById("avSt"),at=document.getElementById("avAt"),de=document.getElementById("avDes");
+  if(!D.push||!("serviceWorker" in navigator)||!("PushManager" in window)){if(ehIph()&&!ehApp()){st.textContent="No iPhone, os avisos só funcionam com o app instalado: Safari › Compartilhar › Adicionar à Tela de Início. Depois abra pelo ícone e entre de novo.";at.hidden=true;return}
+    document.getElementById("avisos").hidden=true;return}
+  let s=null;try{const r=await navigator.serviceWorker.ready;s=await r.pushManager.getSubscription()}catch(e){}
+  const on=!!s&&Notification.permission==="granted";at.hidden=on;de.hidden=!on;
+  st.textContent=on?"✅ Avisos ativados neste celular. Você recebe só os seus lembretes.":"Receba lembretes das listas e da agenda da divisão, só para você."}
+document.getElementById("avAt").onclick=async()=>{if(ehIph()&&!ehApp()){alert("No iPhone, instale o app primeiro: Safari › Compartilhar › Adicionar à Tela de Início.");return}
+  const perm=await Notification.requestPermission();if(perm!=="granted"){alert("Permissão não concedida. Libere as notificações nas configurações do celular.");return}
+  try{const r=await navigator.serviceWorker.ready;let s=await r.pushManager.getSubscription();
+    if(!s)s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(D.push.pub)});
+    await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
+    alert("🔔 Avisos ativados neste celular!")}catch(e){alert("Não consegui ativar os avisos ("+(e.message||e)+").")}avTela()};
+document.getElementById("avDes").onclick=async()=>{try{const r=await navigator.serviceWorker.ready,s=await r.pushManager.getSubscription();
+  if(s){await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push_sair",endpoint:s.endpoint})});await s.unsubscribe()}}catch(e){}alert("Avisos desativados.");avTela()};
+avTela();
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 desenha();
@@ -467,7 +490,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
-        dados = {"n": m["n"], "c": m.get("c", ""), "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
+        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
                  "min": RANK_MIN_MEU, "pres": est[i][0], "ins": est[i][1],
                  "mf": [media(mesmo, 0), media(mesmo, 1)], "md": [media(todos, 0), media(todos, 1)],
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
@@ -475,6 +498,39 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "ev": lista(eventos), "iv": lista(eventos_ins)}
         PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False))))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
+
+def montar_lembretes(membros, eventos, eventos_ins, pag):
+    """Pendências de cada irmão com e-mail: insights sem resposta (últimos 7 dias), eventos sem confirmação
+    (de hoje em diante) e a mensalidade (se ainda não aparece como paga). A nuvem manda os lembretes nos horários."""
+    hoje = datetime.date.today().isoformat()
+    sete = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+    ent = {}
+    for evs in (eventos, eventos_ins):
+        for e in evs:
+            for i, v in enumerate(e["p"]):
+                if v not in (None, "") and (i not in ent or e["d"] < ent[i]):
+                    ent[i] = e["d"]
+    def conta_irmao(i, d):
+        return i in ent and d >= ent[i]
+    pessoas = []
+    for i, m in enumerate(membros):
+        email = EMAIL_APELIDO_INV.get(m["n"].lower(), "")
+        if "@" not in email:
+            continue
+        ins = []
+        for e in eventos_ins:
+            if sete <= e["d"] <= hoje and conta_irmao(i, e["d"]) and e["p"][i] != 1:
+                ins.append({"d": e["d"], "nome": e["e"], "resp": sum(1 for v in e["p"] if v == 1)})
+        evs = []
+        for e in eventos:
+            if e["d"] >= hoje and e["p"][i] in (None, "", "-") and (conta_irmao(i, e["d"]) or i in ent):
+                evs.append({"d": e["d"], "nome": e["e"]})
+        st = str(pag.get("status", {}).get(m["n"], "") or "")
+        pago = bool(re.search(r"pago|aguard|ades", st, re.I))
+        pessoas.append({"n": m["n"], "email": email.strip().lower(), "ins": ins, "ev": evs,
+                        "pago": pago, "boleto": pag.get("boleto", {}).get(m["n"], "")})
+    LEMBRETES.clear()
+    LEMBRETES.update({"hoje": hoje, "venc": pag.get("venc"), "pessoas": pessoas})
 
 def _json_estado(nome, padrao):
     try:
@@ -1684,8 +1740,11 @@ def _pywebpush():
             print("Aviso: não consegui instalar o componente das notificações (pywebpush).")
             return None
 
-def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None):
-    """Manda a notificação para todos os celulares que ativaram no app."""
+ADM_EMAILS = set()     # e-mails do comando (fixos + liberados): os avisos gerais vão só para eles
+
+def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None):
+    """Manda a notificação. Sem so_para: só para os celulares do comando (ADM).
+    Com so_para: só para os celulares daquele e-mail (lembretes individuais dos irmãos)."""
     if not ACESSOS_URL or not os.path.exists(ARQ_VAPID_PEM):
         return
     import urllib.request, urllib.parse
@@ -1700,6 +1759,8 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None):
     if wp is None:
         return
     msg = {"title": titulo, "body": corpo, "tag": tag, "url": "adm.html"}
+    if link:     # botão da notificação que abre um endereço (ex.: "Abrir meu boleto")
+        msg["link"] = link; msg["lrot"] = link_rot or "Abrir"
     if icone:    # imagem do aviso (pasta app: notif-pag.png, notif-evento.png, ...)
         msg["icon"] = icone
     if zap:      # mensagem pronta para o botão "📲 Enviar no WhatsApp" (a notificação tem limite de tamanho)
@@ -1709,11 +1770,15 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None):
     dados = json.dumps(msg, ensure_ascii=False)
     enviados = 0
     for email, sub in inscritos:
-        if so_para and str(email).strip().lower() != str(so_para).strip().lower():
-            continue            # aviso de teste: só para quem pediu
+        em = str(email).strip().lower()
+        if so_para and em != str(so_para).strip().lower():
+            continue            # aviso individual (ou de teste): só para aquele e-mail
+        if not so_para and ADM_EMAILS and em not in ADM_EMAILS:
+            continue            # aviso geral: só para o comando (os irmãos recebem só os lembretes deles)
         try:
             info = json.loads(sub) if isinstance(sub, str) else sub
-            wp.webpush(subscription_info=info, data=dados, vapid_private_key=ARQ_VAPID_PEM,
+            dados_i = json.dumps(dict(json.loads(dados), para=em, ru=ACESSOS_URL), ensure_ascii=False) if ACESSOS_URL and "@" in em else dados
+            wp.webpush(subscription_info=info, data=dados_i, vapid_private_key=ARQ_VAPID_PEM,
                        vapid_claims={"sub": "mailto:painel@insanos.app"}, ttl=86400)
             enviados += 1
         except Exception as e:
@@ -1985,7 +2050,7 @@ def arquivos_app():
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v9";
+const CACHE = "insanos-v11";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2003,18 +2068,31 @@ self.addEventListener("push", e => {
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
+  if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   // vibração própria de cada tipo de aviso (Android; o iPhone ignora): dá para reconhecer sem olhar o celular
   const VIB = {pag: [120, 90, 120], evento: [450], social: [450], pub: [450], insight: [150],
                cadastro: [200, 100, 200, 100, 200], niver: [100, 70, 100, 70, 100], aviso: [450, 120, 120]};
   const tipo = ((d.icon || "").match(/notif-([a-z]+)\\.png/) || [])[1] || (d.tag === "pagamento" ? "pag" : d.tag === "aniversario" ? "niver" : d.tag === "afastamento" ? "aviso" : "");
   op.vibrate = VIB[tipo] || [200];
-  e.waitUntil(self.registration.showNotification(d.title || "Insanos ADM", op));
+  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
+  // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
+  const reg = (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
+      painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
+  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), reg]));
 });
+function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
 self.addEventListener("notificationclick", e => {
   e.notification.close();
   const dd = e.notification.data || {};
+  if (dd.ru && dd.para)    // controle: o irmão tocou no aviso
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
+      painel: "👆 Abriu: " + (dd.tt || "") + (e.action === "link" ? " (" + (e.notification.actions && e.notification.actions[0] ? e.notification.actions[0].title : "botão") + ")" : ""),
+      aparelho: aparelhoSW()})}).catch(() => {}));
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
+  if (dd.link && (e.action === "link" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {   // ex.: "Abrir meu boleto"
+    e.waitUntil(clients.openWindow(dd.link)); return;
+  }
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
     e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap}))))
       .then(() => clients.matchAll({type: "window", includeUncontrolled: true}))
@@ -2177,6 +2255,7 @@ def main():
             senhas.append(e)
         elif "@" not in e:
             print(f"Aviso: {n} foi liberado como ADM, mas não tem e-mail na aba Dados Integrantes.")
+    ADM_EMAILS.clear(); ADM_EMAILS.update(e.strip().lower() for e in senhas if "@" in e)
     senhas_so_geral = [e for e in (email_de(nome) for nome in AUTORIZADOS_SO_GERAL) if e not in senhas]
 
     linhas = list(wb["Presenca"].iter_rows(min_row=1, max_row=200, max_col=60, values_only=True))
@@ -2359,6 +2438,11 @@ def main():
     global CAVEIRA_URL
     _mc = re.search(r'const CAVEIRA="(data:image/[^"]+)"', html)
     CAVEIRA_URL = _mc.group(1) if _mc else ""
+    global MEU_PUSH
+    try:
+        MEU_PUSH = {"pub": chave_push_publica(), "url": ACESSOS_URL} if ACESSOS_URL else None
+    except Exception:
+        MEU_PUSH = None
     try:
         montar_pessoais(membros, eventos, eventos_ins, gerado)
     except Exception as e:
@@ -2450,6 +2534,10 @@ def main():
     FOTOS_LOGIN = fotos_login_html()
     FOTOS_GAL = []      # galeria de fotos removida do projeto
     PUSH = {"pub": chave_push_publica(), "url": ACESSOS_URL} if ACESSOS_URL else None
+    try:
+        montar_lembretes(membros, eventos, eventos_ins, pag)
+    except Exception as e:
+        print(f"Aviso: lembretes não montados ({type(e).__name__}: {e}).")
     ACESSOS = None
     if ACESSOS_URL:
         _so = [EMAIL_APELIDO_INV.get(n.lower(), "") for n in ACESSOS_SOMENTE]   # a tela Acessos é só de quem está em acessos_somente
@@ -2470,9 +2558,9 @@ def main():
     # Para voltar a tirar do link, troque LINK_COM_NOME_E_CPF para False no começo deste arquivo.
     membros_link = membros if LINK_COM_NOME_E_CPF else \
         [{**m, "x": {k: v for k, v in m.get("x", {}).items() if k in ("col", "tamc")}} for m in membros]
-    pagina_adm_link = gravar(None, {**dados_adm, "m": membros_link}, "Painel ADM - Acesso restrito ao Comando.",
+    pagina_adm_link = gravar(None, {**dados_adm, "m": membros_link}, "Presença, insights e a caminhada de cada irmão. 💀",
                              extras=[x for x in extras if x] if ADM_NO_LINK_ACEITA_SENHA_COLETIVA else [],
-                             rotulo="E-mail ou senha de acesso" if ADM_NO_LINK_ACEITA_SENHA_COLETIVA else "E-mail")
+                             rotulo="Seu e-mail ou a senha de acesso" if ADM_NO_LINK_ACEITA_SENHA_COLETIVA else "Seu e-mail cadastrado na divisão")
     FOTOS_LOGIN = ""
 
     # 3) individuais: ranking e média da divisão por mês e no período todo
