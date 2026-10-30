@@ -365,6 +365,11 @@ h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margi
 .mes:first-of-type{border-top:0}.ch{padding:3px 8px;border-radius:8px;font-weight:800;text-align:center}
 details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary{cursor:pointer;font-weight:700;padding:6px 0}
 .ev{display:flex;gap:10px;font-size:13.5px;padding:6px 0;border-bottom:1px solid rgba(236,231,220,.06)}.ev i{font-style:normal;width:22px}.ev span{color:var(--osso2);width:44px;flex:0 0 44px}
+.tabs{display:flex;gap:6px;margin:0 0 8px}.tabs button{flex:1;padding:9px 6px;border-radius:999px;border:1px solid var(--linha);background:transparent;color:var(--osso);font-weight:700;font-size:14px}
+.tabs button.on{background:var(--ouro);color:#141210;border-color:var(--ouro)}.tabs.peq button{padding:6px;font-size:12.5px;font-weight:600}.tabs.peq button.on{background:rgba(233,185,73,.18);color:var(--ouro)}
+.ev .q{border:1px solid rgba(240,182,180,.5);background:transparent;color:#F2A3A3;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
+.qbox{background:rgba(236,231,220,.05);border-radius:12px;padding:10px;margin:4px 0 10px}.qbox pre{white-space:pre-wrap;font-family:inherit;font-size:13px;margin:0 0 8px}
+.qbts{display:flex;gap:8px}.qbts button{flex:1;padding:9px;border-radius:999px;border:1px solid var(--linha);background:transparent;color:var(--osso);font-weight:700}.qbts .qz{background:#1f8f4e;border-color:#1f8f4e;color:#fff}
 .nota{color:var(--osso2);font-size:12.5px}.sair{display:block;margin:18px auto 0;background:transparent;border:1px solid var(--linha);color:var(--osso);border-radius:999px;padding:10px 22px;font-weight:700}
 </style></head><body><div class="w" id="app"></div><script>
 const D=__DADOS__,CAV="__CAV__";
@@ -385,10 +390,32 @@ document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt
 <div class="card"><h2>Mês a mês</h2><div class="mes nota"><span></span><span>Presença</span><span>Insights</span></div>${D.meses.map(m=>{const a=pc(m.p),b=pc(m.i);
   const ch=(v,x)=>x&&x[1]?`<span class="ch" style="color:${cor(v)[1]};background:rgba(236,231,220,.05)">${x[0]}/${x[1]} · ${v}%</span>`:'<span class="nota">–</span>';
   return `<div class="mes"><b>${MS[+m.ym.slice(5)-1]}/${m.ym.slice(2,4)}</b>${ch(a,m.p)}${ch(b,m.i)}</div>`}).join("")}
-  <details><summary>🗓️ Meus eventos em ${D.ano}</summary>${D.ev.map(e=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span>${es(e[1])}</div>`).join("")||'<p class="nota">Nenhum evento.</p>'}</details>
-  <details><summary>💬 Meus insights em ${D.ano}</summary>${D.iv.map(e=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span>${es(e[1])}</div>`).join("")||'<p class="nota">Nenhum insight.</p>'}</details></div>
+</div>
+<div class="card"><h2>📋 Minhas presenças em ${D.ano}</h2>
+  <div class="tabs" id="tTipo"><button data-t="ev" class="on">🗓️ Eventos</button><button data-t="iv">💬 Insights</button></div>
+  <div class="tabs peq" id="tFil"><button data-f="" class="on">Todos</button><button data-f="x">❌ Só onde faltei</button></div>
+  <div id="lista"></div>
+  <p class="nota" style="margin-top:10px">Acha que alguma falta está errada? Toque em <b>Questionar</b>: a mensagem sai pronta para você mandar no WhatsApp.</p></div>
 <p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
 <button class="sair" onclick="try{sessionStorage.clear()}catch(e){}location.reload()">Sair</button>`;
+// lista de presenças com filtro e "Questionar"
+let TT="ev",FF="",ABERTO=-1;
+const br=d=>d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4);
+const texto=e=>TT==="ev"
+  ?`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não fui* ao evento *${e[1]}* de *${br(e[0])}*, mas eu estive presente.\n\nPodem conferir o lançamento? Obrigado! 🤝`
+  :`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não respondi* o insight *${e[1]}* de *${br(e[0])}*, mas eu respondi.\n\nPodem conferir o lançamento? Obrigado! 🤝`;
+function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>!FF||e[2]!==1);
+  document.getElementById("lista").innerHTML=L.length?L.map((e,k)=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span><b style="flex:1;font-weight:500">${es(e[1])}</b>
+    ${e[2]===1?"":`<button class="q" data-k="${k}">Questionar</button>`}</div>${k===ABERTO?`<div class="qbox"><pre>${es(texto(e))}</pre>
+      <div class="qbts"><button class="qc" data-k="${k}">📋 Copiar</button><button class="qz" data-k="${k}">Abrir no WhatsApp</button></div></div>`:""}`).join("")
+    :`<p class="nota">${FF?"Nenhuma falta. 💪":"Nada lançado ainda."}</p>`;
+  document.querySelectorAll("#lista [data-k]").forEach(b=>b.onclick=async()=>{const k=+b.dataset.k,e=L[k];
+    if(b.classList.contains("q")){ABERTO=ABERTO===k?-1:k;desenha();return}
+    if(b.classList.contains("qc")){try{await navigator.clipboard.writeText(texto(e));b.textContent="✅ Copiado"}catch(_){alert("Não consegui copiar: selecione o texto e copie.")}return}
+    if(b.classList.contains("qz"))window.open("https://wa.me/?text="+encodeURIComponent(texto(e)),"_blank")})}
+document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
+document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
+desenha();
 </script></body></html>"""
 
 RANK_MIN_MEU = 3       # mesmo mínimo do ranking do painel
