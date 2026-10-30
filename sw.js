@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v9";
+const CACHE = "insanos-v11";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -17,18 +17,31 @@ self.addEventListener("push", e => {
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
+  if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   // vibração própria de cada tipo de aviso (Android; o iPhone ignora): dá para reconhecer sem olhar o celular
   const VIB = {pag: [120, 90, 120], evento: [450], social: [450], pub: [450], insight: [150],
                cadastro: [200, 100, 200, 100, 200], niver: [100, 70, 100, 70, 100], aviso: [450, 120, 120]};
   const tipo = ((d.icon || "").match(/notif-([a-z]+)\.png/) || [])[1] || (d.tag === "pagamento" ? "pag" : d.tag === "aniversario" ? "niver" : d.tag === "afastamento" ? "aviso" : "");
   op.vibrate = VIB[tipo] || [200];
-  e.waitUntil(self.registration.showNotification(d.title || "Insanos ADM", op));
+  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
+  // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
+  const reg = (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
+      painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
+  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), reg]));
 });
+function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
 self.addEventListener("notificationclick", e => {
   e.notification.close();
   const dd = e.notification.data || {};
+  if (dd.ru && dd.para)    // controle: o irmão tocou no aviso
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
+      painel: "👆 Abriu: " + (dd.tt || "") + (e.action === "link" ? " (" + (e.notification.actions && e.notification.actions[0] ? e.notification.actions[0].title : "botão") + ")" : ""),
+      aparelho: aparelhoSW()})}).catch(() => {}));
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
+  if (dd.link && (e.action === "link" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {   // ex.: "Abrir meu boleto"
+    e.waitUntil(clients.openWindow(dd.link)); return;
+  }
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
     e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap}))))
       .then(() => clients.matchAll({type: "window", includeUncontrolled: true}))
