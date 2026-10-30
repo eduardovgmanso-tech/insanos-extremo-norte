@@ -666,6 +666,110 @@ def aplicar_visitante(d):
     _json_gravar("visitantes.json", lista)
     return f"visitante liberado: {email} (uma entrada, até {lista[-1]['expira'][8:10]}/{lista[-1]['expira'][5:7]} às {lista[-1]['expira'][11:]})"
 
+RESPOSTAS = []          # respostas "Vou / Não vou" aplicadas nesta rodada (para avisar o comando)
+
+def aplicar_respostas(api, pid, g):
+    """Respostas "✅ Vou / ❌ Não vou" dos irmãos (registradas na aba Acessos com a assinatura):
+    confere a assinatura e marca SIM/NÃO na aba Presença, só onde o comando não marcou (ou onde a marca veio do próprio irmão)."""
+    regs = (g.buscar_acessos() or [])[1:]
+    if not regs:
+        return []
+    est = _json_ler("rsvp.json", {"vistos": [], "celulas": {}})
+    vistos, celulas = set(est.get("vistos", [])), est.get("celulas", {})
+    hoje = datetime.date.today().isoformat()
+    novas = {}
+    for r in regs:
+        r = list(r) + [""] * 5
+        pn = str(r[3])
+        if not pn.startswith("✋|"):
+            continue
+        partes = pn.split("|", 4)
+        if len(partes) < 5:
+            continue
+        _, resp, d, tk, nome = partes
+        email = str(r[1]).strip().lower()
+        chave = f"{r[0]}|{email}|{d}|{nome}|{resp}"
+        if chave in vistos or d < hoje or resp not in ("vou", "nao"):
+            continue
+        vistos.add(chave)
+        if tk != g.token_rsvp(email, d, nome):
+            print(f"Resposta ignorada (assinatura inválida): {email} · {nome}"); continue
+        k = (email, d, nome)
+        if k not in novas or str(r[0]) >= novas[k][0]:
+            novas[k] = (str(r[0]), resp)
+    feitas = []
+    if novas:
+        aba_di, C, linhas, fim_tab, _ = _di_mapa(api, pid)
+        vdi = _ler(api, pid, f"'{aba_di}'!A1:AN400")
+        ap_de = {}
+        if C.get("email"):
+            for row in vdi[1:]:
+                row = list(row) + [""] * 40
+                if "@" in str(row[C["email"] - 1]):
+                    ap_de[str(row[C["email"] - 1]).strip().lower()] = str(row[1]).strip()
+        aba = _aba_real(api, pid, "Presenca")
+        v = _ler(api, pid, f"'{aba}'!A1:BZ60")
+        lin = lambda r: list(v[r - 1]) + [""] * 80 if len(v) >= r else [""] * 80
+        cols, c = {}, 4
+        while True:
+            nm = str(lin(6)[c - 1]).strip()
+            if not nm or nm.lower().startswith("presen"):
+                break
+            cols[_sa(nm)] = c; c += 1
+        def data_da_linha(r):
+            x = lin(r)[1]
+            if isinstance(x, (int, float)) and x > 20000:
+                return (datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(x))).date().isoformat()
+            try:
+                return datetime.datetime.strptime(str(x)[:10], "%d/%m/%Y").date().isoformat()
+            except ValueError:
+                return ""
+        gr = []
+        for (email, d, nome), (_, resp) in novas.items():
+            ap = ap_de.get(email)
+            cc = cols.get(_sa(ap)) if ap else None
+            linha = next((r for r in range(8, 43) if data_da_linha(r) == d and _sa(lin(r)[2]) == _sa(nome)), None)
+            if not (ap and cc and linha):
+                continue
+            atual = str(lin(linha)[cc - 1]).strip().upper()
+            cel = f"{d}|{nome}|{ap}"
+            novo = "SIM" if resp == "vou" else "NÃO"
+            if atual in ("", "-") or celulas.get(cel) == atual:     # vale a marcação do comando; o irmão só muda a dele
+                if atual != novo:
+                    gr.append((f"'{aba}'!{_col(cc)}{linha}", novo))
+                celulas[cel] = novo
+                feitas.append((ap, nome, resp))
+        _gravar(api, pid, gr)
+    _json_gravar("rsvp.json", {"vistos": sorted(vistos)[-800:], "celulas": celulas})
+    if feitas:
+        print("Respostas dos irmãos aplicadas: " + ", ".join(f"{a} ({'vai' if r == 'vou' else 'não vai'})" for a, _, r in feitas))
+    RESPOSTAS.extend(feitas)
+    return feitas
+
+def enviar_convites(g, eventos_novos):
+    """Assim que um evento é lançado: convite com os botões ✅ Vou / ❌ Não vou para quem ainda não respondeu."""
+    L = getattr(g, "LEMBRETES", None) or {}
+    env = _json_ler("lembretes_enviados.json", {})
+    hoje = datetime.date.today().isoformat()
+    n = 0
+    for d, nome in eventos_novos:
+        for p in L.get("pessoas", []):
+            if not any(ev["d"] == d and ev["nome"] == nome for ev in p.get("ev", [])):
+                continue
+            k = f"{hoje}|lanc|ev|{d}|{nome}|{p['email']}"
+            if k in env:
+                continue
+            emoji, icone = _tipo_aviso({"tipo": "lancamento_presenca", "aba": "Presenca", "evento": nome})
+            try:
+                g.notificar(f"{emoji} {nome} · {d[8:10]}/{d[5:7]}", f"Fala, {p['n']}! Você vai na {nome}? Responde aqui embaixo. 🤝",
+                            "convite", icone=icone, so_para=p["email"], rsvp={"d": d, "e": nome})
+                env[k] = 1; n += 1
+            except Exception as e:
+                print(f"Aviso: convite não enviado ({e}).")
+    _json_gravar("lembretes_enviados.json", env)
+    if n:
+        print(f"Convites com Vou / Não vou enviados: {n}.")
+
 def enviar_lembretes(g):
     """Lembretes individuais (só para o irmão): insights sem resposta (13h e 19h), eventos sem confirmação
     (9h, 13h e 19h, até o dia do evento) e a agenda da mensalidade (9h, de 3 dias antes até o vencimento)."""
@@ -717,7 +821,8 @@ def enviar_lembretes(g):
                 tit, corpo = f"{emoji} {ev['nome']} é hoje", f"Fala, {ap}! Hoje tem {ev['nome']}. Se ainda não confirmou, dá um toque no grupo. Contamos com você! 🤝"
             else:
                 tit, corpo = f"{emoji} {ev['nome']} · {br(ev['d'])}", f"Fala, {ap}! A lista da {ev['nome']} está aberta. Confirma a sua presença no grupo? Contamos com você! 🤝"
-            manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email)
+            manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo.replace("Confirma a sua presença no grupo?", "Você vai? Responde aqui embaixo."),
+                  "lembrete-ev", icone=icone, so_para=email, rsvp={"d": ev["d"], "e": ev["nome"]})
         # mensalidade: 9h, de 3 dias antes até o dia do vencimento (só quem ainda não aparece como pago)
         if slot == "m" and venc and not p.get("pago"):
             k = (venc - hoje).days
@@ -852,7 +957,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -1082,6 +1187,11 @@ def main():
         print("Notificações: ligadas.")
     # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
     try:
+        if aplicar_respostas(api, planilha_id, g):
+            montar_planilha(ler_google(planilha_id, cred, api), xlsx)
+    except Exception as e:
+        print(f"Aviso: respostas dos irmãos não aplicadas ({type(e).__name__}: {e}).")
+    try:
         remover_abas_sem_uso(api, planilha_id)
     except Exception as e:
         print(f"Aviso: não consegui apagar as abas sem uso ({type(e).__name__}: {e}).")
@@ -1149,6 +1259,23 @@ def main():
                 g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")
         except Exception as e:
             print(f"Aviso: notificação de atualização não enviada ({e}).")
+        try:
+            novos = [(d.get("data"), d.get("evento")) for _, _, d in (resumo_fila or [])
+                     if d.get("tipo") == "lancamento_presenca" and str(d.get("aba") or "Presenca").lower().startswith("presen")
+                     and str(d.get("data", "")) >= datetime.date.today().isoformat()]
+            if novos:
+                enviar_convites(g, novos)
+        except Exception as e:
+            print(f"Aviso: convites não enviados ({type(e).__name__}: {e}).")
+        if RESPOSTAS:
+            try:
+                por = {}
+                for ap, nome, r in RESPOSTAS:
+                    por.setdefault(nome, []).append(f"{ap} {'✅' if r == 'vou' else '❌'}")
+                g.notificar("✋ Respostas dos irmãos", " · ".join(f"{n}: {', '.join(x)}" for n, x in por.items()), "atualizacao", icone="notif-evento.png")
+            except Exception as e:
+                print(f"Aviso: aviso das respostas não enviado ({e}).")
+            RESPOSTAS.clear()
         if evento == "schedule":
             try:
                 enviar_lembretes(g)

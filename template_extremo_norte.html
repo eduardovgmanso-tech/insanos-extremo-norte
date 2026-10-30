@@ -1055,7 +1055,9 @@ const M_FULL=M,EV_SETS={pres:DADOS.ev||[],ins:DADOS.ev_ins||[],staff:DADOS.ev_st
 // Antes disso não conta; depois, se ficar sem marcação, conta como "não foi / não respondeu".
 const ENTRADA={};["pres","ins"].forEach(k=>(EV_SETS[k]||[]).forEach(e=>(e.p||[]).forEach((v,i)=>{const m=M_FULL[i];
   if(m&&v!==null&&v!==undefined&&v!==""&&(!ENTRADA[m.n]||e.d<ENTRADA[m.n]))ENTRADA[m.n]=e.d})));
-function contaEnt(v,i,d){if(v==="-")return 0;if(v===null||v===undefined||v===""){const m=M_FULL[i],en=m&&ENTRADA[m.n];return en&&d>=en?0:null}return v}
+const HOJE_ISO=(()=>{const x=new Date();return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0")})();
+function contaEnt(v,i,d){if(d>HOJE_ISO)return null;   // evento que ainda não aconteceu: fora das estatísticas até o dia dele
+  if(v==="-")return 0;if(v===null||v===undefined||v===""){const m=M_FULL[i],en=m&&ENTRADA[m.n];return en&&d>=en?0:null}return v}
 const evComEntrada=e=>(e.p||[]).map((v,k)=>contaEnt(v,k,e.d));
 EV=EV_SETS.pres.map((e,i)=>({...e,i,p:evComEntrada(e)}));   // já na abertura do painel, com a regra da entrada
 const ANAL_NOMES={pres:"Presença",ins:"Insights",staff:"Staff"},ANAL_TIT={pres:"Presença nos eventos",ins:"Insights",staff:"Staff"};
@@ -2236,6 +2238,10 @@ function render(){
   const stats=mem.map(m=>{let p=0,a=0;evs.forEach(e=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});P+=p;A+=a;return {...m,p,a,pc:pct(p,a)}});
   let semMarca=0;
   // (quem está sem marcação depois da entrada já conta como NÃO; antes da entrada, não conta)
+  // evento que ainda vai acontecer (data filtrada no futuro): quem está em branco é "ainda não respondeu" e entra na conta
+  if(st.data&&st.data>HOJE_ISO){P=0;A=0;   // a caveira mostra as confirmações: SIM ÷ todos (em branco = ainda não respondeu)
+    (EV_SETS[ANAL]||[]).filter(e=>e.d===st.data).forEach(e=>mem.forEach(m=>{const v=e.p[M_FULL.findIndex(x=>x.n===m.n)];
+      if(v===1||v==="S")P++;else if(v===0||v==="-")A++;else if(ENTRADA[m.n]&&e.d>=ENTRADA[m.n])semMarca++}))}
   const tx=pct(P,A+semMarca);atualizarRoda(P,A,tx,semMarca);   // um evento: SIM ÷ (todos − "não conta")
   // eventos com mais de 50% de adesão (considera o cargo filtrado, não o integrante selecionado)
   const alvoU=MODO==="individual"?M[0]:(st.nome?M.find(m=>m.n===st.nome):null);

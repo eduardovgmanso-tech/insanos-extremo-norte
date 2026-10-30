@@ -427,6 +427,8 @@ const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
 <h1>${es(D.n)}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}</p>
+${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
+  <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></div>`:""}
 <div class="card"><h2>Minha adesão em ${D.ano}</h2><div class="cavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
 <div class="card"><h2>Minha posição (presença)</h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
 <div class="card"><h2>Comparação</h2>
@@ -462,6 +464,17 @@ function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>!FF||e[2]!==1);
     if(b.classList.contains("q")){ABERTO=ABERTO===k?-1:k;desenha();return}
     if(b.classList.contains("qc")){try{await navigator.clipboard.writeText(texto(e));b.textContent="✅ Copiado"}catch(_){alert("Não consegui copiar: selecione o texto e copie.")}return}
     if(b.classList.contains("qz"))window.open("https://wa.me/?text="+encodeURIComponent(texto(e)),"_blank")})}
+// próximos eventos: responder "Vou / Não vou" (vai para a aba Acessos com a assinatura; a nuvem marca na Presença)
+function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;let loc={};try{loc=JSON.parse(localStorage.getItem("rsvp_"+D.email)||"{}")}catch(_){}
+  el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
+    const txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"Ainda não respondeu";
+    return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b><small class="nota" style="width:100%;padding-left:54px">${txt}</small>
+      <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button></div></div>`}).join("");
+  el.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const e=D.prox[+b.dataset.k],r=b.dataset.r;
+    try{await fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})});
+      loc[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(loc))}catch(_){}proxDesenha();
+      alert(r==="vou"?"✅ Presença confirmada! Valeu, irmão. 🤝":"👍 Resposta registrada. Valeu por avisar!")}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}})}
+proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("eventos");if(x)x.scrollIntoView({behavior:"smooth"})}
 // avisos no celular (lembretes individuais): mesmo cadastro do painel ADM, ligado ao e-mail do irmão
 const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
 const ehApp=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone,ehIph=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -499,6 +512,8 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                 if v not in (None, "") and (i not in ent or e["d"] < ent[i]):
                     ent[i] = e["d"]
     def conta(v, i, d):
+        if d > datetime.date.today().isoformat():
+            return None          # evento que ainda não aconteceu: fora das estatísticas até o dia dele
         if v == "-":
             return 0
         if v in (None, ""):
@@ -540,7 +555,10 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "mf": [media(mesmo, 0), media(mesmo, 1)], "md": [media(todos, 0), media(todos, 1)],
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
                  "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
-                 "ev": lista(eventos), "iv": lista(eventos_ins)}
+                 "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
+                 "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
+                           "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
+                          for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()]}
         PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
 
@@ -1834,9 +1852,15 @@ def _pywebpush():
             print("Aviso: não consegui instalar o componente das notificações (pywebpush).")
             return None
 
+def token_rsvp(email, d, nome):
+    """Assinatura da resposta "Vou / Não vou": só quem tem a chave da planilha consegue gerar (ninguém responde por outro)."""
+    import hmac, hashlib
+    k = ((ACESSOS_CHAVE or "insanos") + "|rsvp").encode()
+    return hmac.new(k, f"{str(email).strip().lower()}|{d}|{str(nome).strip()}".encode(), hashlib.sha256).hexdigest()[:16]
+
 ADM_EMAILS = set()     # e-mails do comando (fixos + liberados): os avisos gerais vão só para eles
 
-def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None):
+def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None, rsvp=None):
     """Manda a notificação. Sem so_para: só para os celulares do comando (ADM).
     Com so_para: só para os celulares daquele e-mail (lembretes individuais dos irmãos)."""
     if not ACESSOS_URL or not os.path.exists(ARQ_VAPID_PEM):
@@ -1871,7 +1895,10 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
             continue            # aviso geral: só para o comando (os irmãos recebem só os lembretes deles)
         try:
             info = json.loads(sub) if isinstance(sub, str) else sub
-            dados_i = json.dumps(dict(json.loads(dados), para=em, ru=ACESSOS_URL), ensure_ascii=False) if ACESSOS_URL and "@" in em else dados
+            extra = {"para": em, "ru": ACESSOS_URL} if ACESSOS_URL and "@" in em else {}
+            if rsvp and extra:   # botões ✅ Vou / ❌ Não vou: a resposta leva a assinatura daquele irmão
+                extra["rsvp"] = {"d": rsvp["d"], "e": rsvp["e"], "tk": token_rsvp(em, rsvp["d"], rsvp["e"])}
+            dados_i = json.dumps(dict(json.loads(dados), **extra), ensure_ascii=False) if extra else dados
             wp.webpush(subscription_info=info, data=dados_i, vapid_private_key=ARQ_VAPID_PEM,
                        vapid_claims={"sub": "mailto:painel@insanos.app"}, ttl=86400)
             enviados += 1
@@ -2144,7 +2171,7 @@ def arquivos_app():
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v11";
+const CACHE = "insanos-v12";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2163,6 +2190,7 @@ self.addEventListener("push", e => {
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
+  if (d.rsvp) { op.data.rsvp = d.rsvp; op.actions = [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; op.requireInteraction = true; }
   // vibração própria de cada tipo de aviso (Android; o iPhone ignora): dá para reconhecer sem olhar o celular
   const VIB = {pag: [120, 90, 120], evento: [450], social: [450], pub: [450], insight: [150],
                cadastro: [200, 100, 200, 100, 200], niver: [100, 70, 100, 70, 100], aviso: [450, 120, 120]};
@@ -2184,6 +2212,18 @@ self.addEventListener("notificationclick", e => {
       aparelho: aparelhoSW()})}).catch(() => {}));
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
+  if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
+    const r = dd.rsvp, vou = e.action === "vou";
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
+        painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
+      .then(() => self.registration.showNotification(vou ? "✅ Presença confirmada" : "👍 Resposta registrada",
+        {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ".",
+         icon: "icon-192.png", badge: "icon-192.png", tag: "rsvp-ok"})));
+    return;
+  }
+  if (dd.rsvp && !e.action) {   // tocou na notificação (no iPhone não há botões): abre o painel para responder
+    e.waitUntil(clients.openWindow("adm.html#eventos")); return;
+  }
   if (dd.link && (e.action === "link" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {   // ex.: "Abrir meu boleto"
     e.waitUntil(clients.openWindow(dd.link)); return;
   }
