@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v15";
+const CACHE = "insanos-v16";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -33,7 +33,8 @@ self.addEventListener("push", e => {
       const velha = Date.now() - l.ts > 12 * 3600e3;
       op.body += " · a ~" + (km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1).replace(".", ",") + " km") + " de você" + (velha ? " (localização antiga)" : "");
     }).catch(() => {}) : Promise.resolve();
-    e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d)]));
+    const guarda = idbSet("sos_ativo", {d: S, url: op.data.sosUrl, ts: Date.now(), titulo: d.title || ""});   // para a faixa "SOS em andamento"
+    e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d), guarda]));
     return;
   }
   // vibração própria de cada tipo de aviso (Android; o iPhone ignora): dá para reconhecer sem olhar o celular
@@ -48,6 +49,18 @@ function registrarRecebeu(d) {
   return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
       painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
 }
+function idbSet(k, v) {
+  return new Promise(r => { try { const o = indexedDB.open("insanos", 1); o.onupgradeneeded = () => o.result.createObjectStore("kv");
+    o.onsuccess = () => { try { const t = o.result.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = () => r(1); t.onerror = () => r(0); } catch (e) { r(0); } };
+    o.onerror = () => r(0); } catch (e) { r(0); } });
+}
+// SOS dispensado (jogado para o lado): registra na aba Acessos, para o comando saber quem viu e não respondeu
+self.addEventListener("notificationclose", e => {
+  const dd = e.notification.data || {};
+  if (dd.sosUrl && dd.ru && dd.para)
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
+      painel: "👋 Dispensou: " + (e.notification.title || ""), aparelho: aparelhoSW()})}).catch(() => {}));
+});
 // última localização guardada neste celular (pela tela de entrada ou pelo Meu painel), para a distância do SOS
 function idbGet(k) {
   return new Promise(r => { try { const o = indexedDB.open("insanos", 1); o.onupgradeneeded = () => o.result.createObjectStore("kv");
