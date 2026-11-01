@@ -22,5 +22,33 @@
    "type": "image/png",
    "purpose": "any maskable"
   }
+ ],
+ "shortcuts": [
+  {
+   "name": "🆘 SOS · Preciso de ajuda",
+   "short_name": "SOS",
+   "description": "Pedir ajuda aos irmãos",
+   "url": "./adm.html#sos-abrir",
+   "icons": [
+    {
+     "src": "atalho-sos.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
+  },
+  {
+   "name": "Próximos eventos",
+   "short_name": "Eventos",
+   "description": "Responder Vou / Não vou",
+   "url": "./adm.html#eventos",
+   "icons": [
+    {
+     "src": "atalho-eventos.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
+  }
  ]
 }
