@@ -345,12 +345,17 @@ bioB.onclick=async()=>{erro.textContent="";try{
   let ids=[];try{ids=JSON.parse(localStorage.getItem("bio_ids")||"[]")}catch(_){}
   const pk={challenge:bioRnd(),userVerification:"required",timeout:60000,rpId:location.hostname};
   if(ids.length)pk.allowCredentials=ids.map(i=>({type:"public-key",id:bioDe64(i),transports:["internal","hybrid"]}));   // a chave deste celular: vai direto para a digital
-  const a=await navigator.credentials.get({publicKey:pk});
+  let a=null;
+  try{a=await navigator.credentials.get({publicKey:pk})}
+  catch(e1){if(!ids.length)throw e1;delete pk.allowCredentials;pk.challenge=bioRnd();a=await navigator.credentials.get({publicKey:pk})}   // a chave anotada sumiu: tenta qualquer chave deste site
   try{const id=bioB64(a.rawId);if(!ids.includes(id))localStorage.setItem("bio_ids",JSON.stringify([...ids,id].slice(-3)))}catch(_){}
   const em=new TextDecoder().decode(a.response.userHandle||new Uint8Array());
   if(!em.includes("@"))throw new Error("sem e-mail");
   cpf.value=em;document.getElementById("f").requestSubmit()}
-  catch(e){erro.textContent=e&&e.name==="NotAllowedError"?"Entrada com a digital cancelada. Você pode entrar com o e-mail.":"Não consegui usar a digital agora. Entre com o e-mail."}};
+  catch(e){   // não achou a chave da digital neste celular (ou foi cancelado): esquece e oferece ativar de novo na próxima entrada
+    try{localStorage.removeItem("bio_on");localStorage.removeItem("bio_ids");localStorage.removeItem("bio_nao")}catch(_){}
+    bioB.hidden=true;
+    erro.textContent="Não consegui usar a digital neste celular. Entre com o seu e-mail: em seguida, o painel oferece ativar a digital de novo."}};
 // depois de entrar com o e-mail: oferece ativar a digital (uma vez por e-mail neste celular)
 function bioPerguntar(d,seguir){
   let ja="";try{ja=(localStorage.getItem("bio_on")||"")+"|"+(localStorage.getItem("bio_nao")||"")}catch(_){}
