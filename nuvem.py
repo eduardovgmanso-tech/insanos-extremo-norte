@@ -746,6 +746,48 @@ def aplicar_respostas(api, pid, g):
     RESPOSTAS.extend(feitas)
     return feitas
 
+SOS_TIPOS = {"pane": ("🛵", "Pane/acidente de moto"), "saude": ("🚑", "Saúde"), "seguranca": ("⚠️", "Segurança"), "outro": ("🆘", "Outro")}
+
+def processar_sos(api, pid, g):
+    """SOS: alerta para todos os irmãos (com a localização) e aviso de quem está indo (para quem pediu e para o comando)."""
+    import base64
+    if "SOS" not in _ids(api, pid):
+        return 0
+    v = _ler(api, pid, "'SOS'!A1:J600")
+    linhas = [(i, list(r) + [""] * 10) for i, r in enumerate(v[1:], start=2)]
+    sos = {r[2]: r for _, r in linhas if str(r[1]) == "SOS"}
+    gr, n = [], 0
+    for i, r in linhas:
+        if str(r[9]).strip().lower() != "novo":
+            continue
+        reg, sid, email, ap, cat = str(r[1]), str(r[2]), str(r[3]).strip().lower(), str(r[4]), str(r[5])
+        try:
+            if reg == "SOS":
+                emo, nome_tipo = SOS_TIPOS.get(cat, SOS_TIPOS["outro"])
+                lat, lng = r[6], r[7]
+                mh = re.search(r"(\d{1,2}):(\d{2})", str(r[0]))           # a hora do pedido (registrada na aba SOS)
+                hora = f"{int(mh.group(1)):02d}:{mh.group(2)}" if mh else datetime.datetime.now().strftime("%H:%M")
+                dados = {"id": sid, "lat": lat, "lng": lng, "n": ap, "t": nome_tipo, "e": emo, "q": hora}
+                url = "adm.html#sos=" + base64.urlsafe_b64encode(json.dumps(dados, ensure_ascii=False).encode()).decode().rstrip("=")
+                corpo = f"{emo} {nome_tipo} · {dados['q']}" + ("" if lat not in ("", None) else " · sem localização")
+                g.notificar(f"🆘 SOS · {ap} precisa de ajuda", corpo, f"sos-{sid}", icone="notif-aviso.png",
+                            todos=True, excluir=email, extra={"sos": dados, "url": url})
+                print(f"SOS de {ap} enviado para todos os irmãos.")
+            elif reg == "Estou indo":
+                orig = sos.get(sid)
+                dist = f" · a {str(r[8]).replace('.', ',')} km" if str(r[8]) not in ("", "None") else ""
+                if orig:
+                    g.notificar(f"🏍️ {ap} está indo te ajudar", f"Aguenta firme, irmão{dist}. 🤝", f"sos-indo-{sid}", icone="notif-aviso.png",
+                                so_para=str(orig[3]).strip().lower())
+                    g.notificar(f"🏍️ {ap} está indo ao SOS do {orig[4]}", f"Apoio a caminho{dist}.", f"sos-indo-{sid}", icone="notif-aviso.png",
+                                todos=True, excluir=str(orig[3]).strip().lower())     # todos os irmãos sabem que já tem apoio a caminho
+                print(f"{ap} está indo ao SOS {sid}.")
+            gr.append((f"'SOS'!J{i}", "avisado")); n += 1
+        except Exception as e:
+            print(f"Aviso: SOS não processado ({type(e).__name__}: {e}).")
+    _gravar(api, pid, gr)
+    return n
+
 def escrever_otp(api, pid, g):
     """Código por e-mail: escreve na aba escondida "_otp" os e-mails dos visitantes ativos
     (os dos irmãos o projeto do código lê direto da aba Dados Integrantes)."""
@@ -1141,6 +1183,10 @@ def main():
         if not ((epoca_pag and 7 <= h <= 18) or rodada_avisos):
             print(f"Nada a fazer agora ({agora:%H:%M}): fora da época de pagamentos e dos horários de aviso (9h, 13h e 19h)."); return
     api = api_google(cred)
+    if os.environ.get("SOMENTE_SOS"):       # rotina rápida do SOS (sos.yml): só o alerta, sem gerar o painel
+        preparar_ambiente()
+        print(f"SOS: {processar_sos(api, planilha_id, g)} registro(s) processado(s).")
+        return
     aba_estado = estado_carregar(api, planilha_id)
     resumo_fila = processar_fila(api, planilha_id)
     arq_fila = os.path.join(PASTA, "Lancamentos", "ultima_fila.json")
@@ -1157,6 +1203,10 @@ def main():
         with open(arq_fila, "w", encoding="utf-8") as f:
             json.dump({"ts": datetime.datetime.now().isoformat(timespec="seconds")}, f)
     tok, dono, repo = preparar_ambiente()
+    try:                                     # reforço: se a rotina rápida do SOS falhou, o alerta sai aqui
+        processar_sos(api, planilha_id, g)
+    except Exception as e:
+        print(f"Aviso: SOS não processado ({type(e).__name__}: {e}).")
     xlsx = os.path.join(PASTA, "Insanos.xlsx")
     print("Lendo a planilha do Google...")
     montar_planilha(ler_google(planilha_id, cred, api), xlsx)

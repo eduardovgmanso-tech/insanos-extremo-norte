@@ -305,12 +305,34 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
 <noscript><style>#f{display:none}</style><form style="display:block"><h1>Extremo Norte<br>SP3</h1><p>Este visualizador não abre o painel. Toque em compartilhar e escolha abrir no Safari, Chrome ou Edge.</p></form></noscript>
 <form id="f" autocomplete="off">
   __MANUT__
+  <button id="sosB" type="button" hidden style="width:100%;margin:0 0 14px;padding:14px;border-radius:14px;border:0;background:#c62828;color:#fff;font-weight:900;font-size:18px;letter-spacing:.5px;box-shadow:0 0 0 3px rgba(198,40,40,.25)">🆘 SOS · Preciso de ajuda</button>
+  <div id="sosBox" hidden style="margin:0 0 14px;padding:14px;border-radius:14px;background:rgba(198,40,40,.12);border:1px solid rgba(198,40,40,.6);text-align:left">
+    <p style="margin:0 0 10px;font-weight:800;font-size:16px">🆘 O que aconteceu?</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button type="button" data-sos="pane" class="sosT">🛵 Pane/acidente</button><button type="button" data-sos="saude" class="sosT">🚑 Saúde</button>
+      <button type="button" data-sos="seguranca" class="sosT">⚠️ Segurança</button><button type="button" data-sos="outro" class="sosT">🆘 Outro</button></div>
+    <p style="margin:12px 0 6px;font-size:13px">⚠️ <b>Risco de vida?</b> Ligue primeiro:</p>
+    <div style="display:flex;gap:6px"><a class="sosTel" href="tel:190">190 Polícia</a><a class="sosTel" href="tel:192">192 SAMU</a><a class="sosTel" href="tel:193">193 Bombeiros</a></div>
+    <p id="sosMsg" style="margin:12px 0 0;font-size:14px;line-height:1.4"></p>
+    <div id="sosAcoes" style="display:none;flex-direction:column;gap:8px;margin-top:10px">
+      <button type="button" id="sosZap" class="sosG">📤 Mandar nos grupos (WhatsApp)</button><button type="button" id="sosCopiar" class="sosS">📋 Copiar a mensagem</button></div>
+    <a href="#" id="sosFechar" style="display:block;margin-top:12px;font-size:13px;color:#B8B2A6;text-align:center">Fechar</a></div>
+  <div id="sosResp" hidden style="margin:0 0 14px;padding:14px;border-radius:14px;background:rgba(198,40,40,.12);border:1px solid rgba(198,40,40,.6);text-align:left">
+    <p id="srTit" style="margin:0 0 4px;font-weight:900;font-size:17px"></p><p id="srSub" style="margin:0 0 10px;font-size:14px;color:#ECE7DC"></p>
+    <p id="srDist" style="margin:0 0 12px;font-size:16px;font-weight:800;color:#E9B949">📍 Calculando a sua distância…</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button type="button" id="srIndo" class="sosG">🏍️ Estou indo (avisa e abre a rota)</button>
+      <button type="button" id="srMapa" class="sosS">📍 Ver no mapa</button><button type="button" id="srNao" class="sosS">Não consigo ir</button></div>
+    <p id="srMsg" style="margin:10px 0 0;font-size:13px;color:#B8B2A6"></p></div>
   <h1>Extremo Norte<br>SP3</h1>
   <p>__SUBTITULO__</p>
   <label for="cpf">__ROTULO__</label>
   <input id="cpf" type="text" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="seu@email.com" maxlength="120" autofocus>
   <button id="b" type="submit">Entrar</button>
   <button id="bioB" type="button" hidden style="margin-top:10px;width:100%;padding:13px;border-radius:12px;border:1px solid #E9B949;background:rgba(233,185,73,.12);color:#ECE7DC;font-weight:800;font-size:15px">👆 Entrar com a digital</button>
+  <style>.sosT{padding:12px 6px;border-radius:10px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:#ECE7DC;font-weight:800;font-size:14px}
+  .sosTel{flex:1;text-align:center;padding:9px 4px;border-radius:10px;background:#ECE7DC;color:#141210;font-weight:800;font-size:12.5px;text-decoration:none}
+  .sosG{padding:13px;border-radius:12px;border:0;background:#1f8f4e;color:#fff;font-weight:800;font-size:15px}.sosS{padding:12px;border-radius:12px;border:1px solid rgba(236,231,220,.3);background:transparent;color:#ECE7DC;font-weight:700}</style>
   <div id="otpBox" hidden style="margin-top:12px;padding:12px;border-radius:12px;background:rgba(236,231,220,.06);border:1px solid rgba(236,231,220,.18);text-align:left">
     <p id="otpMsg" style="margin:0 0 10px;font-size:14px;line-height:1.4"></p>
     <input id="otpC" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" style="width:100%;text-align:center;font-size:24px;letter-spacing:6px;padding:10px;border-radius:10px">
@@ -390,6 +412,54 @@ function otpPedaco(d){const c=otpCache()[d];if(c&&c.exp>Date.now())return Promis
       msg.textContent="Conferindo…";try{const j=await otpPost({tipo:"otp_conferir",email:d,codigo:cod});
         if(j.ok&&j.s){otpGuardar(d,j.s);fim(j.s)}else msg.textContent="⚠️ "+(j.erro||"Código incorreto.")}catch(e){msg.textContent="⚠️ Não consegui conferir agora. Tente de novo."}};
     document.getElementById("otpOk").onclick=conferir;inp.oninput=()=>{if(inp.value.replace(/\D/g,"").length===6)conferir()}})}
+// ---- SOS: só para quem já entrou neste celular (o celular guarda o pedaço da chave dele, que confirma quem é)
+const sosIdbSet=(k,v)=>new Promise(r=>{try{const o=indexedDB.open("insanos",1);o.onupgradeneeded=()=>o.result.createObjectStore("kv");o.onsuccess=()=>{const t=o.result.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=()=>r(1);t.onerror=()=>r(0)};o.onerror=()=>r(0)}catch(e){r(0)}});
+const sosKm=(a,b,c,d)=>{const R=6371,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,h=Math.sin(x/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const sosGps=(alta)=>new Promise(r=>{if(!navigator.geolocation)return r(null);navigator.geolocation.getCurrentPosition(p=>{const l={lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5),ts:Date.now()};sosIdbSet("loc",l);r(l)},()=>r(null),{enableHighAccuracy:!!alta,timeout:alta?12000:8000,maximumAge:alta?0:600000})});
+// guarda a última localização (só neste celular) para a notificação do SOS mostrar a distância
+try{navigator.permissions&&navigator.permissions.query({name:"geolocation"}).then(x=>{if(x.state==="granted")sosGps(false)})}catch(_){}
+const sosQuem=()=>{const c=otpCache();let best=null;for(const e in c)if(c[e].exp>Date.now()&&(!best||c[e].exp>c[best].exp))best=e;return best?{email:best,s:c[best].s}:null};
+const sosB=document.getElementById("sosB"),sosBox=document.getElementById("sosBox");
+if(P.otp&&sosQuem())sosB.hidden=false;
+let sosTexto="";
+sosB.onclick=()=>{sosBox.hidden=false;sosB.hidden=true;document.getElementById("sosMsg").textContent="";document.getElementById("sosAcoes").style.display="none"};
+document.getElementById("sosFechar").onclick=ev=>{ev.preventDefault();sosBox.hidden=true;sosB.hidden=!(P.otp&&sosQuem())};
+document.querySelectorAll(".sosT").forEach(b=>b.onclick=async()=>{const q=sosQuem();if(!q)return;const cat=b.dataset.sos,nome=b.textContent.trim();
+  const m=document.getElementById("sosMsg");m.textContent="📍 Pegando a sua localização…";document.querySelectorAll(".sosT").forEach(x=>x.disabled=true);
+  const l=await sosGps(true);const quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const monta=quem=>`🆘 *SOS · Insanos M.C.*\n${quem?`*${quem}*`:"Um irmão"} (Divisão ${document.title.split(" - ")[0]}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`;
+  sosTexto=monta(localStorage.getItem("sos_nome")||"");
+  try{await navigator.clipboard.writeText(sosTexto)}catch(_){}
+  m.textContent="Enviando o alerta para os irmãos…";
+  try{const j=await otpPost({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null});
+    if(j.ok&&j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}sosTexto=monta(j.nome);try{await navigator.clipboard.writeText(sosTexto)}catch(_){}}
+    m.innerHTML=j.ok?"✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:":"⚠️ "+(j.erro||"Não consegui enviar o alerta.")+" Mande nos grupos:"}
+  catch(e){m.innerHTML="⚠️ Não consegui enviar o alerta (sem internet?). <b>Mande nos grupos:</b>"}
+  document.getElementById("sosAcoes").style.display="flex";document.querySelectorAll(".sosT").forEach(x=>x.disabled=false)});
+document.getElementById("sosZap").onclick=async()=>{if(navigator.share){try{await navigator.share({text:sosTexto});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(sosTexto),"_blank")};
+document.getElementById("sosCopiar").onclick=async()=>{try{await navigator.clipboard.writeText(sosTexto);document.getElementById("sosCopiar").textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(sosTexto)}};
+// ---- resposta ao SOS (aberta pela notificação): distância exata, "Estou indo" com aviso, grupos e rota
+(function(){const h=location.hash;if(!h.startsWith("#sos="))return;let S=null;
+  try{const b=h.slice(5).split("&")[0].replace(/-/g,"+").replace(/_/g,"/");S=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b+"=".repeat((4-b.length%4)%4)),c=>c.charCodeAt(0))))}catch(e){return}
+  const box=document.getElementById("sosResp");box.hidden=false;sosB.hidden=true;
+  ["cpf","b","bioB"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");
+  document.getElementById("srTit").textContent=`🆘 SOS · ${S.n} precisa de ajuda`;document.getElementById("srSub").textContent=`${S.e||"🆘"} ${S.t} · ${S.q}`;
+  const tem=S.lat!==""&&S.lat!=null,mapa=tem?`https://www.google.com/maps/search/?api=1&query=${S.lat},${S.lng}`:"",rota=tem?`https://www.google.com/maps/dir/?api=1&destination=${S.lat},${S.lng}&travelmode=driving`:"";
+  let km=null;const di=document.getElementById("srDist");
+  if(!tem)di.textContent="📍 Ele não conseguiu mandar a localização. Combine pelo grupo.";
+  else sosGps(true).then(l=>{if(!l){di.textContent="📍 Não consegui a sua localização. Toque em Ver no mapa.";return}
+    km=sosKm(l.lat,l.lng,+S.lat,+S.lng);const min=Math.max(1,Math.round(km*2.2));
+    di.textContent=`📍 Você está a ${km<1?Math.round(km*1000)+" m":km.toFixed(1).replace(".",",")+" km"} do ${S.n} · ~${min} min de moto`});
+  document.getElementById("srMapa").onclick=()=>{if(mapa)location.href=mapa};
+  document.getElementById("srNao").onclick=()=>{box.hidden=true;history.replaceState(null,"",location.pathname);["cpf","b"].forEach(id=>document.getElementById(id).hidden=false);document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");if(P.otp&&sosQuem())sosB.hidden=false};
+  document.getElementById("srIndo").onclick=async()=>{const q=sosQuem(),dist=km==null?"":` · estou a ${km.toFixed(1).replace(".",",")} km (uns ${Math.max(1,Math.round(km*2.2))} min)`;
+    const tx=`🏍️ Estou indo apoiar o *${S.n}* no SOS${dist}.`;
+    try{await navigator.clipboard.writeText(tx)}catch(_){}
+    if(q)otpPost({tipo:"sos_indo",email:q.email,s:q.s,id:S.id,dist:km==null?null:+km.toFixed(1)}).catch(()=>{});
+    else document.getElementById("srMsg").textContent="Entre no app uma vez com o seu e-mail para o seu aviso chegar ao irmão.";
+    if(navigator.share){try{await navigator.share({text:tx})}catch(_){}}
+    if(rota)location.href=rota};
+})();
 document.getElementById("f").addEventListener("submit",async ev=>{
   ev.preventDefault();erro.textContent="";
   solic.hidden=true;
@@ -496,7 +566,9 @@ ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximo
 <div class="card" id="instalar"><h2>📲 Instale o app</h2><p class="nota" style="margin:0 0 10px">Ícone na tela inicial, tela cheia e os avisos da divisão no seu celular.</p>
   <div class="qbts"><button class="qz" onclick="tutAbrir()">Ver como instalar</button></div></div>
 <div class="card" id="avisos"><h2>🔔 Avisos no celular</h2><p class="nota" id="avSt" style="margin:0 0 10px">Receba lembretes das listas e da agenda da divisão, só para você.</p>
-  <div class="qbts"><button id="avAt" class="qz">🔔 Ativar avisos</button><button id="avDes" hidden>Desativar</button></div></div>
+  <div class="qbts"><button id="avAt" class="qz">🔔 Ativar avisos</button><button id="avDes" hidden>Desativar</button></div>
+  <p class="nota" style="margin:12px 0 8px">🆘 Nos alertas de SOS, mostrar a que distância você está do irmão (a sua localização fica só neste celular):</p>
+  <div class="qbts"><button id="locAt">📍 Usar minha localização no SOS</button></div></div>
 <p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
 <button class="sair" onclick="try{sessionStorage.clear()}catch(e){}location.reload()">Sair</button>`;
 // lista de presenças com filtro e "Questionar"
@@ -542,6 +614,13 @@ document.getElementById("avAt").onclick=async()=>{if(ehIph()&&!ehApp()){alert("N
     alert("🔔 Avisos ativados neste celular!")}catch(e){alert("Não consegui ativar os avisos ("+(e.message||e)+").")}avTela()};
 document.getElementById("avDes").onclick=async()=>{try{const r=await navigator.serviceWorker.ready,s=await r.pushManager.getSubscription();
   if(s){await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push_sair",endpoint:s.endpoint})});await s.unsubscribe()}}catch(e){}alert("Avisos desativados.");avTela()};
+// SOS: guarda a localização só neste celular (a notificação calcula a distância sem mandar nada para ninguém)
+const locIdb=(v)=>new Promise(r=>{try{const o=indexedDB.open("insanos",1);o.onupgradeneeded=()=>o.result.createObjectStore("kv");o.onsuccess=()=>{const t=o.result.transaction("kv","readwrite");t.objectStore("kv").put(v,"loc");t.oncomplete=()=>r(1)};o.onerror=()=>r(0)}catch(e){r(0)}});
+const locPega=(avisa)=>navigator.geolocation&&navigator.geolocation.getCurrentPosition(p=>{locIdb({lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5),ts:Date.now()});
+  const b=document.getElementById("locAt");if(b){b.textContent="✅ Localização guardada neste celular";b.classList.add("qz")}if(avisa)alert("📍 Pronto! Nos alertas de SOS, você vai ver a que distância está do irmão.")},
+  ()=>{if(avisa)alert("Não consegui a localização. Libere a localização para este app nas configurações do celular.")},{enableHighAccuracy:false,timeout:10000,maximumAge:600000});
+document.getElementById("locAt").onclick=()=>locPega(true);
+try{navigator.permissions&&navigator.permissions.query({name:"geolocation"}).then(x=>{if(x.state==="granted")locPega(false)})}catch(_){}
 avTela();
 try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.getElementById("instalar").hidden=true}catch(e){}
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
@@ -1910,7 +1989,8 @@ def token_rsvp(email, d, nome):
 
 ADM_EMAILS = set()     # e-mails do comando (fixos + liberados): os avisos gerais vão só para eles
 
-def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None, rsvp=None):
+def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None, rsvp=None,
+              todos=False, excluir=None, extra=None):
     """Manda a notificação. Sem so_para: só para os celulares do comando (ADM).
     Com so_para: só para os celulares daquele e-mail (lembretes individuais dos irmãos)."""
     if not ACESSOS_URL or not os.path.exists(ARQ_VAPID_PEM):
@@ -1927,6 +2007,8 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
     if wp is None:
         return
     msg = {"title": titulo, "body": corpo, "tag": tag, "url": "adm.html"}
+    if extra:    # dados especiais da notificação (ex.: o SOS)
+        msg.update(extra)
     if link:     # botão da notificação que abre um endereço (ex.: "Abrir meu boleto")
         msg["link"] = link; msg["lrot"] = link_rot or "Abrir"
     if icone:    # imagem do aviso (pasta app: notif-pag.png, notif-evento.png, ...)
@@ -1941,8 +2023,10 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
         em = str(email).strip().lower()
         if so_para and em != str(so_para).strip().lower():
             continue            # aviso individual (ou de teste): só para aquele e-mail
-        if not so_para and ADM_EMAILS and em not in ADM_EMAILS:
-            continue            # aviso geral: só para o comando (os irmãos recebem só os lembretes deles)
+        if excluir and em == str(excluir).strip().lower():
+            continue            # ex.: quem pediu o SOS não recebe o próprio alerta
+        if not so_para and not todos and ADM_EMAILS and em not in ADM_EMAILS:
+            continue            # aviso geral: só para o comando (os irmãos recebem só os lembretes deles); o SOS vai para todos
         try:
             info = json.loads(sub) if isinstance(sub, str) else sub
             extra = {"para": em, "ru": ACESSOS_URL} if ACESSOS_URL and "@" in em else {}
@@ -2221,7 +2305,7 @@ def arquivos_app():
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v12";
+const CACHE = "insanos-v13";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2241,17 +2325,40 @@ self.addEventListener("push", e => {
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.actions = [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; op.requireInteraction = true; }
+  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
+  if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
+    op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.vibrate = [700, 200, 700, 200, 700];
+    const S = d.sos, temLoc = S.lat !== "" && S.lat != null;
+    if (temLoc) op.data.mapa = "https://www.google.com/maps/search/?api=1&query=" + S.lat + "," + S.lng;
+    op.actions = [{action: "indo", title: "🏍️ Estou indo"}].concat(temLoc ? [{action: "mapa", title: "📍 Ver no mapa"}] : []);
+    const comDist = temLoc ? idbGet("loc").then(l => {
+      if (!l) return;
+      const R = 6371, x = (S.lat - l.lat) * Math.PI / 180, y = (S.lng - l.lng) * Math.PI / 180;
+      const h = Math.sin(x / 2) ** 2 + Math.cos(l.lat * Math.PI / 180) * Math.cos(S.lat * Math.PI / 180) * Math.sin(y / 2) ** 2, km = 2 * R * Math.asin(Math.sqrt(h));
+      const velha = Date.now() - l.ts > 12 * 3600e3;
+      op.body += " · a ~" + (km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1).replace(".", ",") + " km") + " de você" + (velha ? " (localização antiga)" : "");
+    }).catch(() => {}) : Promise.resolve();
+    e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d)]));
+    return;
+  }
   // vibração própria de cada tipo de aviso (Android; o iPhone ignora): dá para reconhecer sem olhar o celular
   const VIB = {pag: [120, 90, 120], evento: [450], social: [450], pub: [450], insight: [150],
                cadastro: [200, 100, 200, 100, 200], niver: [100, 70, 100, 70, 100], aviso: [450, 120, 120]};
   const tipo = ((d.icon || "").match(/notif-([a-z]+)\\.png/) || [])[1] || (d.tag === "pagamento" ? "pag" : d.tag === "aniversario" ? "niver" : d.tag === "afastamento" ? "aviso" : "");
   op.vibrate = VIB[tipo] || [200];
-  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
   // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
-  const reg = (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
-      painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
-  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), reg]));
+  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), registrarRecebeu(d)]));
 });
+function registrarRecebeu(d) {
+  return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
+      painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
+}
+// última localização guardada neste celular (pela tela de entrada ou pelo Meu painel), para a distância do SOS
+function idbGet(k) {
+  return new Promise(r => { try { const o = indexedDB.open("insanos", 1); o.onupgradeneeded = () => o.result.createObjectStore("kv");
+    o.onsuccess = () => { try { const q = o.result.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => r(q.result || null); q.onerror = () => r(null); } catch (e) { r(null); } };
+    o.onerror = () => r(null); } catch (e) { r(null); } });
+}
 function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
 self.addEventListener("notificationclick", e => {
   e.notification.close();
@@ -2262,6 +2369,10 @@ self.addEventListener("notificationclick", e => {
       aparelho: aparelhoSW()})}).catch(() => {}));
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
+  if (dd.sosUrl) {   // SOS: "Ver no mapa" abre o mapa; "Estou indo" ou o toque abrem a tela com a distância exata
+    if (e.action === "mapa" && dd.mapa) { e.waitUntil(clients.openWindow(dd.mapa)); return; }
+    e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
+  }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
