@@ -425,6 +425,8 @@ try{navigator.permissions&&navigator.permissions.query({name:"geolocation"}).the
 const sosQuem=()=>{const c=otpCache();let best=null;for(const e in c)if(c[e].exp>Date.now()&&(!best||c[e].exp>c[best].exp))best=e;return best?{email:best,s:c[best].s}:null};
 const sosB=document.getElementById("sosB"),sosBox=document.getElementById("sosBox");
 if(P.otp&&sosQuem())sosB.hidden=false;
+if(location.hash==="#sos-abrir"){history.replaceState(null,"",location.pathname);   // veio pelo atalho do ícone do app
+  if(P.otp&&sosQuem()){sosBox.hidden=false;sosB.hidden=true}else erro.textContent="Para usar o SOS, entre uma vez com o seu e-mail neste celular."}
 let sosTexto="";
 sosB.onclick=()=>{sosBox.hidden=false;sosB.hidden=true;document.getElementById("sosMsg").textContent="";document.getElementById("sosAcoes").style.display="none"};
 document.getElementById("sosFechar").onclick=ev=>{ev.preventDefault();sosBox.hidden=true;sosB.hidden=!(P.otp&&sosQuem())};
@@ -2313,7 +2315,13 @@ def arquivos_app():
     def manifesto(nome, curto, inicio):
         return json.dumps({"id": inicio, "name": nome, "short_name": curto, "start_url": inicio, "scope": "./",
                            "display": "standalone", "orientation": "portrait", "background_color": "#000000", "theme_color": "#0b0b0b",
-                           "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)]},
+                           "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)],
+                           # atalhos: segurando o ícone do app (Android) aparecem estas opções
+                           "shortcuts": [
+                               {"name": "🆘 SOS · Preciso de ajuda", "short_name": "SOS", "description": "Pedir ajuda aos irmãos",
+                                "url": inicio + "#sos-abrir", "icons": [{"src": "atalho-sos.png", "sizes": "192x192", "type": "image/png"}]},
+                               {"name": "Próximos eventos", "short_name": "Eventos", "description": "Responder Vou / Não vou",
+                                "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
 const CACHE = "insanos-v13";
@@ -2421,7 +2429,7 @@ self.addEventListener("notificationclick", e => {
                 arq[f"icon-{t}.png"] = f.read()
     pasta_app = os.path.join(PASTA, "app")
     for nome in (sorted(os.listdir(pasta_app)) if os.path.isdir(pasta_app) else []):
-        if nome.startswith("notif-") and nome.endswith(".png"):     # imagens das notificações
+        if (nome.startswith("notif-") or nome.startswith("atalho-")) and nome.endswith(".png"):     # imagens das notificações e dos atalhos
             with open(os.path.join(pasta_app, nome), "rb") as f:
                 arq[nome] = f.read()
     return arq
