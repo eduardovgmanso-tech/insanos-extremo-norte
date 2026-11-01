@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v16";
+const CACHE = "insanos-v17";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -24,7 +24,7 @@ self.addEventListener("push", e => {
     op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
     op.vibrate = [1000, 250, 1000, 250, 1000, 250, 1000, 250, 1000];   // alarme (onde o celular respeitar o padrão)
     const S = d.sos, temLoc = S.lat !== "" && S.lat != null;
-    if (temLoc) op.data.mapa = "https://www.google.com/maps/search/?api=1&query=" + S.lat + "," + S.lng;
+    if (temLoc) op.data.mapa = (d.url || "adm.html") + "&mapa=1";   // o mapa abre dentro do painel (o app do Maps às vezes se perde)
     op.actions = [{action: "indo", title: "🏍️ Estou indo"}].concat(temLoc ? [{action: "mapa", title: "📍 Ver no mapa"}] : []);
     const comDist = temLoc ? idbGet("loc").then(l => {
       if (!l) return;
