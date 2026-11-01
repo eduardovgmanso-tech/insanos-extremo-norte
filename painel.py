@@ -326,6 +326,7 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
   <div id="sosResp" hidden style="margin:0 0 14px;padding:14px;border-radius:14px;background:rgba(198,40,40,.12);border:1px solid rgba(198,40,40,.6);text-align:left">
     <p id="srTit" style="margin:0 0 4px;font-weight:900;font-size:17px"></p><p id="srSub" style="margin:0 0 10px;font-size:14px;color:#ECE7DC"></p>
     <p id="srDist" style="margin:0 0 12px;font-size:16px;font-weight:800;color:#E9B949">📍 Calculando a sua distância…</p>
+    <div id="srMapaBox" style="display:none;margin:0 0 12px;border-radius:12px;overflow:hidden;border:1px solid rgba(236,231,220,.25)"><iframe id="srMapaF" title="Local do SOS" style="width:100%;height:280px;border:0;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <button type="button" id="srIndo" class="sosG">🏍️ Estou indo (avisa e abre a rota)</button>
       <button type="button" id="srMapa" class="sosS">📍 Ver no mapa</button><button type="button" id="srNao" class="sosS">Não consigo ir</button></div>
@@ -466,13 +467,17 @@ document.getElementById("sosCopiar").onclick=async()=>{try{await navigator.clipb
   const box=document.getElementById("sosResp");box.hidden=false;sosB.hidden=true;
   ["cpf","b","bioB"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");
   document.getElementById("srTit").textContent=`🆘 SOS · ${S.n} precisa de ajuda`;document.getElementById("srSub").textContent=`${S.e||"🆘"} ${S.t} · ${S.q}`;
-  const tem=S.lat!==""&&S.lat!=null,mapa=tem?`https://www.google.com/maps/search/?api=1&query=${S.lat},${S.lng}`:"",rota=tem?`https://www.google.com/maps/dir/?api=1&destination=${S.lat},${S.lng}&travelmode=driving`:"";
+  const tem=S.lat!==""&&S.lat!=null,rota=tem?`https://www.google.com/maps/dir/?api=1&destination=${S.lat}%2C${S.lng}&travelmode=driving`:"";
+  // "Ver no mapa": o mapa aparece aqui mesmo (sem abrir o site ou o app do Google Maps, que às vezes se perde)
+  const mostraMapa=()=>{if(!tem)return;const f=document.getElementById("srMapaF");if(!f.src)f.src=`https://maps.google.com/maps?q=${S.lat}%2C${S.lng}&z=16&hl=pt-BR&output=embed`;
+    document.getElementById("srMapaBox").style.display="block";document.getElementById("srMapa").textContent="📍 Mapa aberto acima"};
+  if(/&mapa=1/.test(h))mostraMapa();
   let km=null;const di=document.getElementById("srDist");
   if(!tem)di.textContent="📍 Ele não conseguiu mandar a localização. Combine pelo grupo.";
   else sosGps(true).then(l=>{if(!l){di.textContent="📍 Não consegui a sua localização. Toque em Ver no mapa.";return}
     km=sosKm(l.lat,l.lng,+S.lat,+S.lng);const min=Math.max(1,Math.round(km*2.2));
     di.textContent=`📍 Você está a ${km<1?Math.round(km*1000)+" m":km.toFixed(1).replace(".",",")+" km"} do ${S.n} · ~${min} min de moto`});
-  document.getElementById("srMapa").onclick=()=>{if(mapa)location.href=mapa};
+  document.getElementById("srMapa").onclick=mostraMapa;
   const respondeu=()=>sosIdbGet("sos_ativo").then(a=>{if(a&&a.d&&a.d.id===S.id){a.resp=true;sosIdbSet("sos_ativo",a)}});
   document.getElementById("srNao").onclick=()=>{respondeu();box.hidden=true;history.replaceState(null,"",location.pathname);["cpf","b"].forEach(id=>document.getElementById(id).hidden=false);document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");if(P.otp&&sosQuem())sosB.hidden=false};
   document.getElementById("srIndo").onclick=async()=>{respondeu();const q=sosQuem(),dist=km==null?"":` · estou a ${km.toFixed(1).replace(".",",")} km (uns ${Math.max(1,Math.round(km*2.2))} min)`;
@@ -595,7 +600,7 @@ ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximo
       <li>Abra as <b>Configurações</b> do celular › <b>Apps</b> (ou Aplicativos).</li>
       <li>Toque em <b>Insanos ADM</b>. Se não aparecer, toque em <b>Chrome</b>.</li>
       <li>Toque em <b>Notificações</b> e confira se estão <b>ativadas</b>.</li>
-      <li>Toque na categoria das notificações do painel (no Chrome, em <b>Sites</b> › <b>eduardovgmanso-tech.github.io</b>).</li>
+      <li>Toque na categoria das notificações do painel (no Chrome, em <b>Sites</b> › o endereço do painel, que termina em <b>github.io</b>).</li>
       <li>Em <b>Som</b>, escolha um toque <b>alto</b> (um de alarme é o ideal).</li>
       <li>Ative <b>Mostrar como pop-up</b> (ou <b>Prioridade alta / Alertar</b>) e <b>Vibração</b>.</li>
       <li>Ative <b>Ignorar Não perturbe</b> (ou <b>Exceções do Não perturbe</b>), para o SOS tocar mesmo no silencioso.</li>
@@ -2345,7 +2350,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v16";
+const CACHE = "insanos-v17";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2370,7 +2375,7 @@ self.addEventListener("push", e => {
     op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
     op.vibrate = [1000, 250, 1000, 250, 1000, 250, 1000, 250, 1000];   // alarme (onde o celular respeitar o padrão)
     const S = d.sos, temLoc = S.lat !== "" && S.lat != null;
-    if (temLoc) op.data.mapa = "https://www.google.com/maps/search/?api=1&query=" + S.lat + "," + S.lng;
+    if (temLoc) op.data.mapa = (d.url || "adm.html") + "&mapa=1";   // o mapa abre dentro do painel (o app do Maps às vezes se perde)
     op.actions = [{action: "indo", title: "🏍️ Estou indo"}].concat(temLoc ? [{action: "mapa", title: "📍 Ver no mapa"}] : []);
     const comDist = temLoc ? idbGet("loc").then(l => {
       if (!l) return;
