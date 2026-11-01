@@ -313,6 +313,10 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
       <button type="button" data-sos="seguranca" class="sosT">⚠️ Segurança</button><button type="button" data-sos="outro" class="sosT">🆘 Outro</button></div>
     <p style="margin:12px 0 6px;font-size:13px">⚠️ <b>Risco de vida?</b> Ligue primeiro:</p>
     <div style="display:flex;gap:6px"><a class="sosTel" href="tel:190">190 Polícia</a><a class="sosTel" href="tel:192">192 SAMU</a><a class="sosTel" href="tel:193">193 Bombeiros</a></div>
+    <div id="sosConf" style="display:none;margin-top:12px;padding:12px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(198,40,40,.7)">
+      <p id="sosConfTxt" style="margin:0 0 10px;font-size:15px;line-height:1.4"></p>
+      <button type="button" id="sosConfSim" style="width:100%;padding:14px;border-radius:12px;border:0;background:#c62828;color:#fff;font-weight:900;font-size:16px">🆘 Sim, enviar o SOS</button>
+      <button type="button" id="sosConfNao" class="sosS" style="width:100%;margin-top:8px">Cancelar</button></div>
     <p id="sosMsg" style="margin:12px 0 0;font-size:14px;line-height:1.4"></p>
     <div id="sosAcoes" style="display:none;flex-direction:column;gap:8px;margin-top:10px">
       <button type="button" id="sosZap" class="sosG">📤 Mandar nos grupos (WhatsApp)</button><button type="button" id="sosCopiar" class="sosS">📋 Copiar a mensagem</button></div>
@@ -424,9 +428,16 @@ if(P.otp&&sosQuem())sosB.hidden=false;
 let sosTexto="";
 sosB.onclick=()=>{sosBox.hidden=false;sosB.hidden=true;document.getElementById("sosMsg").textContent="";document.getElementById("sosAcoes").style.display="none"};
 document.getElementById("sosFechar").onclick=ev=>{ev.preventDefault();sosBox.hidden=true;sosB.hidden=!(P.otp&&sosQuem())};
-document.querySelectorAll(".sosT").forEach(b=>b.onclick=async()=>{const q=sosQuem();if(!q)return;const cat=b.dataset.sos,nome=b.textContent.trim();
+let sosPend=null;
+document.querySelectorAll(".sosT").forEach(b=>b.onclick=()=>{if(!sosQuem())return;
+  sosPend={cat:b.dataset.sos,nome:b.textContent.trim(),gps:sosGps(true)};   // a localização já começa a ser pega enquanto confirma
+  document.getElementById("sosConfTxt").innerHTML=`Confirmar o SOS de <b>${sosPend.nome}</b>?<br><span style="font-size:13px;color:#B8B2A6">Todos os irmãos com o app serão avisados, com a sua localização.</span>`;
+  document.getElementById("sosConf").style.display="block";document.getElementById("sosMsg").textContent="";document.getElementById("sosAcoes").style.display="none"});
+document.getElementById("sosConfNao").onclick=()=>{sosPend=null;document.getElementById("sosConf").style.display="none"};
+document.getElementById("sosConfSim").onclick=async()=>{const q=sosQuem();if(!q||!sosPend)return;const {cat,nome}=sosPend;
+  document.getElementById("sosConf").style.display="none";
   const m=document.getElementById("sosMsg");m.textContent="📍 Pegando a sua localização…";document.querySelectorAll(".sosT").forEach(x=>x.disabled=true);
-  const l=await sosGps(true);const quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const l=await sosPend.gps;sosPend=null;const quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
   const monta=quem=>`🆘 *SOS · Insanos M.C.*\n${quem?`*${quem}*`:"Um irmão"} (Divisão ${document.title.split(" - ")[0]}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`;
   sosTexto=monta(localStorage.getItem("sos_nome")||"");
   try{await navigator.clipboard.writeText(sosTexto)}catch(_){}
@@ -435,7 +446,7 @@ document.querySelectorAll(".sosT").forEach(b=>b.onclick=async()=>{const q=sosQue
     if(j.ok&&j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}sosTexto=monta(j.nome);try{await navigator.clipboard.writeText(sosTexto)}catch(_){}}
     m.innerHTML=j.ok?"✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:":"⚠️ "+(j.erro||"Não consegui enviar o alerta.")+" Mande nos grupos:"}
   catch(e){m.innerHTML="⚠️ Não consegui enviar o alerta (sem internet?). <b>Mande nos grupos:</b>"}
-  document.getElementById("sosAcoes").style.display="flex";document.querySelectorAll(".sosT").forEach(x=>x.disabled=false)});
+  document.getElementById("sosAcoes").style.display="flex";document.querySelectorAll(".sosT").forEach(x=>x.disabled=false)};
 document.getElementById("sosZap").onclick=async()=>{if(navigator.share){try{await navigator.share({text:sosTexto});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(sosTexto),"_blank")};
 document.getElementById("sosCopiar").onclick=async()=>{try{await navigator.clipboard.writeText(sosTexto);document.getElementById("sosCopiar").textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(sosTexto)}};
 // ---- resposta ao SOS (aberta pela notificação): distância exata, "Estou indo" com aviso, grupos e rota
