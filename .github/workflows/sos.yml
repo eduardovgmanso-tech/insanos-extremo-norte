@@ -1,0 +1,40 @@
+name: SOS (alerta rápido)
+
+on:
+  repository_dispatch:      # o projeto do código por e-mail acorda esta rotina quando alguém aperta o SOS
+    types: [sos]
+  workflow_dispatch:        # botão "Run workflow" (para testar)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sos
+  cancel-in-progress: false
+
+jobs:
+  alerta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar componentes
+        run: pip install --quiet openpyxl cryptography google-auth google-api-python-client pywebpush
+      - name: Mandar o alerta do SOS
+        env:
+          TZ: America/Sao_Paulo
+          SOMENTE_SOS: "1"
+          MODO: ${{ github.event_name }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          PLANILHA_ID: ${{ secrets.PLANILHA_ID }}
+          PUSH_VAPID_PEM: ${{ secrets.PUSH_VAPID_PEM }}
+          PUSH_VAPID_PUB: ${{ secrets.PUSH_VAPID_PUB }}
+          ACESSOS_URL: ${{ secrets.ACESSOS_URL }}
+          ACESSOS_CHAVE: ${{ secrets.ACESSOS_CHAVE }}
+          OTP_URL: ${{ secrets.OTP_URL }}
+          OTP_SEGREDO: ${{ secrets.OTP_SEGREDO }}
+          NOTIFICAR: ${{ secrets.NOTIFICAR }}
+        run: python nuvem.py
