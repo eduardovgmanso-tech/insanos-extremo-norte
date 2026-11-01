@@ -2324,7 +2324,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v13";
+const CACHE = "insanos-v14";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2380,8 +2380,9 @@ function idbGet(k) {
 }
 function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
 self.addEventListener("notificationclick", e => {
-  e.notification.close();
   const dd = e.notification.data || {};
+  const soMapa = !!(dd.sosUrl && e.action === "mapa");
+  if (!soMapa) e.notification.close();   // SOS · "Ver no mapa": a notificação fica, para depois tocar em "Estou indo"
   if (dd.ru && dd.para)    // controle: o irmão tocou no aviso
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
       painel: "👆 Abriu: " + (dd.tt || "") + (e.action === "link" ? " (" + (e.notification.actions && e.notification.actions[0] ? e.notification.actions[0].title : "botão") + ")" : ""),
@@ -2389,7 +2390,13 @@ self.addEventListener("notificationclick", e => {
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
   if (dd.sosUrl) {   // SOS: "Ver no mapa" abre o mapa; "Estou indo" ou o toque abrem a tela com a distância exata
-    if (e.action === "mapa" && dd.mapa) { e.waitUntil(clients.openWindow(dd.mapa)); return; }
+    if (e.action === "mapa" && dd.mapa) {
+      const n = e.notification;   // alguns celulares fecham a notificação ao tocar no botão: ela volta, em silêncio
+      e.waitUntil(Promise.all([clients.openWindow(dd.mapa),
+        self.registration.showNotification(n.title, {body: n.body, icon: n.icon, badge: n.badge, tag: n.tag, data: dd,
+          actions: n.actions, requireInteraction: true, renotify: false, silent: true})]));
+      return;
+    }
     e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
   }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
