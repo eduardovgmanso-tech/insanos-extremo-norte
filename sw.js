@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v14";
+const CACHE = "insanos-v15";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -21,7 +21,8 @@ self.addEventListener("push", e => {
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.actions = [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; op.requireInteraction = true; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
   if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
-    op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.vibrate = [700, 200, 700, 200, 700];
+    op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
+    op.vibrate = [1000, 250, 1000, 250, 1000, 250, 1000, 250, 1000];   // alarme (onde o celular respeitar o padrão)
     const S = d.sos, temLoc = S.lat !== "" && S.lat != null;
     if (temLoc) op.data.mapa = "https://www.google.com/maps/search/?api=1&query=" + S.lat + "," + S.lng;
     op.actions = [{action: "indo", title: "🏍️ Estou indo"}].concat(temLoc ? [{action: "mapa", title: "📍 Ver no mapa"}] : []);
