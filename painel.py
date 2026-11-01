@@ -1225,10 +1225,16 @@ def _ler_boleto(url):
     v = re.search(r"Vencimento\D{0,40}(\d{2})/(\d{2})/(\d{4})", texto, re.I)
     venc = datetime.date(int(v.group(3)), int(v.group(2)), int(v.group(1))) if v else None
     selo = selo.group(1).strip() if selo else None
-    if not selo:   # página do Sistema Insanos (FaturaCopiaCola): a situação vem logo depois do vencimento
-        m = re.search(r"Vencimento:?\s*\d{2}/\d{2}/\d{4}\s*(Pago em Dia|Pago Atrasado|Pago|A Vencer|Vencid[ao]|Em Aberto|Atrasad[ao]|Cancelad[ao]|Isent[ao])", texto, re.I)
+    if not selo:   # página do Sistema Insanos (FaturaCopiaCola): a situação é um botão colorido ao lado do vencimento
+        SIT = r"(Pago em Dia|Pago Atrasado|Pago|A Vencer|Vencid[ao]|Em Aberto|Atrasad[ao]|Cancelad[ao]|Isent[ao])"
+        # 1) dentro do botão/campo (o texto fica no atributo value, title ou alt, e não aparece como texto da página)
+        m = re.search(r'(?:value|title|alt)\s*=\s*["\']\s*' + SIT + r'\s*["\']', bruto, re.I)
+        # 2) como texto, logo depois do vencimento
         if not m:
-            m = re.search(r"\b(Pago em Dia|Pago Atrasado|A Vencer|Vencid[ao]|Em Aberto|Cancelad[ao]|Isent[ao])\b", texto, re.I)
+            m = re.search(r"Vencimento:?\s*\d{2}/\d{2}/\d{4}\s*" + SIT, texto, re.I)
+        # 3) no código da página, logo depois do vencimento (ex.: escrito por um script ou em outro tipo de elemento)
+        if not m:
+            m = re.search(r"Vencimento.{0,1500}?[>\"'\s]" + SIT + r"[<\"'\s]", bruto, re.I | re.S)
         selo = m.group(1).strip() if m else None
     return selo, venc
 
