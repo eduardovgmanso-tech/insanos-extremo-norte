@@ -517,6 +517,8 @@ def _mes_k(v):
     m = _re.search(r"(\d{1,2})/(\d{4})", str((list(v[0]) + [""] * 11)[10] if v else ""))
     return (int(m.group(2)), int(m.group(1))) if m else None
 
+BOLETOS_DISPONIVEIS = []   # meses cujos boletos acabaram de entrar na coluna J (nesta rodada)
+
 def aplicar_boletos(api, pid, d):
     """Boletos lidos no Sistema Insanos (botão no navegador): grava o link de cada irmão na PGTO.
     Mês atual (ou anterior): coluna J. Mês seguinte (boleto pago antes): coluna K, sem mexer no mês atual."""
@@ -551,6 +553,8 @@ def aplicar_boletos(api, pid, d):
         else:
             sem_linha.append(ap)
     _gravar(api, pid, gr)
+    if (feitos or iguais) and not futuro:                 # (o aviso sai uma vez só por mês, mesmo clicando no favorito de novo)
+        BOLETOS_DISPONIVEIS.append(f"{ano}-{mes:02d}")       # avisa quem não pagou: "o boleto já está disponível"
     res = f"boletos de {d.get('mes', '')}: {len(feitos)} link(s) gravado(s)"
     if futuro:
         res += f" na coluna K (mês seguinte: entram na J no dia 01/{mes:02d})"
@@ -577,6 +581,8 @@ def promover_antecipados(api, pid):
             gr += [(f"'{aba}'!J{i}", link), (f"'{aba}'!K{i}", "")]; n += 1
     gr.append((f"'{aba}'!K1", "Boleto do próximo mês"))
     _gravar(api, pid, gr)
+    if n:
+        BOLETOS_DISPONIVEIS.append(f"{mk[0]}-{mk[1]:02d}")
     print(f"Virada do mês: {n} boleto(s) do mês {mk[1]:02d}/{mk[0]} passaram da coluna K para a J.")
     return n
 
@@ -875,6 +881,55 @@ def enviar_convites(g, eventos_novos):
     if n:
         print(f"Convites com Vou / Não vou enviados: {n}.")
 
+def enviar_boleto_disponivel(g):
+    """Assim que os boletos do mês entram na planilha: aviso na hora para quem ainda não pagou, e mais um no dia seguinte (9h).
+    Depois disso, só os lembretes de 3, 2, 1 dia antes e do dia do vencimento (enviar_lembretes)."""
+    L = getattr(g, "LEMBRETES", None) or {}
+    try:
+        venc = datetime.date.fromisoformat(str(L.get("venc"))[:10])
+    except Exception:
+        return
+    mes_k = f"{venc.year}-{venc.month:02d}"
+    env = _json_ler("lembretes_enviados.json", {})
+    agora = datetime.datetime.now(); hoje = agora.date()
+    chave_dia = f"9999|disp|{mes_k}"                     # dia em que os boletos ficaram disponíveis (o 9999 evita a limpeza dos 3 dias)
+    if mes_k in BOLETOS_DISPONIVEIS and chave_dia not in env:
+        env[chave_dia] = hoje.isoformat()
+    dia = env.get(chave_dia)
+    if not dia:
+        return
+    try:
+        dia = datetime.date.fromisoformat(dia)
+    except ValueError:
+        return
+    if hoje == dia:
+        vez = 1
+    elif hoje == dia + datetime.timedelta(days=1) and agora.hour >= 9:
+        vez = 2
+    else:
+        _json_gravar("lembretes_enviados.json", env); return
+    if hoje > venc:
+        _json_gravar("lembretes_enviados.json", env); return
+    mes, dv, n = MESES_PT[venc.month - 1], venc.strftime("%d/%m"), 0
+    for p in L.get("pessoas", []):
+        if p.get("pago"):
+            continue
+        k = f"9999|disp{vez}|{mes_k}|{p['email']}"
+        if k in env or f"{hoje}|pag|{p['email']}" in env:     # já avisado (ou já recebeu o lembrete do dia)
+            continue
+        ap = p["n"]
+        corpo = (f"Fala, {ap}! O boleto da mensalidade de {mes} já está disponível (vence em {dv}). Está a um toque, aqui embaixo. 🤝" if vez == 1 else
+                 f"{ap}, passando para lembrar que o boleto de {mes} está disponível, com vencimento em {dv}. Se já pagou, obrigado e pode desconsiderar. 💀")
+        link = p.get("boleto") if str(p.get("boleto", "")).startswith("http") else None
+        try:
+            g.notificar("📅 Agenda da divisão", corpo, "lembrete-pag", icone="notif-pag.png", so_para=p["email"], link=link, link_rot="Abrir meu boleto")
+            env[k] = 1; env[f"{hoje}|pag|{p['email']}"] = 1; n += 1
+        except Exception as e:
+            print(f"Aviso: aviso de boleto disponível não enviado ({e}).")
+    _json_gravar("lembretes_enviados.json", env)
+    if n:
+        print(f"Boleto disponível ({vez}º aviso): {n} irmão(s) avisado(s).")
+
 def enviar_lembretes(g):
     """Lembretes individuais (só para o irmão): insights sem resposta (13h e 19h), eventos sem confirmação
     (9h, 13h e 19h, até o dia do evento) e a agenda da mensalidade (9h, de 3 dias antes até o vencimento)."""
@@ -888,7 +943,7 @@ def enviar_lembretes(g):
     hoje = agora.date()
     env = _json_ler("lembretes_enviados.json", {})
     corte = (hoje - datetime.timedelta(days=3)).isoformat()
-    env = {k: v for k, v in env.items() if k[:10] >= corte}
+    env = {k: v for k, v in env.items() if k[:10] >= corte or k.startswith("9999|")}
     br = lambda d: f"{d[8:10]}/{d[5:7]}"
     n_env = 0
     def manda(chave, *a, **k):
@@ -1394,6 +1449,10 @@ def main():
             except Exception as e:
                 print(f"Aviso: aviso das respostas não enviado ({e}).")
             RESPOSTAS.clear()
+        try:
+            enviar_boleto_disponivel(g)
+        except Exception as e:
+            print(f"Aviso: aviso de boleto disponível falhou ({type(e).__name__}: {e}).")
         if evento == "schedule":
             try:
                 enviar_lembretes(g)
