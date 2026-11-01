@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v12";
+const CACHE = "insanos-v13";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -19,17 +19,40 @@ self.addEventListener("push", e => {
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.actions = [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; op.requireInteraction = true; }
+  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
+  if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
+    op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.vibrate = [700, 200, 700, 200, 700];
+    const S = d.sos, temLoc = S.lat !== "" && S.lat != null;
+    if (temLoc) op.data.mapa = "https://www.google.com/maps/search/?api=1&query=" + S.lat + "," + S.lng;
+    op.actions = [{action: "indo", title: "🏍️ Estou indo"}].concat(temLoc ? [{action: "mapa", title: "📍 Ver no mapa"}] : []);
+    const comDist = temLoc ? idbGet("loc").then(l => {
+      if (!l) return;
+      const R = 6371, x = (S.lat - l.lat) * Math.PI / 180, y = (S.lng - l.lng) * Math.PI / 180;
+      const h = Math.sin(x / 2) ** 2 + Math.cos(l.lat * Math.PI / 180) * Math.cos(S.lat * Math.PI / 180) * Math.sin(y / 2) ** 2, km = 2 * R * Math.asin(Math.sqrt(h));
+      const velha = Date.now() - l.ts > 12 * 3600e3;
+      op.body += " · a ~" + (km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1).replace(".", ",") + " km") + " de você" + (velha ? " (localização antiga)" : "");
+    }).catch(() => {}) : Promise.resolve();
+    e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d)]));
+    return;
+  }
   // vibração própria de cada tipo de aviso (Android; o iPhone ignora): dá para reconhecer sem olhar o celular
   const VIB = {pag: [120, 90, 120], evento: [450], social: [450], pub: [450], insight: [150],
                cadastro: [200, 100, 200, 100, 200], niver: [100, 70, 100, 70, 100], aviso: [450, 120, 120]};
   const tipo = ((d.icon || "").match(/notif-([a-z]+)\.png/) || [])[1] || (d.tag === "pagamento" ? "pag" : d.tag === "aniversario" ? "niver" : d.tag === "afastamento" ? "aviso" : "");
   op.vibrate = VIB[tipo] || [200];
-  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
   // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
-  const reg = (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
-      painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
-  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), reg]));
+  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), registrarRecebeu(d)]));
 });
+function registrarRecebeu(d) {
+  return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
+      painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
+}
+// última localização guardada neste celular (pela tela de entrada ou pelo Meu painel), para a distância do SOS
+function idbGet(k) {
+  return new Promise(r => { try { const o = indexedDB.open("insanos", 1); o.onupgradeneeded = () => o.result.createObjectStore("kv");
+    o.onsuccess = () => { try { const q = o.result.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => r(q.result || null); q.onerror = () => r(null); } catch (e) { r(null); } };
+    o.onerror = () => r(null); } catch (e) { r(null); } });
+}
 function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
 self.addEventListener("notificationclick", e => {
   e.notification.close();
@@ -40,6 +63,10 @@ self.addEventListener("notificationclick", e => {
       aparelho: aparelhoSW()})}).catch(() => {}));
   // botão "Enviar no WhatsApp" (Android/computador) ou toque na notificação no iPhone (que não mostra botões):
   // abre o painel com a caixa da mensagem (o site do WhatsApp quebra os emojis; de lá o painel abre o app direto)
+  if (dd.sosUrl) {   // SOS: "Ver no mapa" abre o mapa; "Estou indo" ou o toque abrem a tela com a distância exata
+    if (e.action === "mapa" && dd.mapa) { e.waitUntil(clients.openWindow(dd.mapa)); return; }
+    e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
+  }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
