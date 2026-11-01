@@ -4,7 +4,7 @@ Painel Insanos na nuvem (GitHub Actions).
 2) Roda o mesmo programa do painel (painel.py) e publica neste repositório.
 Nada de dados pessoais fica no repositório: a planilha temporária existe só durante a execução.
 """
-import os, sys, json, datetime, unicodedata, re
+import os, sys, json, datetime, unicodedata, re, base64
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
@@ -746,16 +746,44 @@ def aplicar_respostas(api, pid, g):
     RESPOSTAS.extend(feitas)
     return feitas
 
+def _num(x):
+    """Número vindo da planilha em português: "-23,58" ou "-23.58" -> -23.58 (vazio -> None)."""
+    t = str(x if x is not None else "").strip()
+    if not t:
+        return None
+    if "," in t:
+        t = t.replace(".", "").replace(",", ".")
+    try:
+        return float(t)
+    except ValueError:
+        return None
+
+NOVOS_SOS = []          # SOS enviados nesta rodada (a rotina rápida repete o alerta se ninguém confirmar)
+
 SOS_TIPOS = {"pane": ("🛵", "Pane/acidente de moto"), "saude": ("🚑", "Saúde"), "seguranca": ("⚠️", "Segurança"), "outro": ("🆘", "Outro")}
 
-def processar_sos(api, pid, g):
-    """SOS: alerta para todos os irmãos (com a localização) e aviso de quem está indo (para quem pediu e para o comando)."""
-    import base64
+def processar_sos(api, pid, g, repeticao=None):
+    """SOS: alerta para todos os irmãos (com a localização) e aviso de quem está indo (para quem pediu e para o comando).
+    repeticao={"id": ..., "n": 2 ou 3}: manda de novo o alerta daquele SOS (ninguém confirmou que está indo)."""
     if "SOS" not in _ids(api, pid):
         return 0
     v = _ler(api, pid, "'SOS'!A1:J600")
     linhas = [(i, list(r) + [""] * 10) for i, r in enumerate(v[1:], start=2)]
     sos = {r[2]: r for _, r in linhas if str(r[1]) == "SOS"}
+    if repeticao:      # repetição do alerta: não muda nada na aba, só manda de novo
+        r = sos.get(repeticao["id"])
+        if r and not any(str(x[1]) == "Estou indo" and x[2] == repeticao["id"] for _, x in linhas):
+            emo, nome_tipo = SOS_TIPOS.get(str(r[5]), SOS_TIPOS["outro"])
+            lat, lng = _num(r[6]), _num(r[7])
+            mh = re.search(r"(\d{1,2}):(\d{2})", str(r[0]))
+            hora = f"{int(mh.group(1)):02d}:{mh.group(2)}" if mh else ""
+            dados = {"id": repeticao["id"], "lat": lat, "lng": lng, "n": str(r[4]), "t": nome_tipo, "e": emo, "q": hora}
+            url = "adm.html#sos=" + base64.urlsafe_b64encode(json.dumps(dados, ensure_ascii=False).encode()).decode().rstrip("=")
+            g.notificar(f"🆘 SOS ({repeticao['n']}º aviso) · {r[4]} ainda precisa de ajuda", f"{emo} {nome_tipo} · desde as {hora} · ninguém confirmou ainda",
+                        f"sos-{repeticao['id']}", icone="notif-aviso.png", todos=True, excluir=str(r[3]).strip().lower(), extra={"sos": dados, "url": url})
+            print(f"SOS {repeticao['id']}: {repeticao['n']}º aviso enviado (ninguém confirmou ainda).")
+            return 1
+        return 0
     gr, n = [], 0
     for i, r in linhas:
         if str(r[9]).strip().lower() != "novo":
@@ -764,18 +792,20 @@ def processar_sos(api, pid, g):
         try:
             if reg == "SOS":
                 emo, nome_tipo = SOS_TIPOS.get(cat, SOS_TIPOS["outro"])
-                lat, lng = r[6], r[7]
+                lat, lng = _num(r[6]), _num(r[7])      # a planilha em português guarda com vírgula: o mapa precisa de ponto
                 mh = re.search(r"(\d{1,2}):(\d{2})", str(r[0]))           # a hora do pedido (registrada na aba SOS)
                 hora = f"{int(mh.group(1)):02d}:{mh.group(2)}" if mh else datetime.datetime.now().strftime("%H:%M")
                 dados = {"id": sid, "lat": lat, "lng": lng, "n": ap, "t": nome_tipo, "e": emo, "q": hora}
                 url = "adm.html#sos=" + base64.urlsafe_b64encode(json.dumps(dados, ensure_ascii=False).encode()).decode().rstrip("=")
-                corpo = f"{emo} {nome_tipo} · {dados['q']}" + ("" if lat not in ("", None) else " · sem localização")
+                corpo = f"{emo} {nome_tipo} · {dados['q']}" + ("" if lat is not None else " · sem localização")
                 g.notificar(f"🆘 SOS · {ap} precisa de ajuda", corpo, f"sos-{sid}", icone="notif-aviso.png",
                             todos=True, excluir=email, extra={"sos": dados, "url": url})
                 print(f"SOS de {ap} enviado para todos os irmãos.")
+                NOVOS_SOS.append(sid)
             elif reg == "Estou indo":
                 orig = sos.get(sid)
-                dist = f" · a {str(r[8]).replace('.', ',')} km" if str(r[8]) not in ("", "None") else ""
+                km = _num(r[8])
+                dist = f" · a {str(round(km, 1)).replace('.', ',')} km" if km is not None else ""
                 if orig:
                     g.notificar(f"🏍️ {ap} está indo te ajudar", f"Aguenta firme, irmão{dist}. 🤝", f"sos-indo-{sid}", icone="notif-aviso.png",
                                 so_para=str(orig[3]).strip().lower())
@@ -787,6 +817,27 @@ def processar_sos(api, pid, g):
             print(f"Aviso: SOS não processado ({type(e).__name__}: {e}).")
     _gravar(api, pid, gr)
     return n
+
+def acompanhar_sos(api, pid, g, dormir=None, relogio=None):
+    """Durante ~3 minutos: avisa na hora quem está indo e repete o alerta (com 1 e 3 minutos) se ninguém confirmar."""
+    import time
+    dormir, relogio = dormir or time.sleep, relogio or time.time
+    inicio, pendentes = relogio(), {sid: [60, 180] for sid in NOVOS_SOS}
+    while pendentes and relogio() - inicio < 200:
+        dormir(15)
+        try:
+            processar_sos(api, pid, g)                   # "Estou indo" que chegaram enquanto isso
+            passou = relogio() - inicio
+            for sid in list(pendentes):
+                if pendentes[sid] and passou >= pendentes[sid][0]:
+                    n = 4 - len(pendentes[sid])          # 2º aviso, depois 3º
+                    if not processar_sos(api, pid, g, repeticao={"id": sid, "n": n}):
+                        pendentes.pop(sid); continue  # alguém já confirmou: para de repetir
+                    pendentes[sid].pop(0)
+                if sid in pendentes and not pendentes[sid]:
+                    pendentes.pop(sid)
+        except Exception as e:
+            print(f"Aviso: acompanhamento do SOS falhou ({type(e).__name__}: {e}).")
 
 def escrever_otp(api, pid, g):
     """Código por e-mail: escreve na aba escondida "_otp" os e-mails dos visitantes ativos
@@ -1186,6 +1237,7 @@ def main():
     if os.environ.get("SOMENTE_SOS"):       # rotina rápida do SOS (sos.yml): só o alerta, sem gerar o painel
         preparar_ambiente()
         print(f"SOS: {processar_sos(api, planilha_id, g)} registro(s) processado(s).")
+        acompanhar_sos(api, planilha_id, g)
         return
     aba_estado = estado_carregar(api, planilha_id)
     resumo_fila = processar_fila(api, planilha_id)

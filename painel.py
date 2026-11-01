@@ -580,6 +580,17 @@ ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximo
   <div class="qbts"><button class="qz" onclick="tutAbrir()">Ver como instalar</button></div></div>
 <div class="card" id="avisos"><h2>🔔 Avisos no celular</h2><p class="nota" id="avSt" style="margin:0 0 10px">Receba lembretes das listas e da agenda da divisão, só para você.</p>
   <div class="qbts"><button id="avAt" class="qz">🔔 Ativar avisos</button><button id="avDes" hidden>Desativar</button></div>
+  <details style="margin-top:12px"><summary>🔊 Deixar o alerta do SOS bem alto (Android)</summary>
+    <ol class="nota" style="margin:8px 0 0;padding-left:18px;line-height:1.5">
+      <li>Abra as <b>Configurações</b> do celular › <b>Apps</b> (ou Aplicativos).</li>
+      <li>Toque em <b>Insanos ADM</b>. Se não aparecer, toque em <b>Chrome</b>.</li>
+      <li>Toque em <b>Notificações</b> e confira se estão <b>ativadas</b>.</li>
+      <li>Toque na categoria das notificações do painel (no Chrome, em <b>Sites</b> › <b>eduardovgmanso-tech.github.io</b>).</li>
+      <li>Em <b>Som</b>, escolha um toque <b>alto</b> (um de alarme é o ideal).</li>
+      <li>Ative <b>Mostrar como pop-up</b> (ou <b>Prioridade alta / Alertar</b>) e <b>Vibração</b>.</li>
+      <li>Ative <b>Ignorar Não perturbe</b> (ou <b>Exceções do Não perturbe</b>), para o SOS tocar mesmo no silencioso.</li>
+      <li>Em <b>Tela de bloqueio</b>, escolha <b>Mostrar todo o conteúdo</b>.</li>
+    </ol><p class="nota" style="margin:6px 0 0">Os nomes mudam um pouco conforme a marca (Samsung, Motorola, Xiaomi…). No iPhone, o som e a vibração são os padrões do aparelho.</p></details>
   <p class="nota" style="margin:12px 0 8px">🆘 Nos alertas de SOS, mostrar a que distância você está do irmão (a sua localização fica só neste celular):</p>
   <div class="qbts"><button id="locAt">📍 Usar minha localização no SOS</button></div></div>
 <p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
@@ -2324,7 +2335,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v14";
+const CACHE = "insanos-v15";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2346,7 +2357,8 @@ self.addEventListener("push", e => {
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.actions = [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; op.requireInteraction = true; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
   if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
-    op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.vibrate = [700, 200, 700, 200, 700];
+    op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
+    op.vibrate = [1000, 250, 1000, 250, 1000, 250, 1000, 250, 1000];   // alarme (onde o celular respeitar o padrão)
     const S = d.sos, temLoc = S.lat !== "" && S.lat != null;
     if (temLoc) op.data.mapa = "https://www.google.com/maps/search/?api=1&query=" + S.lat + "," + S.lng;
     op.actions = [{action: "indo", title: "🏍️ Estou indo"}].concat(temLoc ? [{action: "mapa", title: "📍 Ver no mapa"}] : []);
