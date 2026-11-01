@@ -746,6 +746,18 @@ def aplicar_respostas(api, pid, g):
     RESPOSTAS.extend(feitas)
     return feitas
 
+def escrever_otp(api, pid, g):
+    """Código por e-mail: escreve na aba escondida "_otp" os e-mails dos visitantes ativos
+    (os dos irmãos o projeto do código lê direto da aba Dados Integrantes)."""
+    if not g.otp_ativo():
+        return
+    emails = sorted({it[0] for it in getattr(g, "PESSOAIS", []) if len(it) > 2 and it[2] == "v"})
+    if "_otp" not in _ids(api, pid):
+        _estrutura(api, pid, [{"addSheet": {"properties": {"title": "_otp", "hidden": True}}}])
+    api.spreadsheets().values().clear(spreadsheetId=pid, range="'_otp'!A1:A200").execute()
+    if emails:
+        _gravar(api, pid, [(f"'_otp'!A{i}", e) for i, e in enumerate(emails, start=1)])
+
 def enviar_convites(g, eventos_novos):
     """Assim que um evento é lançado: convite com os botões ✅ Vou / ❌ Não vou para quem ainda não respondeu."""
     L = getattr(g, "LEMBRETES", None) or {}
@@ -1218,6 +1230,10 @@ def main():
             print(f"Aviso: verificação de pagamentos falhou ({type(e).__name__}: {e}). O painel é gerado mesmo assim.")
     try:
         g.main()
+        try:
+            escrever_otp(api, planilha_id, g)
+        except Exception as e:
+            print(f"Aviso: lista do código por e-mail não atualizada ({type(e).__name__}: {e}).")
         for aviso in AVISOS_PAG:
             titulo, corpo, so_para, com_zap = (list(aviso) + [None, True])[:4]
             try:

@@ -81,6 +81,22 @@ MANUT_HTML = ""
 # e o .py copia os registros para a aba "Acessos" da Insanos.xlsx. Deixe ACESSOS_URL = "" para desligar.
 ACESSOS_URL = os.environ.get("ACESSOS_URL", "")       # do cofre do GitHub
 ACESSOS_CHAVE = os.environ.get("ACESSOS_CHAVE", "")   # do cofre do GitHub
+# Código por e-mail: com os dois segredos configurados, o painel passa a ser trancado com e-mail + chave secreta
+# (só quem recebe o código no e-mail consegue a chave). Sem eles, funciona como antes (só o e-mail).
+OTP_URL = os.environ.get("OTP_URL", "")
+OTP_SEGREDO = os.environ.get("OTP_SEGREDO", "")
+
+def otp_ativo():
+    return bool(OTP_URL and OTP_SEGREDO)
+
+def chave_de(senha):
+    """O que tranca o painel de cada pessoa: com o código por e-mail ligado, e-mail + pedaço da chave secreta."""
+    import hmac, hashlib
+    s = str(senha).strip()
+    if otp_ativo() and "@" in s:
+        e = s.lower()
+        return e + "|" + hmac.new(OTP_SEGREDO.encode(), e.encode(), hashlib.sha256).hexdigest()
+    return s
 # quem vê a tela "Acessos" no ADM (pelo e-mail da planilha). Os demais do comando não veem nem conseguem ler.
 ACESSOS_SOMENTE = list(DIV["acessos_somente"])     # do divisao.json
 PLANILHA_URL = ""      # na nuvem: link da planilha do Google (atalho 📗 Planilha, trancado como a tela Acessos)
@@ -295,6 +311,11 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
   <input id="cpf" type="text" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="seu@email.com" maxlength="120" autofocus>
   <button id="b" type="submit">Entrar</button>
   <button id="bioB" type="button" hidden style="margin-top:10px;width:100%;padding:13px;border-radius:12px;border:1px solid #E9B949;background:rgba(233,185,73,.12);color:#ECE7DC;font-weight:800;font-size:15px">👆 Entrar com a digital</button>
+  <div id="otpBox" hidden style="margin-top:12px;padding:12px;border-radius:12px;background:rgba(236,231,220,.06);border:1px solid rgba(236,231,220,.18);text-align:left">
+    <p id="otpMsg" style="margin:0 0 10px;font-size:14px;line-height:1.4"></p>
+    <input id="otpC" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" style="width:100%;text-align:center;font-size:24px;letter-spacing:6px;padding:10px;border-radius:10px">
+    <button id="otpOk" type="button" style="margin-top:10px;width:100%;padding:12px;border-radius:10px;border:0;background:#E9B949;color:#141210;font-weight:800">Confirmar código</button>
+    <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:13px"><a href="#" id="otpRe" style="color:#E9B949">Reenviar código</a><a href="#" id="otpVolta" style="color:#B8B2A6">Usar outro e-mail</a></div></div>
   <div id="bioOf" hidden style="margin-top:12px;padding:12px;border-radius:12px;background:rgba(233,185,73,.10);border:1px solid rgba(233,185,73,.45);text-align:left">
     <p style="margin:0 0 10px;font-size:14px;line-height:1.4">👆 Quer entrar com a <b>digital</b> (ou <b>Face ID</b>) nas próximas vezes, neste celular?</p>
     <div style="display:flex;gap:8px"><button id="bioSim" type="button" style="flex:1;padding:11px;border-radius:10px;border:0;background:#E9B949;color:#141210;font-weight:800">Ativar</button>
@@ -343,6 +364,27 @@ function bioPerguntar(d,seguir){
       authenticatorSelection:{authenticatorAttachment:"platform",residentKey:"required",requireResidentKey:true,userVerification:"required"},timeout:60000}});
     try{localStorage.setItem("bio_on",d);localStorage.setItem("bio_ids",JSON.stringify([bioB64(nova.rawId)]))}catch(_){}alert("👆 Pronto! Na próxima vez, é só tocar em \"Entrar com a digital\".")}
     catch(e){alert("Não consegui ativar a digital neste celular. Você continua entrando com o e-mail.")}seguir()}}
+// ---- código por e-mail: a chave do painel = e-mail + um pedaço que só vem depois do código certo.
+//      O celular lembra esse pedaço por 90 dias (com a digital, a pessoa só digita o código uma vez).
+const otpCache=()=>{try{return JSON.parse(localStorage.getItem("otp_s")||"{}")}catch(_){return {}}};
+function otpGuardar(d,s){const c=otpCache();c[d]={s,exp:Date.now()+90*864e5};try{localStorage.setItem("otp_s",JSON.stringify(c))}catch(_){}}
+function otpEsquecer(d){const c=otpCache();delete c[d];try{localStorage.setItem("otp_s",JSON.stringify(c))}catch(_){}}
+async function otpPost(o){const r=await fetch(P.otp,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o)});return r.json()}
+function otpPedaco(d){const c=otpCache()[d];if(c&&c.exp>Date.now())return Promise.resolve(c.s);
+  return new Promise(resolve=>{const box=document.getElementById("otpBox"),msg=document.getElementById("otpMsg"),inp=document.getElementById("otpC");
+    const fim=s=>{box.hidden=true;["cpf","b"].forEach(id=>document.getElementById(id).hidden=false);document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");resolve(s)};
+    const pedir=async()=>{msg.textContent="Enviando o código…";try{const j=await otpPost({tipo:"otp_pedir",email:d});
+        msg.innerHTML=j.ok?`📧 Enviamos um código para <b>${d.replace(/</g,"&lt;")}</b>. Digite abaixo. Não chegou? Confira o <b>spam</b>.`:"⚠️ "+(j.erro||"Não consegui enviar o código.");
+        if(!j.ok&&/cadastrado/.test(j.erro||""))setTimeout(()=>fim(null),2500)}
+      catch(e){msg.textContent="⚠️ Não consegui enviar o código agora. Confira a internet e toque em Reenviar."}};
+    ["cpf","b","bioB"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");
+    box.hidden=false;inp.value="";setTimeout(()=>inp.focus(),100);pedir();
+    document.getElementById("otpRe").onclick=ev=>{ev.preventDefault();pedir()};
+    document.getElementById("otpVolta").onclick=ev=>{ev.preventDefault();fim(null)};
+    const conferir=async()=>{const cod=inp.value.replace(/\D/g,"");if(cod.length!==6){msg.textContent="Digite os 6 números do código.";return}
+      msg.textContent="Conferindo…";try{const j=await otpPost({tipo:"otp_conferir",email:d,codigo:cod});
+        if(j.ok&&j.s){otpGuardar(d,j.s);fim(j.s)}else msg.textContent="⚠️ "+(j.erro||"Código incorreto.")}catch(e){msg.textContent="⚠️ Não consegui conferir agora. Tente de novo."}};
+    document.getElementById("otpOk").onclick=conferir;inp.oninput=()=>{if(inp.value.replace(/\D/g,"").length===6)conferir()}})}
 document.getElementById("f").addEventListener("submit",async ev=>{
   ev.preventDefault();erro.textContent="";
   solic.hidden=true;
@@ -353,9 +395,12 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([corpo],{type:"text/plain"}));else fetch(u,{method:"POST",mode:"no-cors",body:corpo})}catch(_){}};
   if(!d){erro.textContent="Digite o seu e-mail.";return}
   if(!window.crypto||!crypto.subtle){erro.textContent="Este visualizador não permite abrir o painel. Abra o arquivo no Chrome, Edge ou Safari.";return}
+  let entrada=d;
+  if(P.otp&&d.includes("@")){btn.disabled=true;btn.textContent="Aguardando o código…";const s=await otpPedaco(d);btn.disabled=false;btn.textContent="Entrar";
+    if(!s)return;entrada=d+"|"+s}
   btn.disabled=true;btn.textContent="Verificando...";
   try{
-    const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(d),"PBKDF2",false,["deriveKey"]);
+    const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(entrada),"PBKDF2",false,["deriveKey"]);
     const kek=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(P.sal),iterations:P.it,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
     let chave=null;
     for(const s of P.slots){try{chave=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct));break}catch(e){}}
@@ -372,7 +417,7 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     registrar(true);
     try{sessionStorage.setItem("painel_email",d)}catch(_){}
     bioPerguntar(d,()=>{document.open();document.write(html);document.close()});
-  }catch(e){if(d.includes("@"))registrar(false);erro.textContent="Este e-mail não tem acesso a este painel. Confira se digitou certo ou solicite o acesso.";btn.disabled=false;btn.textContent="Entrar";cpf.select();
+  }catch(e){if(d.includes("@"))registrar(false);if(P.otp)otpEsquecer(d);erro.textContent="Este e-mail não tem acesso a este painel. Confira se digitou certo ou solicite o acesso.";btn.disabled=false;btn.textContent="Entrar";cpf.select();
     if(d.includes("@")){solic.href="https://wa.me/?text="+encodeURIComponent(`Olá! Quero solicitar acesso ao ${document.title.replace(/ - Analise/," - Painel Insanos")}. Meu e-mail: ${d}`);solic.hidden=false}}
 });
 </script>__TUTORIAL__
@@ -773,21 +818,21 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
     sal = secrets.token_bytes(16)
     slots = []
     for s in senhas:
-        kek = hashlib.pbkdf2_hmac("sha256", s.encode(), sal, ITERACOES, 32)
+        kek = hashlib.pbkdf2_hmac("sha256", chave_de(s).encode(), sal, ITERACOES, 32)
         iv_s = secrets.token_bytes(12)
         slots.append({"iv": b64(iv_s), "ct": b64(AESGCM(kek).encrypt(iv_s, chave, None))})
     secrets.SystemRandom().shuffle(slots)
     pes = []
     for item in PESSOAIS:              # "Meu painel" (irmão) ou visitante: a página trancada com o e-mail dele
         email, pag = item[0], item[1]
-        kek = hashlib.pbkdf2_hmac("sha256", email.encode(), sal, ITERACOES, 32)
+        kek = hashlib.pbkdf2_hmac("sha256", chave_de(email).encode(), sal, ITERACOES, 32)
         iv_p = secrets.token_bytes(12)
         g_ = {"iv": b64(iv_p), "ct": b64(AESGCM(kek).encrypt(iv_p, pag.encode("utf-8"), None))}
         if len(item) > 2:
             g_["t"] = item[2]
         pes.append(g_)
     secrets.SystemRandom().shuffle(pes)
-    pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots, "pes": pes, "cav": CAVEIRA_URL if pes else ""}
+    pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots, "pes": pes, "cav": CAVEIRA_URL if pes else "", "otp": OTP_URL if otp_ativo() else ""}
     return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
