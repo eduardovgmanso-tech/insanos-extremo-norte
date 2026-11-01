@@ -3417,7 +3417,7 @@ function acDesenhar(){const A=ACX||{},mapa=A.mapa||{};
   const todos=acRegs.map(r=>{const [q,e,res,pn,ap]=r;const d=acData(q),em=String(e||"").toLowerCase();
     const n=mapa[em]?(M_FULL.find(m=>m.n.toLowerCase()===String(mapa[em]).toLowerCase())||{}).n||mapa[em]:"";return {d,em:e,res,pn,ap,n}})
     .sort((a,b)=>(b.d||0)-(a.d||0));
-  const ehAviso=r=>/^(🔔|👆)/.test(String(r.pn||""));
+  const ehAviso=r=>/^(🔔|👆|👋)/.test(String(r.pn||""));
   if(acFiltro==="Avisos"){acAvisos(todos.filter(ehAviso));return}
   const regs=todos.filter(r=>!ehAviso(r));
   const hoje=new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),sete=Date.now()-7*864e5;
@@ -3442,17 +3442,17 @@ function acDesenhar(){const A=ACX||{},mapa=A.mapa||{};
       <span class="r ${ok?"ok":"no"}">${ok?"Entrou":"Sem acesso"}</span></div>`}).join("")
     :'<div class="vazio">Nenhum registro ainda.</div>'}
 // controle dos avisos: quem recebeu e quem abriu (registrado pelo celular de cada irmão na aba Acessos)
-function acAvisos(av){const sete=Date.now()-7*864e5,s7=av.filter(r=>r.d&&r.d>=sete),rec=r=>String(r.pn).startsWith("🔔");
-  const nRec=s7.filter(rec).length,nAb=s7.length-nRec,por=new Map();
-  s7.forEach(r=>{const k=r.n||String(r.em).toLowerCase();if(!por.has(k))por.set(k,{n:r.n||r.em,r:0,a:0,ult:r.d});const g=por.get(k);rec(r)?g.r++:g.a++});
+function acAvisos(av){const sete=Date.now()-7*864e5,s7=av.filter(r=>r.d&&r.d>=sete),ini=(r,x)=>String(r.pn).startsWith(x);
+  const nRec=s7.filter(r=>ini(r,"🔔")).length,nAb=s7.filter(r=>ini(r,"👆")).length,nDisp=s7.filter(r=>ini(r,"👋")).length,por=new Map();
+  s7.forEach(r=>{const k=r.n||String(r.em).toLowerCase();if(!por.has(k))por.set(k,{n:r.n||r.em,r:0,a:0,x:0,ult:r.d});const g=por.get(k);ini(r,"🔔")?g.r++:ini(r,"👆")?g.a++:g.x++});
   $("acKpis").innerHTML=`<div><span>Avisos recebidos (7 dias)</span><b>${nRec}</b></div><div><span>Abertos (7 dias)</span><b style="color:var(--presente)">${nAb}</b></div>
-    <div><span>Taxa de abertura</span><b>${nRec?Math.round(nAb*100/nRec)+"%":"–"}</b></div><div><span>Irmãos alcançados</span><b>${por.size}</b></div>`;
-  const resumo=[...por.values()].sort((a,b)=>b.r-a.r).map(g=>`<div class="ac-l"><div class="w"><b>${esc(g.n)}</b><span>🔔 recebeu ${g.r} · 👆 abriu ${g.a} · nos últimos 7 dias</span></div>
+    <div><span>Taxa de abertura</span><b>${nRec?Math.round(nAb*100/nRec)+"%":"–"}</b></div><div><span>SOS dispensados (7 dias)</span><b style="color:var(--falta)">${nDisp}</b></div>`;
+  const resumo=[...por.values()].sort((a,b)=>b.r-a.r).map(g=>`<div class="ac-l"><div class="w"><b>${esc(g.n)}</b><span>🔔 recebeu ${g.r} · 👆 abriu ${g.a}${g.x?` · 👋 dispensou ${g.x} SOS`:""} · nos últimos 7 dias</span></div>
     <span class="r ok">${g.r?Math.round(g.a*100/g.r)+"%":"–"}</span></div>`).join("");
   const hist=av.slice(0,60).map(r=>`<div class="ac-l"><div class="q">${acFmt(r.d)}<small>${esc(r.ap||"")}</small></div>
     <div class="w"><b>${esc(r.n||r.em)}</b><span>${esc(r.pn)}</span></div></div>`).join("");
   $("acLista").innerHTML=av.length?`<p class="nota" style="margin:4px 0 6px">Por irmão (últimos 7 dias)</p>${resumo}<p class="nota" style="margin:14px 0 6px">Histórico (mais recentes)</p>${hist}
-    <p class="nota" style="margin-top:10px">"Recebeu" = o aviso apareceu no celular dele. "Abriu" = ele tocou no aviso. Quem bloqueou as notificações não aparece aqui.</p>`
+    <p class="nota" style="margin-top:10px">"Recebeu" = o aviso apareceu no celular dele. "Abriu" = ele tocou no aviso. "Dispensou" = jogou o alerta de SOS para o lado sem responder. Quem bloqueou as notificações não aparece aqui.</p>`
     :'<div class="vazio">Nenhum aviso registrado ainda. Os registros aparecem quando os irmãos ativarem os avisos no Meu painel.</div>'}
 // ---- Fotos (só no ADM): galeria com download ----
 let lbK=0;

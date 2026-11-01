@@ -305,6 +305,8 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
 <noscript><style>#f{display:none}</style><form style="display:block"><h1>Extremo Norte<br>SP3</h1><p>Este visualizador não abre o painel. Toque em compartilhar e escolha abrir no Safari, Chrome ou Edge.</p></form></noscript>
 <form id="f" autocomplete="off">
   __MANUT__
+  <button id="sosAtivo" type="button" hidden style="width:100%;margin:0 0 12px;padding:12px;border-radius:14px;border:2px solid #ff5252;background:rgba(198,40,40,.85);color:#fff;font-weight:800;font-size:15px;text-align:left;line-height:1.35;animation:pisca 1.2s ease-in-out infinite"></button>
+  <style>@keyframes pisca{50%{box-shadow:0 0 0 6px rgba(255,82,82,.35)}}</style>
   <button id="sosB" type="button" hidden style="width:100%;margin:0 0 14px;padding:14px;border-radius:14px;border:0;background:#c62828;color:#fff;font-weight:900;font-size:18px;letter-spacing:.5px;box-shadow:0 0 0 3px rgba(198,40,40,.25)">🆘 SOS · Preciso de ajuda</button>
   <div id="sosBox" hidden style="margin:0 0 14px;padding:14px;border-radius:14px;background:rgba(198,40,40,.12);border:1px solid rgba(198,40,40,.6);text-align:left">
     <p style="margin:0 0 10px;font-weight:800;font-size:16px">🆘 O que aconteceu?</p>
@@ -422,6 +424,13 @@ const sosKm=(a,b,c,d)=>{const R=6371,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,h=M
 const sosGps=(alta)=>new Promise(r=>{if(!navigator.geolocation)return r(null);navigator.geolocation.getCurrentPosition(p=>{const l={lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5),ts:Date.now()};sosIdbSet("loc",l);r(l)},()=>r(null),{enableHighAccuracy:!!alta,timeout:alta?12000:8000,maximumAge:alta?0:600000})});
 // guarda a última localização (só neste celular) para a notificação do SOS mostrar a distância
 try{navigator.permissions&&navigator.permissions.query({name:"geolocation"}).then(x=>{if(x.state==="granted")sosGps(false)})}catch(_){}
+const sosIdbGet=k=>new Promise(r=>{try{const o=indexedDB.open("insanos",1);o.onupgradeneeded=()=>o.result.createObjectStore("kv");o.onsuccess=()=>{try{const q=o.result.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)}catch(e){r(null)}};o.onerror=()=>r(null)}catch(e){r(null)}});
+// SOS em andamento (recebido nas últimas horas e ainda sem resposta deste celular): faixa no topo da entrada
+(async()=>{if(location.hash.startsWith("#sos="))return;const a=await sosIdbGet("sos_ativo");if(!a||!a.d)return;
+  const min=Math.round((Date.now()-a.ts)/60000);if(min>60||a.resp)return;
+  const b=document.getElementById("sosAtivo");b.hidden=false;
+  b.innerHTML=`🆘 <b>SOS em andamento</b> · ${String(a.d.n||"").replace(/</g,"&lt;")} precisa de ajuda (há ${min<1?"menos de 1":min} min)<br><span style="font-weight:600;font-size:13px">Toque para ver a distância, o mapa e responder</span>`;
+  b.onclick=()=>{location.replace(a.url);location.reload()}})();
 const sosQuem=()=>{const c=otpCache();let best=null;for(const e in c)if(c[e].exp>Date.now()&&(!best||c[e].exp>c[best].exp))best=e;return best?{email:best,s:c[best].s}:null};
 const sosB=document.getElementById("sosB"),sosBox=document.getElementById("sosBox");
 if(P.otp&&sosQuem())sosB.hidden=false;
@@ -464,8 +473,9 @@ document.getElementById("sosCopiar").onclick=async()=>{try{await navigator.clipb
     km=sosKm(l.lat,l.lng,+S.lat,+S.lng);const min=Math.max(1,Math.round(km*2.2));
     di.textContent=`📍 Você está a ${km<1?Math.round(km*1000)+" m":km.toFixed(1).replace(".",",")+" km"} do ${S.n} · ~${min} min de moto`});
   document.getElementById("srMapa").onclick=()=>{if(mapa)location.href=mapa};
-  document.getElementById("srNao").onclick=()=>{box.hidden=true;history.replaceState(null,"",location.pathname);["cpf","b"].forEach(id=>document.getElementById(id).hidden=false);document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");if(P.otp&&sosQuem())sosB.hidden=false};
-  document.getElementById("srIndo").onclick=async()=>{const q=sosQuem(),dist=km==null?"":` · estou a ${km.toFixed(1).replace(".",",")} km (uns ${Math.max(1,Math.round(km*2.2))} min)`;
+  const respondeu=()=>sosIdbGet("sos_ativo").then(a=>{if(a&&a.d&&a.d.id===S.id){a.resp=true;sosIdbSet("sos_ativo",a)}});
+  document.getElementById("srNao").onclick=()=>{respondeu();box.hidden=true;history.replaceState(null,"",location.pathname);["cpf","b"].forEach(id=>document.getElementById(id).hidden=false);document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");if(P.otp&&sosQuem())sosB.hidden=false};
+  document.getElementById("srIndo").onclick=async()=>{respondeu();const q=sosQuem(),dist=km==null?"":` · estou a ${km.toFixed(1).replace(".",",")} km (uns ${Math.max(1,Math.round(km*2.2))} min)`;
     const tx=`🏍️ Estou indo apoiar o *${S.n}* no SOS${dist}.`;
     try{await navigator.clipboard.writeText(tx)}catch(_){}
     if(q)otpPost({tipo:"sos_indo",email:q.email,s:q.s,id:S.id,dist:km==null?null:+km.toFixed(1)}).catch(()=>{});
@@ -2335,7 +2345,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v15";
+const CACHE = "insanos-v16";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2369,7 +2379,8 @@ self.addEventListener("push", e => {
       const velha = Date.now() - l.ts > 12 * 3600e3;
       op.body += " · a ~" + (km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1).replace(".", ",") + " km") + " de você" + (velha ? " (localização antiga)" : "");
     }).catch(() => {}) : Promise.resolve();
-    e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d)]));
+    const guarda = idbSet("sos_ativo", {d: S, url: op.data.sosUrl, ts: Date.now(), titulo: d.title || ""});   // para a faixa "SOS em andamento"
+    e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d), guarda]));
     return;
   }
   // vibração própria de cada tipo de aviso (Android; o iPhone ignora): dá para reconhecer sem olhar o celular
@@ -2384,6 +2395,18 @@ function registrarRecebeu(d) {
   return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
       painel: "🔔 Recebeu: " + (d.title || ""), aparelho: aparelhoSW()})}).catch(() => {}) : Promise.resolve();
 }
+function idbSet(k, v) {
+  return new Promise(r => { try { const o = indexedDB.open("insanos", 1); o.onupgradeneeded = () => o.result.createObjectStore("kv");
+    o.onsuccess = () => { try { const t = o.result.transaction("kv", "readwrite"); t.objectStore("kv").put(v, k); t.oncomplete = () => r(1); t.onerror = () => r(0); } catch (e) { r(0); } };
+    o.onerror = () => r(0); } catch (e) { r(0); } });
+}
+// SOS dispensado (jogado para o lado): registra na aba Acessos, para o comando saber quem viu e não respondeu
+self.addEventListener("notificationclose", e => {
+  const dd = e.notification.data || {};
+  if (dd.sosUrl && dd.ru && dd.para)
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
+      painel: "👋 Dispensou: " + (e.notification.title || ""), aparelho: aparelhoSW()})}).catch(() => {}));
+});
 // última localização guardada neste celular (pela tela de entrada ou pelo Meu painel), para a distância do SOS
 function idbGet(k) {
   return new Promise(r => { try { const o = indexedDB.open("insanos", 1); o.onupgradeneeded = () => o.result.createObjectStore("kv");
