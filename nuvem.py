@@ -518,6 +518,7 @@ def _mes_k(v):
     return (int(m.group(2)), int(m.group(1))) if m else None
 
 BOLETOS_DISPONIVEIS = []   # meses cujos boletos acabaram de entrar na coluna J (nesta rodada)
+AVISO_BOLETO_MANUAL = []   # botão "📲 Avisar quem não pagou" (tela Pagamentos): aviso na hora
 
 def aplicar_boletos(api, pid, d):
     """Boletos lidos no Sistema Insanos (botão no navegador): grava o link de cada irmão na PGTO.
@@ -893,7 +894,8 @@ def enviar_boleto_disponivel(g):
     env = _json_ler("lembretes_enviados.json", {})
     agora = datetime.datetime.now(); hoje = agora.date()
     chave_dia = f"9999|disp|{mes_k}"                     # dia em que os boletos ficaram disponíveis (o 9999 evita a limpeza dos 3 dias)
-    if mes_k in BOLETOS_DISPONIVEIS and chave_dia not in env:
+    manual = bool(AVISO_BOLETO_MANUAL)
+    if (mes_k in BOLETOS_DISPONIVEIS or manual) and chave_dia not in env:
         env[chave_dia] = hoje.isoformat()
     dia = env.get(chave_dia)
     if not dia:
@@ -902,7 +904,9 @@ def enviar_boleto_disponivel(g):
         dia = datetime.date.fromisoformat(dia)
     except ValueError:
         return
-    if hoje == dia:
+    if manual:
+        vez = 1                                          # botão da tela Pagamentos: manda agora (no máximo um aviso de boleto por dia)
+    elif hoje == dia:
         vez = 1
     elif hoje == dia + datetime.timedelta(days=1) and agora.hour >= 9:
         vez = 2
@@ -915,7 +919,7 @@ def enviar_boleto_disponivel(g):
         if p.get("pago"):
             continue
         k = f"9999|disp{vez}|{mes_k}|{p['email']}"
-        if k in env or f"{hoje}|pag|{p['email']}" in env:     # já avisado (ou já recebeu o lembrete do dia)
+        if (k in env and not manual) or f"{hoje}|pag|{p['email']}" in env:     # já avisado (ou já recebeu um aviso de boleto hoje)
             continue
         ap = p["n"]
         corpo = (f"Fala, {ap}! O boleto da mensalidade de {mes} já está disponível (vence em {dv}). Está a um toque, aqui embaixo. 🤝" if vez == 1 else
@@ -927,8 +931,9 @@ def enviar_boleto_disponivel(g):
         except Exception as e:
             print(f"Aviso: aviso de boleto disponível não enviado ({e}).")
     _json_gravar("lembretes_enviados.json", env)
+    AVISO_BOLETO_MANUAL.clear()
     if n:
-        print(f"Boleto disponível ({vez}º aviso): {n} irmão(s) avisado(s).")
+        print(f"Boleto disponível ({vez}º aviso{', pelo botão' if manual else ''}): {n} irmão(s) avisado(s).")
 
 def enviar_lembretes(g):
     """Lembretes individuais (só para o irmão): insights sem resposta (13h e 19h), eventos sem confirmação
@@ -1019,6 +1024,9 @@ def processar_fila(api, pid):
                 res, sit = aplicar_integrante(api, pid, d), "feito"
             elif tp == "boletos_sistema":
                 res, sit = aplicar_boletos(api, pid, d), "feito"
+            elif tp == "boletos_aviso":
+                AVISO_BOLETO_MANUAL.append(1)
+                res, sit = "aviso de boleto disponível: enviado depois de publicar o painel", "feito"
             elif tp == "adm_extra":
                 res, sit = aplicar_adm_extra(d), "feito"
             elif tp == "visitante":
@@ -1033,7 +1041,7 @@ def processar_fila(api, pid):
             res, sit = f"{type(e).__name__}: {e}", "erro"
         _gravar(api, pid, [(f"'{aba}'!E{i}", sit), (f"'{aba}'!F{i}", f"{datetime.datetime.now():%d/%m/%Y %H:%M} · {res}")])
         print(f"Fila linha {i}: {sit} · {res}"); n += 1
-        if sit == "feito" and tp not in ("teste_pagamento", "adm_extra", "visitante"):   # estes não avisam o comando
+        if sit == "feito" and tp not in ("teste_pagamento", "adm_extra", "visitante", "boletos_aviso"):   # estes não avisam o comando
             resumo.append((_resumo_item(d), str(row[1]).strip().lower(), d))
     return resumo
 
