@@ -524,7 +524,7 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     if(d.includes("@")){solic.href="https://wa.me/?text="+encodeURIComponent(`Olá! Quero solicitar acesso ao ${document.title.replace(/ - Analise/," - Painel Insanos")}. Meu e-mail: ${d}`);solic.hidden=false}}
 });
 </script>__TUTORIAL__
-</body></html>"""
+__VERSAOSNIP__</body></html>"""
 
 # ---------------------------------------------------------------------
 #  "Meu painel": cada irmão (fora do comando) com e-mail na planilha vê só os dados dele
@@ -665,7 +665,7 @@ try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 desenha();
-</script>__TUTORIAL__</body></html>"""
+</script>__TUTORIAL____VERSAOSNIP__</body></html>"""
 
 RANK_MIN_MEU = 3       # mesmo mínimo do ranking do painel
 
@@ -727,7 +727,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
                            "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
                           for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()]}
-        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP)))
+        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
 
 TUTORIAL_APP = r"""<style>
@@ -778,6 +778,18 @@ function tutInstalado(){return matchMedia("(display-mode: standalone)").matches|
 document.querySelectorAll("#tut .tb button").forEach(function(b){b.onclick=function(){tutSo(b.dataset.so)}});
 document.getElementById("tutJa").onclick=function(){if(tutEv){tutEv.prompt();tutEv.userChoice.then(function(){tutEv=null;tutFechar()})}};
 </script>"""
+
+VERSAO_ATUAL = ""   # assinatura do conteúdo publicado: muda só quando o painel muda (versao.json)
+
+def snip_versao(auto):
+    """Confere se há versão nova quando o app volta para a tela (app que ficou "dormindo" mostra a tela antiga)."""
+    return ('<script>(function(){var V="__VERSAO__",AUTO=' + ("true" if auto else "false") + ';if(!V||V.indexOf("__")===0)return;var b=null,ult=0;'
+            'function faixa(t,f){if(!b){b=document.createElement("div");b.id="verFaixa";b.style.cssText="position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:99999;background:#E9B949;color:#141210;border-radius:14px;padding:12px 14px;font:700 14px Barlow,Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);text-align:center;cursor:pointer";document.body.appendChild(b)}b.textContent=t;b.onclick=f;b.style.display="block"}'
+            'function some(){if(b)b.style.display="none"}'
+            'function ver(){var ag=Date.now();if(ag-ult<60000)return;ult=ag;fetch("versao.json?t="+ag,{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v)return;'
+            'if(j.v!==V){if(AUTO){location.reload();return}faixa("🔄 Tem uma versão nova do painel · toque para atualizar",function(){location.reload()})}else some()})'
+            '.catch(function(){faixa("📴 Sem internet · você está vendo a última versão guardada",some)})}'
+            'document.addEventListener("visibilitychange",function(){if(!document.hidden)ver()});setInterval(ver,600000);setTimeout(ver,3000)})();</script>')
 
 def montar_lembretes(membros, eventos, eventos_ins, pag):
     """Pendências de cada irmão com e-mail: insights sem resposta (últimos 7 dias), eventos sem confirmação
@@ -947,7 +959,7 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
     secrets.SystemRandom().shuffle(slots)
     pes = []
     for item in PESSOAIS:              # "Meu painel" (irmão) ou visitante: a página trancada com o e-mail dele
-        email, pag = item[0], item[1]
+        email, pag = item[0], item[1].replace("__VERSAO__", VERSAO_ATUAL)
         kek = hashlib.pbkdf2_hmac("sha256", chave_de(email).encode(), sal, ITERACOES, 32)
         iv_p = secrets.token_bytes(12)
         g_ = {"iv": b64(iv_p), "ct": b64(AESGCM(kek).encrypt(iv_p, pag.encode("utf-8"), None))}
@@ -959,7 +971,7 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
     return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
-                 .replace("__MANIFEST__", "manifest-adm.json").replace("__TUTORIAL__", TUTORIAL_APP).replace("__REGISTRO__", "🔎 Os acessos a este painel são registrados pelo comando." if ACESSOS_URL else "")
+                 .replace("__MANIFEST__", "manifest-adm.json").replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(True)).replace("__VERSAO__", VERSAO_ATUAL).replace("__REGISTRO__", "🔎 Os acessos a este painel são registrados pelo comando." if ACESSOS_URL else "")
                  .replace("__ACESSOS_URL__", ACESSOS_URL))
 
 # ---------------------------------------------------------------------
@@ -2474,7 +2486,8 @@ self.addEventListener("notificationclick", e => {
 });
 """
     arq = {"manifest-adm.json": manifesto(f"Insanos ADM {APP_NOME}", "Insanos ADM", "./adm.html"),
-           "sw.js": sw}
+           "sw.js": sw,
+           "versao.json": json.dumps({"v": VERSAO_ATUAL})}
     for t in (192, 512):
         caminho = os.path.join(PASTA, "app", f"icon-{t}.png")
         if os.path.exists(caminho):
@@ -2765,6 +2778,7 @@ def main():
 
     def gravar(caminho, dados, senha=None, sem_js="", extras=(), rotulo="E-mail", so_geral=False):
         pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
+        pagina = pagina.replace("</body>", snip_versao(False) + "</body>", 1).replace("__VERSAO__", VERSAO_ATUAL)
         if dados.get("modo") == "geral" and caminho == SAIDA:
             global GERAL_RAW
             GERAL_RAW = pagina
@@ -2921,6 +2935,9 @@ def main():
     gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+    global VERSAO_ATUAL
+    import hashlib as _h
+    VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]
     # no link: com nome completo e CPF dos integrantes (decisão do Eduardo, ciente do risco), para a Solicitação kit/colete.
     # Para voltar a tirar do link, troque LINK_COM_NOME_E_CPF para False no começo deste arquivo.
     membros_link = membros if LINK_COM_NOME_E_CPF else \
