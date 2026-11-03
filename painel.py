@@ -569,6 +569,7 @@ details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary
 .ev .q{border:1px solid rgba(240,182,180,.5);background:transparent;color:#F2A3A3;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
 .qbox{background:rgba(236,231,220,.05);border-radius:12px;padding:10px;margin:4px 0 10px}.qbox pre{white-space:pre-wrap;font-family:inherit;font-size:13px;margin:0 0 8px}
 .qbts{display:flex;gap:8px}.qbts button{flex:1;padding:9px;border-radius:999px;border:1px solid var(--linha);background:transparent;color:var(--osso);font-weight:700}.qbts .qz{background:#1f8f4e;border-color:#1f8f4e;color:#fff}
+.sos-meu{display:block;width:100%;margin:0 0 14px;padding:15px;border-radius:16px;border:0;background:#c62828;color:#fff;font-weight:900;font-size:17px;letter-spacing:.3px;box-shadow:0 0 0 3px rgba(198,40,40,.22)}
 .nota{color:var(--osso2);font-size:12.5px}.sair{display:block;margin:18px auto 0;background:transparent;border:1px solid var(--linha);color:var(--osso);border-radius:999px;padding:10px 22px;font-weight:700}
 </style></head><body><div class="w" id="app"></div><script>
 const D=__DADOS__,CAV="__CAV__";
@@ -581,6 +582,7 @@ const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
 <h1>${es(D.n)}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}</p>
+<button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
 ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
   <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></div>`:""}
 <div class="card"><h2>Minha adesão em ${D.ano}</h2><div class="cavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
@@ -671,7 +673,7 @@ try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 desenha();
-</script>__TUTORIAL____VERSAOSNIP__</body></html>"""
+</script>__TUTORIAL____VERSAOSNIP____SOSMOD__</body></html>"""
 
 RANK_MIN_MEU = 3       # mesmo mínimo do ranking do painel
 
@@ -733,7 +735,8 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
                            "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
                           for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()]}
-        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))))
+        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
+                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
 
 TUTORIAL_APP = r"""<style>
@@ -783,6 +786,52 @@ function tutFechar(){document.getElementById("tut").hidden=true}
 function tutInstalado(){return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true}
 document.querySelectorAll("#tut .tb button").forEach(function(b){b.onclick=function(){tutSo(b.dataset.so)}});
 document.getElementById("tutJa").onclick=function(){if(tutEv){tutEv.prompt();tutEv.userChoice.then(function(){tutEv=null;tutFechar()})}};
+</script>"""
+
+SOS_MODULO = r"""<style>
+.sosm-veu{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;justify-content:center}
+.sosm-cx{background:#1b1714;color:#ECE7DC;width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;border-top:3px solid #c62828;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif}
+.sosm-cx h3{margin:0 0 10px;font-size:19px}.sosm-cx p{margin:8px 0;font-size:14px;line-height:1.4;color:#d9d2c4}
+.sosm-g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sosm-t{padding:14px 6px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:#ECE7DC;font-weight:800;font-size:15px}
+.sosm-tel{display:flex;gap:6px}.sosm-tel a{flex:1;text-align:center;padding:9px 4px;border-radius:10px;background:#ECE7DC;color:#141210;font-weight:800;font-size:12.5px;text-decoration:none}
+.sosm-b{display:block;width:100%;margin-top:10px;padding:13px;border-radius:12px;border:1px solid rgba(236,231,220,.3);background:transparent;color:#ECE7DC;font-weight:700;font-size:15px}
+.sosm-b.verm{background:#c62828;border-color:#c62828;color:#fff;font-weight:900;font-size:16px}.sosm-b.verde{background:#1f8f4e;border-color:#1f8f4e;color:#fff;font-weight:800}
+</style>
+<script>
+// SOS dentro do painel (ADM e Meu painel): o mesmo da tela de entrada. Quem pede é identificado pelo celular
+// (o pedaço da chave guardado depois do código por e-mail), e o alerta vai para todos os irmãos.
+(function(){
+  const cache=()=>{try{return JSON.parse(localStorage.getItem("otp_s")||"{}")}catch(_){return {}}};
+  const quem=()=>{const c=cache();let b=null;for(const e in c)if(c[e].exp>Date.now()&&(!b||c[e].exp>c[b].exp))b=e;return b?{email:b,s:c[b].s}:null};
+  const gps=()=>new Promise(r=>{if(!navigator.geolocation)return r(null);navigator.geolocation.getCurrentPosition(p=>r({lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5)}),()=>r(null),{enableHighAccuracy:true,timeout:12000,maximumAge:0})});
+  let veu=null;const fecha=()=>{if(veu){veu.remove();veu=null}};
+  const abre=html=>{fecha();veu=document.createElement("div");veu.className="sosm-veu";veu.innerHTML=`<div class="sosm-cx" role="dialog" aria-modal="true">${html}</div>`;
+    veu.onclick=e=>{if(e.target===veu)fecha()};document.body.appendChild(veu);return veu};
+  const tel='<p style="margin-top:14px">⚠️ <b>Risco de vida?</b> Ligue primeiro:</p><div class="sosm-tel"><a href="tel:190">190 Polícia</a><a href="tel:192">192 SAMU</a><a href="tel:193">193 Bombeiros</a></div>';
+  window.abrirSOS=function(){
+    const url=window.SOS_URL||"",q=quem();
+    if(!url||!q){abre(`<h3>🆘 SOS</h3><p>Para usar o SOS por aqui, entre uma vez no app com o seu e-mail e o código que chega no e-mail, neste celular.</p>${tel}<button class="sosm-b" data-f>Fechar</button>`).querySelector("[data-f]").onclick=fecha;return}
+    const v=abre(`<h3>🆘 O que aconteceu?</h3><div class="sosm-g">${[["pane","🛵 Pane/acidente"],["saude","🚑 Saúde"],["seguranca","⚠️ Segurança"],["outro","🆘 Outro"]].map(([k,t])=>`<button class="sosm-t" data-k="${k}">${t}</button>`).join("")}</div>${tel}<button class="sosm-b" data-f>Cancelar</button>`);
+    v.querySelector("[data-f]").onclick=fecha;
+    v.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const cat=b.dataset.k,nome=b.textContent.trim(),pg=gps();
+      const c=abre(`<h3>Confirmar o SOS de ${nome}?</h3><p>Todos os irmãos com o app serão avisados, com a sua localização.</p><button class="sosm-b verm" data-s>🆘 Sim, enviar o SOS</button><button class="sosm-b" data-f>Cancelar</button>`);
+      c.querySelector("[data-f]").onclick=fecha;
+      c.querySelector("[data-s]").onclick=async()=>{const m=abre(`<h3>🆘 SOS</h3><p data-m>📍 Pegando a sua localização…</p>`).querySelector("[data-m]");
+        const l=await pg,quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+        let nomeIrmao=localStorage.getItem("sos_nome")||"";
+        const monta=n=>`🆘 *SOS · Insanos M.C.*\n${n?`*${n}*`:"Um irmão"} (Divisão ${window.SOS_DIV||""}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`;
+        let tx=monta(nomeIrmao);m.textContent="Enviando o alerta para os irmãos…";let ok=false;
+        try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null})});
+          const j=await r.json();ok=!!j.ok;if(j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}tx=monta(j.nome)}if(!ok)m.textContent="⚠️ "+(j.erro||"Não consegui enviar o alerta.")}
+        catch(e){m.textContent="⚠️ Não consegui enviar o alerta (sem internet?)."}
+        try{await navigator.clipboard.writeText(tx)}catch(_){}
+        const box=m.parentNode;if(ok)m.innerHTML="✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:";else m.innerHTML+=" <b>Mande nos grupos:</b>";
+        box.insertAdjacentHTML("beforeend",`<button class="sosm-b verde" data-z>📤 Mandar nos grupos (WhatsApp)</button><button class="sosm-b" data-c>📋 Copiar a mensagem</button>${tel}<button class="sosm-b" data-f>Fechar</button>`);
+        box.querySelector("[data-z]").onclick=async()=>{if(navigator.share){try{await navigator.share({text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
+        box.querySelector("[data-c]").onclick=async e=>{try{await navigator.clipboard.writeText(tx);e.target.textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(tx)}};
+        box.querySelector("[data-f]").onclick=fecha}})};
+})();
 </script>"""
 
 FILA_RECENTE = []   # resumo das últimas linhas da aba Fila (a nuvem preenche): "Meus envios" da página nova
@@ -2823,6 +2872,8 @@ def main():
     def gravar(caminho, dados, senha=None, sem_js="", extras=(), rotulo="E-mail", so_geral=False):
         pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
         pagina = pagina.replace("</body>", snip_versao(False) + "</body>", 1).replace("__VERSAO__", VERSAO_ATUAL)
+        if dados.get("modo") == "adm":       # SOS dentro do painel ADM (quadrado do topo)
+            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + "</body>", 1)
         if dados.get("modo") == "geral" and caminho == SAIDA:
             global GERAL_RAW
             GERAL_RAW = pagina

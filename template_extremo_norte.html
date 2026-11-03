@@ -262,6 +262,19 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .lanc-fim .dica{margin:0;font-size:13px;color:var(--osso2)}
 @media (max-width:600px){.lanc-topo{grid-template-columns:1fr}.lanc-fim .btn{width:100%;justify-content:center}}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.q-velho{display:none!important}
+.quadros3{display:flex;gap:8px}
+.q3{width:84px;height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.06);color:var(--osso);font-weight:700;font-size:13px;cursor:pointer;padding:6px}
+.q3 img{width:38px;height:auto}.q3 svg{width:34px;height:auto}
+.q3.sos{background:#c62828;border-color:#c62828;color:#fff}.q3.sos b{font-family:"Big Shoulders Display",Impact,sans-serif;font-size:26px;line-height:1;letter-spacing:1px}.q3.sos span{font-size:10.5px;font-weight:700;opacity:.92}
+.fa-veu{position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center}
+.fa-cx{background:#1b1714;color:var(--osso);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));border-top:3px solid var(--ouro)}
+.fa-cx h3{margin:0 0 10px;font-size:19px}
+.fa-it{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(236,231,220,.14);background:rgba(236,231,220,.05);color:var(--osso);text-decoration:none;font:inherit;cursor:pointer}
+.fa-it b{display:block;font-size:16px}.fa-it small{display:block;color:var(--osso2);font-size:13px}
+.fa-ico{width:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:center}.fa-ico img{width:38px;height:auto}.fa-ico svg{width:34px;height:auto}
+.fa-seta{margin-left:auto;color:var(--osso2);font-size:20px}
+.fa-fechar{display:block;width:100%;margin-top:4px;padding:12px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso);font-weight:700;font-size:15px}
 .site18{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--osso);padding:6px 12px 6px 6px;border-radius:12px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.06)}
 .site18:hover{background:rgba(236,231,220,.12);border-color:rgba(236,231,220,.35)}
 .site18:focus-visible{outline:2px solid var(--osso);outline-offset:2px}
@@ -2462,14 +2475,40 @@ function montarMenu(){
     <button type="button" data-v="painel" aria-current="page">${ICO.painel}<span>Presença</span></button>
     <button type="button" data-v="pag">${ICO.pag}<span>Pagamentos</span>${abertos?`<span class="qt">${abertos}</span>`:""}</button>
     <button type="button" data-v="lancar">${ICO.lancar}<span>Lançar</span></button>
-    <button type="button" data-v="ficha"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.8 16.5c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M14 10h4M14 13.5h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Cadastro</span></button>
-    <button type="button" data-v="kit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3l4 3 4-3 5 4-3 4v10H6V11L3 7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 6v15" stroke="currentColor" stroke-width="2"/></svg><span>Kit/colete</span></button>
-    <button type="button" data-v="acessos"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Acessos</span></button>
-    <button type="button" data-v="listas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 12h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Lista Whatsapp</span></button>`;
+    <button type="button" data-v="listas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 12h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Lista</span></button>
+    <button type="button" data-mais><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>Mais</span></button>`;
   document.body.prepend(nav);
-  nav.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(b)irPara(b.dataset.v)});
+  nav.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(b){irPara(b.dataset.v);return}
+    if(ev.target.closest("button[data-mais]"))folhaAtalhos("Mais",[{ico:"📇",t:"Cadastro",d:"Novo irmão, dados, cargo e situação",fn:()=>irPara("ficha")},{ico:"🎽",t:"Kit/colete",d:"Solicitação para o regional",fn:()=>irPara("kit")}])});
+  montarQuadros();
   montarPagamentos();montarListas();montarFicha();montarKit();montarAcessos();montarCadastro();montarDash();if(DADOS.nuvem){const c=document.querySelector('[data-cad="cpf"]');if(c&&c.closest("label"))c.closest("label").hidden=true}
 }
+// ---- topo do ADM: três quadrados (Clube, Gestão e SOS). Os atalhos de antes continuam, dentro das folhas.
+function folhaAtalhos(titulo,itens){let v=document.getElementById("folhaAt");if(v)v.remove();
+  v=document.createElement("div");v.id="folhaAt";v.className="fa-veu";
+  v.innerHTML=`<div class="fa-cx" role="dialog" aria-modal="true" aria-label="${esc(titulo)}"><h3>${esc(titulo)}</h3>${itens.map((x,k)=>x.href
+    ?`<a class="fa-it" href="${esc(x.href)}" target="_blank" rel="noopener noreferrer"><span class="fa-ico">${x.ico}</span><span><b>${esc(x.t)}</b><small>${esc(x.d||"")}</small></span><span class="fa-seta">↗</span></a>`
+    :`<button type="button" class="fa-it" data-k="${k}"><span class="fa-ico">${x.ico}</span><span><b>${esc(x.t)}</b><small>${esc(x.d||"")}</small></span><span class="fa-seta">›</span></button>`).join("")}
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+  document.body.appendChild(v);const fecha=()=>v.remove();
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar")||e.target.closest("a.fa-it"))return fecha();const b=e.target.closest("button[data-k]");if(b){fecha();itens[+b.dataset.k].fn()}}}
+function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||document.getElementById("quadros3"))return;
+  const ico=id=>{const a=$(id);if(!a)return"";const im=a.querySelector("img"),sv=a.querySelector("svg");return im?`<img alt="" src="${im.src||LOGO}">`:sv?sv.outerHTML:""};
+  const href=id=>{const a=$(id);return a&&a.getAttribute("href")||""};
+  ["site18","doc18","man18","dash18","plan18"].forEach(id=>{const a=$(id);if(a)a.classList.add("q-velho")});
+  const q=document.createElement("div");q.id="quadros3";q.className="quadros3";
+  q.innerHTML=`<button type="button" class="q3" data-q="clube">${ico("site18")}<span>Clube</span></button>
+    <button type="button" class="q3" data-q="gestao">${ico("dash18")}<span>Gestão</span></button>
+    <button type="button" class="q3 sos" data-q="sos"><b>SOS</b><span>Preciso de ajuda</span></button>`;
+  dir.prepend(q);
+  q.onclick=e=>{const b=e.target.closest("[data-q]");if(!b)return;const k=b.dataset.q;
+    if(k==="sos"){if(window.abrirSOS)abrirSOS();return}
+    if(k==="clube")folhaAtalhos("📚 Clube",[{ico:ico("site18"),t:"Sistema Insanos",d:"Entrar no sistema do motoclube",href:href("site18")},
+      {ico:ico("doc18"),t:"RDI",d:"Regulamento",href:href("doc18")},{ico:ico("man18"),t:"Manual do integrante",d:"Abrir o manual",href:href("man18")}]);
+    if(k==="gestao"){const it=[{ico:ico("dash18"),t:"Dashboard",d:"Cards e comparativo entre meses",fn:()=>irPara("dash")}];
+      const pl=$("plan18");if(pl&&!pl.hidden&&pl.getAttribute("href"))it.push({ico:ico("plan18"),t:"Planilha",d:"Abrir a planilha do Google",href:pl.getAttribute("href")});
+      if(window.TEM_ACESSOS)it.push({ico:'<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#E9B949" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#E9B949" stroke-width="2" stroke-linecap="round"/></svg>',t:"Acessos",d:"Quem entrou, avisos, ADM e visitantes",fn:()=>irPara("acessos")});
+      folhaAtalhos("📊 Gestão",it)}}}
 let LANC_TIPO="evento",INS_CASA=null;
 function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
   if(!INS_CASA){INS_CASA=document.createComment("lugar da lista do insight");z.parentNode.insertBefore(INS_CASA,z)}
@@ -2496,6 +2535,7 @@ function irPara(v){
   if(v==="pag"){try{window.PAG_VISTO_ANT=localStorage.getItem("pag_visto")||"";localStorage.setItem("pag_visto",(DADOS.pag&&DADOS.pag.ultimo_pag)||new Date().toISOString().slice(0,19))}catch(e){}
     try{montarPagamentos()}catch(e){}}
   document.querySelectorAll(".lateral button[data-v]").forEach(b=>b.dataset.v===v?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  {const bm=document.querySelector(".lateral button[data-mais]");if(bm)["ficha","kit","acessos","dash"].includes(v)?bm.setAttribute("aria-current","page"):bm.removeAttribute("aria-current")}
   if(v==="lancar")$("lancDet").open=true;
   window.scrollTo({top:0,behavior:"instant"in window?"instant":"auto"});
 }
@@ -3367,7 +3407,7 @@ async function acAbrir(){const P=(DADOS.acessos||{}).cifrado;if(!P)return null;
     return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b(P.iv)},k,b(P.ct))))}catch(e){return null}}
 let ACX=null;
 async function montarAcessos(){const bt=document.querySelector('.lateral button[data-v="acessos"]');if(bt)bt.hidden=true;
-  ACX=await acAbrir();if(!ACX)return;if(bt)bt.hidden=false;const A=ACX;acRegs=A.regs||[];
+  ACX=await acAbrir();if(!ACX)return;if(bt)bt.hidden=false;window.TEM_ACESSOS=true;const A=ACX;acRegs=A.regs||[];
   if(A.planilha&&$("plan18")){$("plan18").href=A.planilha;$("plan18").hidden=false}   // atalho da planilha: só para quem vê a tela Acessos
   $("acAtualizar").onclick=()=>acBuscar(true);
   acExtras(A);
