@@ -2460,7 +2460,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v18";
+const CACHE = "insanos-v19";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2476,7 +2476,7 @@ self.addEventListener("push", e => {
   e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(cs => cs.forEach(c => c.postMessage({tipo: "verificar_versao"}))).catch(() => {}));
   let d = {};
   try { d = e.data.json(); } catch (_) { d = {title: "Insanos ADM", body: e.data ? e.data.text() : ""}; }
-  const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
+  const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "notif-badge.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
@@ -2556,7 +2556,7 @@ self.addEventListener("notificationclick", e => {
         painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
       .then(() => self.registration.showNotification(vou ? "✅ Presença confirmada" : "👍 Resposta registrada",
         {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ".",
-         icon: "icon-192.png", badge: "icon-192.png", tag: "rsvp-ok"})));
+         icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
     return;
   }
   if (dd.rsvp && !e.action) {   // tocou na notificação (no iPhone não há botões): abre o painel para responder
