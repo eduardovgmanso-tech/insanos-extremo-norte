@@ -779,17 +779,19 @@ document.querySelectorAll("#tut .tb button").forEach(function(b){b.onclick=funct
 document.getElementById("tutJa").onclick=function(){if(tutEv){tutEv.prompt();tutEv.userChoice.then(function(){tutEv=null;tutFechar()})}};
 </script>"""
 
+FILA_RECENTE = []   # resumo das últimas linhas da aba Fila (a nuvem preenche): "Meus envios" da página nova
 VERSAO_ATUAL = ""   # assinatura do conteúdo publicado: muda só quando o painel muda (versao.json)
 
 def snip_versao(auto):
     """Confere se há versão nova quando o app volta para a tela (app que ficou "dormindo" mostra a tela antiga)."""
-    return ('<script>(function(){var V="__VERSAO__",AUTO=' + ("true" if auto else "false") + ';if(!V||V.indexOf("__")===0)return;var b=null,ult=0;'
+    return ('<script>(function(){var V="__VERSAO__",AUTO=' + ("true" if auto else "false") + ';if(!V||V.indexOf("__")===0)return;var b=null,ult=0,iv=0;'
             'function faixa(t,f){if(!b){b=document.createElement("div");b.id="verFaixa";b.style.cssText="position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:99999;background:#E9B949;color:#141210;border-radius:14px;padding:12px 14px;font:700 14px Barlow,Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);text-align:center;cursor:pointer";document.body.appendChild(b)}b.textContent=t;b.onclick=f;b.style.display="block"}'
             'function some(){if(b)b.style.display="none"}'
-            'function ver(){var ag=Date.now();if(ag-ult<60000)return;ult=ag;fetch("versao.json?t="+ag,{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v)return;'
+            'function ver(){if(AUTO&&!document.getElementById("cpf")){clearInterval(iv);return}'   # recarregar sozinho só na tela de entrada
+            'var ag=Date.now();if(ag-ult<60000)return;ult=ag;fetch("versao.json?t="+ag,{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v)return;'
             'if(j.v!==V){if(AUTO){location.reload();return}faixa("🔄 Tem uma versão nova do painel · toque para atualizar",function(){location.reload()})}else some()})'
             '.catch(function(){faixa("📴 Sem internet · você está vendo a última versão guardada",some)})}'
-            'document.addEventListener("visibilitychange",function(){if(!document.hidden)ver()});setInterval(ver,600000);setTimeout(ver,3000)})();</script>')
+            'document.addEventListener("visibilitychange",function(){if(!document.hidden)ver()});iv=setInterval(ver,600000);setTimeout(ver,3000)})();</script>')
 
 def montar_lembretes(membros, eventos, eventos_ins, pag):
     """Pendências de cada irmão com e-mail: insights sem resposta (últimos 7 dias), eventos sem confirmação
@@ -2945,6 +2947,22 @@ def main():
     pagina_adm_link = gravar(None, {**dados_adm, "m": membros_link}, "Presença, insights e a caminhada de cada irmão. 💀",
                              extras=[x for x in extras if x] if ADM_NO_LINK_ACEITA_SENHA_COLETIVA else [],
                              rotulo="Seu e-mail ou a senha de acesso" if ADM_NO_LINK_ACEITA_SENHA_COLETIVA else "Seu e-mail cadastrado na divisão")
+    # PROTÓTIPO DO NOVO LAYOUT (novo.html): mesmos dados e mesma entrada, só para olhar. O painel atual não muda.
+    # Para tirar: apague o arquivo template_novo.html do repositório.
+    pagina_novo = None
+    tpl_novo = os.path.join(PASTA, "template_novo.html")
+    if os.path.exists(tpl_novo):
+        _html_atual = html
+        try:
+            with open(tpl_novo, encoding="utf-8") as f:
+                html = f.read().replace("__DIV_NOME__", str(DIV.get("nome", ""))).replace("__DIV_REG__", str(DIV.get("regional", "")))
+            pagina_novo = gravar(None, {**dados_adm, "m": membros_link, "fila": FILA_RECENTE}, "Novo layout (protótipo) · só para olhar",
+                                 extras=[], rotulo="Seu e-mail cadastrado na divisão")
+        except Exception as e:
+            print(f"Aviso: protótipo do novo layout não gerado ({type(e).__name__}: {e}).")
+            pagina_novo = None
+        finally:
+            html = _html_atual
     FOTOS_LOGIN = ""
 
     # 3) individuais: ranking e média da divisão por mês e no período todo
@@ -3001,7 +3019,7 @@ def main():
     print("Acesso ao geral e ao ADM: e-mail de " + ", ".join(AUTORIZADOS) + " (ou a senha coletiva no geral)")
     if AUTORIZADOS_SO_GERAL:
         print("Só o painel geral, com o CPF: " + ", ".join(AUTORIZADOS_SO_GERAL))
-    publicar_se_mudou({"index.html": INDEX_SO_ADM, "adm.html": pagina_adm_link, **arquivos_app()},
+    publicar_se_mudou({"index.html": INDEX_SO_ADM, "adm.html": pagina_adm_link, **arquivos_app(), **({"novo.html": pagina_novo} if pagina_novo else {})},
                       _assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm),
                       forcar="--publicar" in sys.argv)
 

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Insanos · Novo layout (protótipo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fundo:#efe7d8;--sup:#fffaf0;--sup2:#f4ecdc;--texto:#1d1712;--suave:#6b6052;--linha:#d8ccb6;
+  --ouro:#a67b1e;--ouro-forte:#d6a541;--verde:#2f7d4d;--vermelho:#b3261e;--sombra:0 1px 0 rgba(0,0,0,.04);
+  color-scheme:light;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --fundo:#17120e;--sup:#221b15;--sup2:#2b231b;--texto:#ece4d4;--suave:#b0a491;--linha:#3b3027;
+  --ouro:#d6a541;--ouro-forte:#d6a541;--verde:#4fb07a;--vermelho:#e0574c;--sombra:none;color-scheme:dark}}
+:root[data-theme="dark"]{--fundo:#17120e;--sup:#221b15;--sup2:#2b231b;--texto:#ece4d4;--suave:#b0a491;--linha:#3b3027;
+  --ouro:#d6a541;--ouro-forte:#d6a541;--verde:#4fb07a;--vermelho:#e0574c;--sombra:none;color-scheme:dark}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--fundo);color:var(--texto);font:16px/1.45 Barlow,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ouro-forte);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+.app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:96px}
+.titulo{font-family:"Big Shoulders Display",Impact,sans-serif;font-weight:800;letter-spacing:.5px;line-height:1}
+/* ---------- topo ---------- */
+.topo{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--fundo);padding:14px 18px 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--linha)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--fundo);z-index:21}
+.cruz{width:34px;height:34px;flex:0 0 34px}
+.topo h1{margin:0;font-size:26px}
+.topo small{display:block;color:var(--suave);font-size:13px;margin-top:2px}
+.ver{margin-left:auto;display:flex;background:var(--sup2);border-radius:999px;padding:3px;border:1px solid var(--linha)}
+.ver button{border:0;background:transparent;padding:6px 10px;border-radius:999px;font-size:12.5px;font-weight:700;color:var(--suave)}
+.ver button[aria-pressed="true"]{background:var(--ouro-forte);color:#1d1712}
+main{padding:18px}
+h2.titulo{font-size:30px;margin:6px 0 4px}
+.sub{color:var(--suave);margin:0 0 16px;font-size:15px}
+/* ---------- cartões ---------- */
+.cartao{background:var(--sup);border:1px solid var(--linha);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--sombra)}
+.cartao h3{margin:0 0 6px;font-size:17px}
+.patch{position:relative;display:flex;gap:14px;align-items:center;width:100%;text-align:left;background:var(--sup);border:2px dashed var(--ouro);border-radius:18px;padding:14px 16px;margin-bottom:10px}
+.patch .num{font-family:"Big Shoulders Display",Impact,sans-serif;font-weight:900;font-size:40px;line-height:.9;min-width:44px;color:var(--ouro)}
+.patch.alerta{border-color:var(--vermelho)}.patch.alerta .num{color:var(--vermelho)}
+.patch b{display:block;font-size:16px}.patch span{color:var(--suave);font-size:14px}
+.patch .seta{margin-left:auto;color:var(--suave);font-size:22px}
+.secao{display:flex;align-items:baseline;justify-content:space-between;margin:22px 0 10px}
+.secao h3{margin:0;font-size:15px;color:var(--suave);font-weight:600}
+.secao button{border:0;background:none;color:var(--ouro);font-weight:700;font-size:14px;padding:4px}
+.linha{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--linha)}
+.linha:first-child{border-top:0}
+.data{font-family:"Big Shoulders Display",Impact,sans-serif;font-weight:800;font-size:22px;width:52px;text-align:center;line-height:1}
+.data small{display:block;font-family:Barlow,sans-serif;font-weight:600;font-size:11px;color:var(--suave)}
+.pilula{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:700;background:var(--sup2);color:var(--suave)}
+.pilula.ok{background:color-mix(in srgb,var(--verde) 18%,transparent);color:var(--verde)}
+.pilula.falta{background:color-mix(in srgb,var(--vermelho) 16%,transparent);color:var(--vermelho)}
+.pilula.ouro{background:color-mix(in srgb,var(--ouro-forte) 22%,transparent);color:var(--ouro)}
+/* ---------- botões ---------- */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:14px;border:1px solid var(--linha);background:var(--sup);font-weight:700;font-size:16px}
+.btn.principal{background:var(--ouro-forte);border-color:var(--ouro-forte);color:#1d1712}
+.btn.enviar{background:var(--verde);border-color:var(--verde);color:#fff}
+.btn.sos{background:var(--vermelho);border-color:var(--vermelho);color:#fff;font-size:18px;font-weight:800;min-height:58px}
+.btn+.btn{margin-top:10px}
+.btn.peq{min-height:40px;font-size:14px;width:auto;padding:0 14px}
+/* ---------- menu de baixo ---------- */
+nav.menu{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:30;background:var(--sup);border-top:1px solid var(--linha);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+nav.menu button{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;font-size:12.5px;font-weight:600;color:var(--suave);border-radius:12px;position:relative}
+nav.menu button svg{width:24px;height:24px}
+nav.menu button[aria-current="page"]{color:var(--texto);background:var(--sup2)}
+nav.menu button[aria-current="page"]::before{content:"";position:absolute;top:-7px;left:30%;right:30%;height:3px;border-radius:3px;background:var(--ouro-forte)}
+.badge{position:absolute;top:2px;right:calc(50% - 22px);background:var(--vermelho);color:#fff;border-radius:999px;font-size:11px;font-weight:800;min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px}
+/* ---------- mensagens no rodapé e folha de confirmação ---------- */
+#toast{position:fixed;left:50%;transform:translate(-50%,20px);bottom:calc(88px + env(safe-area-inset-bottom,0px));max-width:440px;width:calc(100% - 28px);background:var(--texto);color:var(--fundo);padding:13px 16px;border-radius:14px;font-weight:600;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;display:flex;gap:10px;align-items:center}
+#toast.ver{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#toast button{margin-left:auto;border:0;background:none;color:var(--ouro-forte);font-weight:800}
+.veu{position:fixed;inset:0;background:rgba(10,7,4,.55);z-index:70;display:flex;align-items:flex-end;justify-content:center}
+.veu[hidden]{display:none}
+.folha{background:var(--sup);width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px));animation:sobe .22s ease-out}
+@keyframes sobe{from{transform:translateY(30px);opacity:.5}}
+.folha h3{margin:0 0 6px;font-size:20px}.folha p{margin:0 0 16px;color:var(--suave)}
+/* ---------- entrada ---------- */
+.entrada{min-height:100vh;display:flex;flex-direction:column;padding:18px 20px calc(24px + env(safe-area-inset-bottom,0px));max-width:480px;margin:0 auto}
+.entrada .marca{margin:38px 0 26px;text-align:center}
+.entrada .marca .titulo{font-size:52px}
+.entrada .marca p{color:var(--suave);margin:8px 0 0}
+.campo{width:100%;min-height:52px;border-radius:14px;border:1px solid var(--linha);background:var(--sup);padding:0 14px;font-size:17px}
+.ou{display:flex;align-items:center;gap:10px;color:var(--suave);font-size:13px;margin:18px 0}
+.ou::before,.ou::after{content:"";flex:1;height:1px;background:var(--linha)}
+.rodape-entrada{margin-top:auto;padding-top:26px;text-align:center;color:var(--suave);font-size:13px}
+.rodape-entrada button{border:0;background:none;color:var(--ouro);font-weight:700;padding:8px}
+/* ---------- abas ---------- */
+.abas{display:flex;gap:6px;background:var(--sup2);padding:4px;border-radius:14px;margin-bottom:16px;border:1px solid var(--linha)}
+.abas button{flex:1;border:0;background:none;padding:10px 4px;border-radius:10px;font-weight:700;font-size:14.5px;color:var(--suave)}
+.abas button[aria-selected="true"]{background:var(--sup);color:var(--texto);box-shadow:var(--sombra)}
+/* ---------- medidor ---------- */
+.medidores{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.medidor{background:var(--sup);border:1px solid var(--linha);border-radius:16px;padding:14px;text-align:center}
+.medidor .titulo{font-size:44px}
+.medidor small{color:var(--suave);display:block}
+.barra{height:8px;border-radius:8px;background:var(--sup2);overflow:hidden;margin-top:10px}
+.barra i{display:block;height:100%;background:var(--ouro-forte);border-radius:8px}
+/* ---------- envios ---------- */
+.passo{display:flex;gap:6px;margin-top:6px}
+.passo i{flex:1;height:5px;border-radius:5px;background:var(--linha)}
+.passo i.on{background:var(--verde)}
+.busca{position:relative;margin-bottom:12px}
+.busca input{padding-left:40px}
+.busca svg{position:absolute;left:12px;top:15px;width:20px;height:20px;color:var(--suave)}
+details.grupo{background:var(--sup);border:1px solid var(--linha);border-radius:16px;margin-bottom:12px;overflow:hidden}
+details.grupo summary{list-style:none;padding:14px 16px;font-weight:700;display:flex;align-items:center;gap:10px;cursor:pointer}
+details.grupo summary::-webkit-details-marker{display:none}
+details.grupo summary::after{content:"▾";margin-left:auto;color:var(--suave);transition:transform .2s}
+details.grupo[open] summary::after{transform:rotate(180deg)}
+details.grupo .corpo{padding:0 16px 8px}
+.grade-mais{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grade-mais button{background:var(--sup);border:1px solid var(--linha);border-radius:16px;padding:16px 12px;text-align:left;min-height:92px}
+.grade-mais b{display:block;font-size:16px;margin-top:6px}.grade-mais span{color:var(--suave);font-size:13px}
+.icone{font-size:24px}
+.aviso-proto{font-size:12.5px;color:var(--suave);text-align:center;margin:18px 0 0}
+/* ---------- tutorial ---------- */
+.tut{background:var(--sup);width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:24px 20px calc(20px + env(safe-area-inset-bottom,0px))}
+.tut .ilus{font-size:54px;text-align:center;margin:6px 0 10px}
+.tut h3{text-align:center;margin:0 0 8px;font-size:22px}.tut p{text-align:center;color:var(--suave);margin:0 0 18px}
+.pontos{display:flex;justify-content:center;gap:6px;margin-bottom:16px}
+.pontos i{width:8px;height:8px;border-radius:50%;background:var(--linha)}.pontos i.on{background:var(--ouro-forte);width:22px;border-radius:8px}
+.vazio{text-align:center;color:var(--suave);padding:28px 10px}
+.faixa-proto{background:color-mix(in srgb,var(--ouro-forte) 18%,transparent);color:var(--texto);font-size:13px;padding:8px 14px;text-align:center;border-bottom:1px solid var(--linha)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px}
+.chips button{flex:0 0 auto;border:1px solid var(--linha);background:var(--sup);border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px;color:var(--suave)}
+.chips button[aria-pressed="true"]{background:var(--ouro-forte);border-color:var(--ouro-forte);color:#1d1712}
+a.btn{text-decoration:none;color:inherit}
+</style>
+</head>
+<body>
+__NOSCRIPT__
+<div id="raiz"></div>
+<div id="toast" role="status" aria-live="polite"><span id="toastTx"></span><button id="toastBt" hidden></button></div>
+<script>
+const DADOS=__DATA__;
+const DIV={nome:"__DIV_NOME__",reg:"__DIV_REG__"};
+// ===================== dados reais =====================
+const z=n=>String(n).padStart(2,"0");
+const HOJE=(()=>{const x=new Date();return x.getFullYear()+"-"+z(x.getMonth()+1)+"-"+z(x.getDate())})();
+const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const MES3=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const AFAST=new Set((DADOS.afastados||[]).map(a=>typeof a==="string"?a:(a&&a.n)||""));
+const M=(DADOS.m||[]).map((m,i)=>({...m,i})).filter(m=>!AFAST.has(m.n));
+const EV=(DADOS.ev||[]).slice().sort((a,b)=>a.d<b.d?-1:1),INS=(DADOS.ev_ins||[]).slice().sort((a,b)=>a.d<b.d?-1:1);
+const ENT={};[...EV,...INS].forEach(e=>(e.p||[]).forEach((v,i)=>{if(v!==null&&v!==undefined&&v!==""){const n=(DADOS.m[i]||{}).n;if(n&&(!ENT[n]||e.d<ENT[n]))ENT[n]=e.d}}));
+// mesma regra do painel: em branco depois da entrada conta como falta; evento futuro fica fora das contas
+function conta(e,m){if(e.d>HOJE)return null;const v=(e.p||[])[m.i];if(v==="-")return 0;if(v===null||v===undefined||v===""){return ENT[m.n]&&e.d>=ENT[m.n]?0:null}return v===1||v==="S"?1:0}
+function pctEv(e){let s=0,t=0;M.forEach(m=>{const c=conta(e,m);if(c!==null){t++;s+=c}});return {s,t,p:t?Math.round(s*100/t):0}}
+function pctLista(L){let s=0,t=0;L.forEach(e=>M.forEach(m=>{const c=conta(e,m);if(c!==null){t++;s+=c}}));return t?Math.round(s*100/t):null}
+const ST=(DADOS.pag||{}).status||{},BOL=(DADOS.pag||{}).boleto||{},VENC=(DADOS.pag||{}).venc||"";
+const situ=n=>{const s=String(ST[n]||"");return /aguard|compens/i.test(s)?"comp":/pago|ades/i.test(s)?"pago":"aberto"};
+const PAG=M.map(m=>({n:m.n,st:situ(m.n),tx:ST[m.n]||"Em aberto",bol:BOL[m.n]||""}));
+const FILA=DADOS.fila||[];
+const br=d=>d?d.slice(8,10)+"/"+d.slice(5,7):"";
+// ===================== estado =====================
+let tela="inicio",sub=null,mesSel=null,filtroPag="";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const cruz='<svg class="cruz" viewBox="0 0 40 40" aria-hidden="true"><path fill="var(--ouro-forte)" d="M11 2h18l-6 13.5L38 11v18l-15-4.5L29 38H11l6-13.5L2 29V11l15 4.5z"/></svg>';
+const IC={inicio:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+ presenca:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+ lancar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M12 10v7M8.5 13.5h7"/></svg>',
+ pag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
+ mais:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+ busca:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>'};
+let tt=null;
+function toast(tx){$("#toastTx").textContent=tx;$("#toastBt").hidden=true;$("#toast").classList.add("ver");clearTimeout(tt);tt=setTimeout(()=>$("#toast").classList.remove("ver"),3400)}
+const soLeitura=()=>toast("No protótipo, isso não envia nada. Para fazer de verdade, use o painel atual.");
+const passos=p=>`<div class="passo"><i class="on"></i><i class="${p>=2?"on":""}"></i><i class="${p>=3?"on":""}"></i></div>`;
+const etapaFila=s=>/feito/i.test(s)?[3,"Aplicado na planilha","ok"]:/erro/i.test(s)?[3,"Com erro","falta"]:[2,"Na fila da nuvem","ouro"];
+// ===================== Início =====================
+function telaInicio(){const h=new Date().getHours(),saud=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const ab=PAG.filter(p=>p.st==="aberto"),comp=PAG.filter(p=>p.st==="comp");let cs="";
+  if(ab.length)cs+=`<button class="patch" data-ir="pag"><span class="num">${ab.length}</span><span><b>Mensalidade${ab.length>1?"s":""} em aberto</b><span>${VENC?"Vencimento em "+br(VENC):""}${comp.length?" · "+comp.length+" em compensação":""}</span></span><span class="seta">›</span></button>`;
+  const ins=INS.filter(e=>e.d<=HOJE).slice(-1)[0];
+  if(ins){const r=pctEv(ins);if(r.t&&r.s<r.t)cs+=`<button class="patch" data-ir="presenca"><span class="num">${r.p}%</span><span><b>${esc(ins.e)} com respostas</b><span>${r.s} de ${r.t} · faltam ${r.t-r.s} irmão${r.t-r.s>1?"s":""}</span></span><span class="seta">›</span></button>`}
+  const fut=EV.filter(e=>e.d>=HOJE);
+  fut.slice(0,2).forEach(e=>{let vai=0,nao=0;M.forEach(m=>{const v=(e.p||[])[m.i];if(v===1||v==="S")vai++;else if(v===0)nao++});const sem=M.length-vai-nao;
+    cs+=`<button class="patch" data-ir="presenca"><span class="num">${sem}</span><span><b>Sem resposta para ${esc(e.e)}</b><span>${br(e.d)} · ${vai} vão · ${nao} não vão</span></span><span class="seta">›</span></button>`});
+  const prox7=M.filter(m=>{if(!m.nasc)return false;const a=new Date(),d=new Date(a.getFullYear(),+m.nasc.slice(5,7)-1,+m.nasc.slice(8,10));const dif=(d-new Date(a.getFullYear(),a.getMonth(),a.getDate()))/864e5;return dif>=0&&dif<=7});
+  if(prox7.length)cs+=`<div class="patch" style="border-style:solid"><span class="num">🎂</span><span><b>Aniversário${prox7.length>1?"s":""} nos próximos 7 dias</b><span>${prox7.map(m=>esc(m.n)+" ("+br(m.nasc)+")").join(", ")}</span></span></div>`;
+  if(!cs)cs=`<div class="cartao vazio">Tudo em dia por aqui. 💀</div>`;
+  const ult=FILA[0];
+  return `<h2 class="titulo">${saud}</h2><p class="sub">O que precisa da sua atenção hoje</p>${cs}
+  <div class="secao"><h3>Próximos eventos</h3><button data-ir="presenca">Ver presença</button></div>
+  <div class="cartao">${fut.length?fut.slice(0,4).map(e=>{let vai=0;M.forEach(m=>{const v=(e.p||[])[m.i];if(v===1||v==="S")vai++});return `<div class="linha"><div class="data">${e.d.slice(8,10)}<small>${MES3[+e.d.slice(5,7)-1]}</small></div><div style="flex:1"><b>${esc(e.e)}</b><div class="barra"><i style="width:${Math.round(vai*100/Math.max(1,M.length))}%"></i></div></div><span class="pilula">${vai} vão</span></div>`}).join(""):'<div class="vazio">Nenhum evento futuro lançado</div>'}</div>
+  ${ult?`<div class="secao"><h3>Último envio para a planilha</h3><button data-sub="envios">Meus envios</button></div><div class="cartao"><b>${esc(ult.txt)}</b><div class="sub" style="margin:2px 0 0">${etapaFila(ult.sit)[1]} · ${esc(ult.q)}</div>${passos(etapaFila(ult.sit)[0])}</div>`:""}`}
+// ===================== Presença =====================
+function mesesComEventos(){const s=new Set();[...EV,...INS].forEach(e=>{if(e.d<=HOJE)s.add(e.d.slice(0,7))});return [...s].sort().reverse().slice(0,6)}
+function telaPresenca(){const ms=mesesComEventos();if(!mesSel)mesSel=ms[0]||HOJE.slice(0,7);
+  const evm=EV.filter(e=>e.d.slice(0,7)===mesSel&&e.d<=HOJE),insm=INS.filter(e=>e.d.slice(0,7)===mesSel&&e.d<=HOJE);
+  const pp=pctLista(evm),pi=pctLista(insm),fut=EV.filter(e=>e.d>HOJE);
+  const nome=k=>MESES[+k.slice(5,7)-1]+" "+k.slice(2,4);
+  return `<h2 class="titulo">Presença</h2><p class="sub">Toda a divisão</p>
+  <div class="chips">${ms.map(k=>`<button data-mes="${k}" aria-pressed="${k===mesSel}">${nome(k)}</button>`).join("")}</div>
+  <div class="medidores"><div class="medidor"><div class="titulo">${pp==null?"–":pp+"%"}</div><small>Presença</small><div class="barra"><i style="width:${pp||0}%"></i></div></div>
+  <div class="medidor"><div class="titulo">${pi==null?"–":pi+"%"}</div><small>Insights</small><div class="barra"><i style="width:${pi||0}%"></i></div></div></div>
+  <div class="secao"><h3>Eventos de ${MESES[+mesSel.slice(5,7)-1]}</h3></div>
+  <div class="cartao">${evm.length?evm.slice().reverse().map(e=>{const r=pctEv(e);return `<div class="linha"><div class="data">${e.d.slice(8,10)}<small>${MES3[+e.d.slice(5,7)-1]}</small></div><div style="flex:1"><b>${esc(e.e)}</b><div class="sub" style="margin:0">${r.s} de ${r.t} foram</div></div><span class="pilula ouro">${r.p}%</span></div>`}).join(""):'<div class="vazio">Nenhum evento neste mês</div>'}</div>
+  <div class="secao"><h3>Insights de ${MESES[+mesSel.slice(5,7)-1]}</h3></div>
+  <div class="cartao">${insm.length?insm.slice().reverse().map(e=>{const r=pctEv(e);return `<div class="linha"><div class="data">${e.d.slice(8,10)}<small>${MES3[+e.d.slice(5,7)-1]}</small></div><div style="flex:1"><b>${esc(e.e)}</b><div class="sub" style="margin:0">${r.s} de ${r.t} responderam</div></div><span class="pilula ouro">${r.p}%</span></div>`}).join(""):'<div class="vazio">Nenhum insight neste mês</div>'}</div>
+  ${fut.length?`<div class="secao"><h3>Ainda vão acontecer</h3></div><div class="cartao">${fut.map(e=>{let vai=0,nao=0;M.forEach(m=>{const v=(e.p||[])[m.i];if(v===1||v==="S")vai++;else if(v===0)nao++});return `<div class="linha"><div class="data">${e.d.slice(8,10)}<small>${MES3[+e.d.slice(5,7)-1]}</small></div><div style="flex:1"><b>${esc(e.e)}</b><div class="sub" style="margin:0">${vai} vão · ${nao} não vão · ${M.length-vai-nao} sem resposta</div></div></div>`}).join("")}</div>`:""}`}
+// ===================== Lançar (só leitura) =====================
+function telaLancar(){return `<h2 class="titulo">Lançar</h2><p class="sub">Uma lista nova ou as respostas de um insight</p>
+  <div class="cartao vazio">No protótipo, o lançamento não envia nada.<br>Para lançar de verdade, use o painel atual.</div>
+  <a class="btn principal" href="adm.html">Abrir o painel atual</a>`}
+// ===================== Pagamentos =====================
+function telaPag(){const f=p=>!filtroPag||p.n.toLowerCase().includes(filtroPag.toLowerCase());
+  const pagos=PAG.filter(p=>p.st!=="aberto"),ab=PAG.filter(p=>p.st==="aberto"),pc=PAG.length?Math.round(pagos.length*100/PAG.length):0;
+  const mes=VENC?MESES[+VENC.slice(5,7)-1]:"";
+  return `<h2 class="titulo">Pagamentos</h2><p class="sub">${mes?mes[0].toUpperCase()+mes.slice(1)+" · vence em "+br(VENC):""}</p>
+  <div class="cartao" style="display:flex;align-items:center;gap:14px"><div class="titulo" style="font-size:46px;color:var(--ouro)">${pc}%</div>
+    <div style="flex:1"><b>${pagos.length} de ${PAG.length} pagos</b><div class="sub" style="margin:0">${ab.length} em aberto</div><div class="barra"><i style="width:${pc}%"></i></div></div></div>
+  <div class="busca">${IC.busca}<input class="campo" id="pBusca" placeholder="Buscar irmão" value="${esc(filtroPag)}" aria-label="Buscar irmão"></div>
+  <details class="grupo" open><summary>⏳ Em aberto <span class="pilula falta">${ab.filter(f).length}</span></summary><div class="corpo">${ab.filter(f).map(p=>`<div class="linha"><b style="flex:1">${esc(p.n)}</b>${p.bol?`<a class="btn peq" href="${esc(p.bol)}" target="_blank" rel="noopener">Boleto</a>`:""}<button class="btn peq" data-comp>Marcar ⏰</button></div>`).join("")||'<div class="vazio">Ninguém em aberto'+(filtroPag?" com esse nome":"")+'</div>'}</div></details>
+  <details class="grupo"><summary>✅ Pagos e em compensação <span class="pilula ok">${pagos.filter(f).length}</span></summary><div class="corpo">${pagos.filter(f).map(p=>`<div class="linha"><b style="flex:1">${esc(p.n)}</b><span class="pilula ${p.st==="pago"?"ok":"ouro"}">${esc(p.st==="comp"?"⏰ Compensação":p.tx)}</span></div>`).join("")||'<div class="vazio">Ninguém com esse nome</div>'}</div></details>
+  <button class="btn principal" data-comp>📲 Avisar quem não pagou</button>`}
+// ===================== Mais =====================
+function telaMais(){return `<h2 class="titulo">Mais</h2><p class="sub">O que é usado de vez em quando</p>
+  <div class="grade-mais"><button data-sub="envios"><span class="icone">📦</span><b>Meus envios</b><span>O caminho de cada pedido</span></button>
+  ${[["📇","Cadastro","Novo irmão, dados, cargo"],["🎽","Kit e colete","Solicitação para o regional"],["💬","Lista do WhatsApp","Mensagem pronta"],["📊","Dashboard","Cards para o regional"],["🔍","Acessos","Quem entrou e os avisos"]].map(([i,t,d])=>`<a href="adm.html" style="text-decoration:none;color:inherit;background:var(--sup);border:1px solid var(--linha);border-radius:16px;padding:16px 12px;min-height:92px;display:block"><span class="icone">${i}</span><b style="display:block;font-size:16px;margin-top:6px">${t}</b><span class="sub" style="font-size:13px">${d}</span></a>`).join("")}</div>
+  <p class="aviso-proto">Por enquanto, estas telas abrem o painel atual.</p>`}
+function telaEnvios(){return `<button style="border:0;background:none;padding:0;margin:0 0 8px;color:var(--ouro);font-weight:700" data-voltar>‹ Mais</button>
+  <h2 class="titulo">Meus envios</h2><p class="sub">O que foi mandado para a planilha, e onde está</p>
+  ${FILA.length?FILA.map(e=>{const [p,t,c]=etapaFila(e.sit);return `<div class="cartao"><div style="display:flex;justify-content:space-between;gap:10px"><b>${esc(e.txt)}</b><span class="pilula ${c}">${t}</span></div><div class="sub" style="margin:2px 0 0">${esc(e.q)}${e.quem?" · "+esc(e.quem):""}</div>${passos(p)}${e.res&&/erro/i.test(e.sit)?`<div class="sub" style="margin:6px 0 0">${esc(e.res)}</div>`:""}</div>`}).join(""):'<div class="cartao vazio">Nenhum envio recente.</div>'}
+  <p class="aviso-proto">Retrato da última atualização do painel.</p>`}
+// ===================== desenho =====================
+function render(){const r=$("#raiz");
+  const topo=`<div class="faixa-proto">Protótipo do novo layout · dados reais · só para olhar</div><header class="topo">${cruz}<div><h1 class="titulo">Comando</h1><small>Divisão ${esc(DIV.nome)} ${esc(DIV.reg)}</small></div></header>`;
+  const c=tela==="inicio"?telaInicio():tela==="presenca"?telaPresenca():tela==="lancar"?telaLancar():tela==="pag"?telaPag():sub==="envios"?telaEnvios():telaMais();
+  const ab=PAG.filter(p=>p.st==="aberto").length;
+  const it=(k,t,b)=>`<button data-tela="${k}" aria-current="${tela===k?"page":"false"}">${IC[k]}${t}${b?`<span class="badge">${b}</span>`:""}</button>`;
+  r.innerHTML=`<div class="app">${topo}<main>${c}<div style="text-align:center;margin-top:18px"><a class="btn peq" href="adm.html" style="display:inline-flex">Voltar ao painel atual</a></div></main></div>
+    <nav class="menu" aria-label="Menu">${it("inicio","Início")}${it("presenca","Presença")}${it("lancar","Lançar")}${it("pag","Pagamentos",ab)}${it("mais","Mais")}</nav>`;
+  ligar()}
+function ligar(){const on=(s,f)=>document.querySelectorAll(s).forEach(e=>e.onclick=f);
+  on("[data-tela]",function(){tela=this.dataset.tela;sub=null;render();scrollTo(0,0)});
+  on("[data-ir]",function(){tela=this.dataset.ir;sub=null;render();scrollTo(0,0)});
+  on("[data-sub]",function(){tela="mais";sub=this.dataset.sub;render();scrollTo(0,0)});
+  on("[data-voltar]",()=>{sub=null;render()});
+  on("[data-mes]",function(){mesSel=this.dataset.mes;render()});
+  on("[data-comp]",soLeitura);
+  const b=document.getElementById("pBusca");
+  if(b)b.oninput=e=>{filtroPag=e.target.value;const pos=e.target.selectionStart;render();const i=document.getElementById("pBusca");i.focus();i.setSelectionRange(pos,pos)}}
+render();
+</script>
+</body>
+</html>

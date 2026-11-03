@@ -1004,6 +1004,39 @@ def enviar_lembretes(g):
     if n_env:
         print(f"Lembretes individuais enviados: {n_env}.")
 
+def fila_recente(api, pid, n=15):
+    """Resumo das últimas linhas da aba Fila, sem dados pessoais: o tipo do pedido, o evento e a situação."""
+    v = _ler(api, pid, "'Fila'!A1:F600")
+    nomes = {"pagamentos": "Pagamentos", "pagamento": "Pagamentos", "cadastro": "Cadastro", "boletos_sistema": "Boletos do Sistema Insanos",
+             "boletos_aviso": "Aviso de boleto disponível", "mudar_cargo": "Mudança de cargo", "visitante": "Acesso de visitante",
+             "adm_extra": "Acesso de ADM", "situacao": "Situação de integrante", "teste_pagamento": "Teste de aviso"}
+    out = []
+    for r in reversed(v[1:]):
+        r = list(r) + [""] * 6
+        if not str(r[2]).strip():
+            continue
+        tipo = str(r[2]).strip()
+        try:
+            d = json.loads(r[3]) if str(r[3]).strip().startswith("{") else {}
+        except Exception:
+            d = {}
+        if tipo == "lancamento_presenca":
+            ins = str(d.get("aba") or "").lower().startswith("insig")
+            dt = str(d.get("data", ""))
+            txt = f"{'Insight' if ins else 'Lista'} · {d.get('evento', '')}" + (f" ({dt[8:10]}/{dt[5:7]})" if len(dt) >= 10 else "")
+        else:
+            txt = nomes.get(tipo, tipo.replace("_", " ").capitalize())
+        q = str(r[0])
+        try:
+            if isinstance(r[0], (int, float)) or q.replace(".", "", 1).isdigit():
+                q = (datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(r[0]))).strftime("%d/%m %H:%M")
+        except Exception:
+            pass
+        out.append({"q": q[:16], "quem": str(r[1]).split("@")[0][:30], "txt": txt[:80], "sit": str(r[4])[:20], "res": str(r[5])[:140]})
+        if len(out) >= n:
+            break
+    return out
+
 def processar_fila(api, pid):
     aba = _aba_real(api, pid, "Fila")
     if not aba:
@@ -1304,6 +1337,10 @@ def main():
         return
     aba_estado = estado_carregar(api, planilha_id)
     resumo_fila = processar_fila(api, planilha_id)
+    try:
+        g.FILA_RECENTE[:] = fila_recente(api, planilha_id)     # "Meus envios" do protótipo do novo layout
+    except Exception as e:
+        print(f"Aviso: resumo da Fila não montado ({type(e).__name__}: {e}).")
     arq_fila = os.path.join(PASTA, "Lancamentos", "ultima_fila.json")
     lanc_recente = False          # houve lançamento pelo painel nos últimos 10 minutos? (aí não é "edição à mão")
     try:
