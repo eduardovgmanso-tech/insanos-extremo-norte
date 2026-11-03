@@ -393,7 +393,7 @@ async function bioEntrar(auto){erro.textContent="";try{
   try{const id=bioB64(a.rawId);if(!ids.includes(id))localStorage.setItem("bio_ids",JSON.stringify([...ids,id].slice(-3)))}catch(_){}
   const em=new TextDecoder().decode(a.response.userHandle||new Uint8Array());
   if(!em.includes("@"))throw new Error("sem e-mail");
-  cpf.value=em;document.getElementById("f").requestSubmit()}
+  cpf.value=em;window.__viaBio=true;document.getElementById("f").requestSubmit()}
   catch(e){if(auto)return;   // ao abrir o app (sem toque): se o celular não deixou ou a pessoa cancelou, o botão continua lá
     try{sessionStorage.setItem("bio_falhou","1")}catch(_){}   // se a chave sumiu do celular, depois do e-mail o app oferece cadastrar de novo
     mostraEmail();erro.textContent="Não deu certo com a digital. Tente de novo ou entre com o seu e-mail."}}
@@ -415,10 +415,12 @@ function bioPerguntar(d,seguir){
 // ---- código por e-mail: a chave do painel = e-mail + um pedaço que só vem depois do código certo.
 //      O celular lembra esse pedaço por 90 dias (com a digital, a pessoa só digita o código uma vez).
 const otpCache=()=>{try{return JSON.parse(localStorage.getItem("otp_s")||"{}")}catch(_){return {}}};
-function otpGuardar(d,s){const c=otpCache();c[d]={s,exp:Date.now()+90*864e5};try{localStorage.setItem("otp_s",JSON.stringify(c))}catch(_){}}
+const otpHoje=()=>{const x=new Date();return x.getFullYear()+"-"+(x.getMonth()+1)+"-"+x.getDate()};
+function otpGuardar(d,s){const c=otpCache();c[d]={s,exp:Date.now()+90*864e5,dia:otpHoje()};try{localStorage.setItem("otp_s",JSON.stringify(c))}catch(_){}}
 function otpEsquecer(d){const c=otpCache();delete c[d];try{localStorage.setItem("otp_s",JSON.stringify(c))}catch(_){}}
 async function otpPost(o){const r=await fetch(P.otp,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o)});return r.json()}
-function otpPedaco(d){const c=otpCache()[d];if(c&&c.exp>Date.now())return Promise.resolve(c.s);
+function otpPedaco(d,viaDigital){const c=otpCache()[d];
+  if(c&&c.exp>Date.now()&&(viaDigital||c.dia===otpHoje()))return Promise.resolve(c.s);   // e-mail: código 1x por dia · digital: 90 dias
   return new Promise(resolve=>{const box=document.getElementById("otpBox"),msg=document.getElementById("otpMsg"),inp=document.getElementById("otpC");
     const fim=s=>{box.hidden=true;["cpf","b"].forEach(id=>document.getElementById(id).hidden=false);document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");resolve(s)};
     const pedir=async()=>{msg.textContent="Enviando o código…";try{const j=await otpPost({tipo:"otp_pedir",email:d});
@@ -513,7 +515,8 @@ document.getElementById("f").addEventListener("submit",async ev=>{
   if(!d){erro.textContent="Digite o seu e-mail.";return}
   if(!window.crypto||!crypto.subtle){erro.textContent="Este visualizador não permite abrir o painel. Abra o arquivo no Chrome, Edge ou Safari.";return}
   let entrada=d;
-  if(P.otp&&d.includes("@")){btn.disabled=true;btn.textContent="Aguardando o código…";const s=await otpPedaco(d);btn.disabled=false;btn.textContent="Entrar";
+  const viaDigital=!!window.__viaBio;window.__viaBio=false;
+  if(P.otp&&d.includes("@")){btn.disabled=true;btn.textContent="Aguardando o código…";const s=await otpPedaco(d,viaDigital);btn.disabled=false;btn.textContent="Entrar";
     if(!s)return;entrada=d+"|"+s}
   btn.disabled=true;btn.textContent="Verificando...";
   try{
