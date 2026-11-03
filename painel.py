@@ -345,6 +345,7 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
     <input id="otpC" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000 000" style="width:100%;text-align:center;font-size:24px;letter-spacing:6px;padding:10px;border-radius:10px">
     <button id="otpOk" type="button" style="margin-top:10px;width:100%;padding:12px;border-radius:10px;border:0;background:#E9B949;color:#141210;font-weight:800">Confirmar código</button>
     <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:13px"><a href="#" id="otpRe" style="color:#E9B949">Reenviar código</a><a href="#" id="otpVolta" style="color:#B8B2A6">Usar outro e-mail</a></div></div>
+  <a href="#" id="emailLink" style="display:none;margin-top:10px;font-size:14px;color:#E9B949;text-align:center">Entrar com o e-mail</a>
   <div id="bioOf" hidden style="margin-top:12px;padding:12px;border-radius:12px;background:rgba(233,185,73,.10);border:1px solid rgba(233,185,73,.45);text-align:left">
     <p style="margin:0 0 10px;font-size:14px;line-height:1.4">👆 Quer entrar com a <b>digital</b> (ou <b>Face ID</b>) nas próximas vezes, neste celular?</p>
     <div style="display:flex;gap:8px"><button id="bioSim" type="button" style="flex:1;padding:11px;border-radius:10px;border:0;background:#E9B949;color:#141210;font-weight:800">Ativar</button>
@@ -371,7 +372,15 @@ const bioB=document.getElementById("bioB"),bioOf=document.getElementById("bioOf"
 const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
 (async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
-  if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID"}}catch(_){}})();   // a digital abre só com o toque (o SOS fica sempre à mão)
+  if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
+    if(!location.hash.startsWith("#sos="))soDigital()}}catch(_){}})();   // a digital abre só com o toque (o SOS fica sempre à mão)
+// com a digital cadastrada neste celular: a entrada mostra só a digital; o e-mail fica a um toque (ou aparece se a digital falhar)
+function soDigital(){["cpf","b"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});
+  document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");const l=document.getElementById("emailLink");if(l)l.style.display="block"}
+function mostraEmail(){["cpf","b"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=false});
+  document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");const l=document.getElementById("emailLink");if(l)l.style.display="none";
+  const c=document.getElementById("cpf");if(c)setTimeout(()=>c.focus(),50)}
+document.getElementById("emailLink").onclick=ev=>{ev.preventDefault();mostraEmail()};
 const bioB64=x=>btoa(String.fromCharCode(...new Uint8Array(x))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const bioDe64=x=>Uint8Array.from(atob(x.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-x.length%4)%4)),c=>c.charCodeAt(0));
 async function bioEntrar(auto){erro.textContent="";try{
@@ -386,15 +395,14 @@ async function bioEntrar(auto){erro.textContent="";try{
   if(!em.includes("@"))throw new Error("sem e-mail");
   cpf.value=em;document.getElementById("f").requestSubmit()}
   catch(e){if(auto)return;   // ao abrir o app (sem toque): se o celular não deixou ou a pessoa cancelou, o botão continua lá
-    // não achou a chave da digital neste celular (ou foi cancelado): esquece e oferece ativar de novo na próxima entrada
-    try{localStorage.removeItem("bio_on");localStorage.removeItem("bio_ids");localStorage.removeItem("bio_nao")}catch(_){}
-    bioB.hidden=true;
-    erro.textContent="Não consegui usar a digital neste celular. Entre com o seu e-mail: em seguida, o painel oferece ativar a digital de novo."}}
+    try{sessionStorage.setItem("bio_falhou","1")}catch(_){}   // se a chave sumiu do celular, depois do e-mail o app oferece cadastrar de novo
+    mostraEmail();erro.textContent="Não deu certo com a digital. Tente de novo ou entre com o seu e-mail."}}
 bioB.onclick=()=>bioEntrar(false);
 // depois de entrar com o e-mail: oferece ativar a digital (uma vez por e-mail neste celular)
 function bioPerguntar(d,seguir){
   let ja="";try{ja=(localStorage.getItem("bio_on")||"")+"|"+(localStorage.getItem("bio_nao")||"")}catch(_){}
-  if(!bioPode||!d.includes("@")||new TextEncoder().encode(d).length>64||ja.split("|").includes(d)){seguir();return}
+  let falhou="";try{falhou=sessionStorage.getItem("bio_falhou")||""}catch(_){}
+  if(!bioPode||!d.includes("@")||new TextEncoder().encode(d).length>64||(!falhou&&ja.split("|").includes(d))){seguir();return}
   ["cpf","b","bioB"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});
   document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");bioOf.hidden=false;
   document.getElementById("bioNao").onclick=()=>{try{localStorage.setItem("bio_nao",d)}catch(_){}seguir()};
@@ -402,7 +410,7 @@ function bioPerguntar(d,seguir){
     const nova=await navigator.credentials.create({publicKey:{challenge:bioRnd(),rp:{name:document.title.split(" - ")[0]||"Insanos",id:location.hostname},
       user:{id:new TextEncoder().encode(d),name:d,displayName:d},pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
       authenticatorSelection:{authenticatorAttachment:"platform",residentKey:"required",requireResidentKey:true,userVerification:"required"},timeout:60000}});
-    try{localStorage.setItem("bio_on",d);localStorage.setItem("bio_ids",JSON.stringify([bioB64(nova.rawId)]))}catch(_){}alert("👆 Pronto! Na próxima vez, é só tocar em \"Entrar com a digital\".")}
+    try{localStorage.setItem("bio_on",d);localStorage.setItem("bio_ids",JSON.stringify([bioB64(nova.rawId)]));sessionStorage.removeItem("bio_falhou")}catch(_){}alert("👆 Pronto! Na próxima vez, é só tocar em \"Entrar com a digital\".")}
     catch(e){alert("Não consegui ativar a digital neste celular. Você continua entrando com o e-mail.")}seguir()}}
 // ---- código por e-mail: a chave do painel = e-mail + um pedaço que só vem depois do código certo.
 //      O celular lembra esse pedaço por 90 dias (com a digital, a pessoa só digita o código uma vez).
