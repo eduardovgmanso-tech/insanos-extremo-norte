@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v17";
+const CACHE = "insanos-v18";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -12,6 +12,7 @@ self.addEventListener("fetch", e => {
   }).catch(() => caches.match(r, {ignoreSearch: true})));
 });
 self.addEventListener("push", e => {
+  e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(cs => cs.forEach(c => c.postMessage({tipo: "verificar_versao"}))).catch(() => {}));
   let d = {};
   try { d = e.data.json(); } catch (_) { d = {title: "Insanos ADM", body: e.data ? e.data.text() : ""}; }
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
