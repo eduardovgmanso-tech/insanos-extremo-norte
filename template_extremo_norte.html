@@ -263,6 +263,7 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 @media (max-width:600px){.lanc-topo{grid-template-columns:1fr}.lanc-fim .btn{width:100%;justify-content:center}}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .q-velho{display:none!important}
+@media (min-width:901px){body.adm header{min-height:0!important;padding-right:0;margin-bottom:18px}}   /* com os três quadrados, o topo não precisa reservar espaço */
 .quadros3{display:flex;gap:8px}
 .q3{width:84px;height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.06);color:var(--osso);font-weight:700;font-size:13px;cursor:pointer;padding:6px}
 .q3 img{width:38px;height:auto}.q3 svg{width:34px;height:auto}
@@ -309,7 +310,7 @@ body.adm[data-view="pag"] .v-painel,body.adm[data-view="lancar"] .v-painel{displ
 body.adm #pagView,body.adm #lancar{display:none}
 body.adm[data-view="pag"] .periodo,body.adm[data-view="lancar"] .periodo{display:none}
 body.adm[data-view="pag"] header,body.adm[data-view="lancar"] header{min-height:70px}
-@media (min-width:901px){body.adm:not([data-view="painel"]) header{min-height:286px}}
+@media (min-width:901px){body.adm:not([data-view="painel"]) header{min-height:0}}
 body.adm[data-view="pag"] #pagView{display:block}
 body.adm[data-view="lancar"] #lancar{display:block}
 body.adm[data-view="lancar"] #lancar summary{pointer-events:none}body.adm[data-view="lancar"] #lancar summary h2::before{content:""}
@@ -2416,7 +2417,7 @@ document.addEventListener("click",ev=>{
 });
 document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.target.classList.contains("linha")||ev.target.classList.contains("top")||ev.target.classList.contains("col")))ev.target.click()});
 if(MODO==="individual"){document.body.classList.add("individual");st.nome=M[0].n}
-if(MODO==="adm")$("selo").innerHTML='<span class="selo">Versão ADM · contém telefones, não compartilhar</span>';
+// (o aviso "Versão ADM" saiu: a entrada com e-mail e código já limita quem vê)
 // ---- notificações no celular (app Insanos ADM) ----
 const pushB64=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
 const pushSuportado=()=>!!(DADOS.push&&DADOS.push.pub&&"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window&&location.protocol==="https:");
