@@ -15,7 +15,7 @@
 <style>
 :root{
   --osso:#ECE7DC; --osso2:#BDB7AA; --cinza:#77746D; --linha:rgba(236,231,220,.13);
-  --sangue:#A3302F; --presente:#4CAF6A; --painel:rgba(236,231,220,.10);--vidro:blur(14px) saturate(.6);
+  --sangue:#A3302F; --presente:#4CAF6A;--falta:#E26D6B; --painel:rgba(236,231,220,.10);--vidro:blur(14px) saturate(.6);
   --titulo:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
   --texto:"Barlow","Segoe UI",Roboto,Arial,sans-serif;
   box-sizing:border-box;
@@ -526,6 +526,15 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .dlido td,.dlido th{padding:8px 6px;text-align:left}.dlido td:not(:first-child),.dlido th:not(:first-child){text-align:center;white-space:nowrap}
 .ac-p{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--linha)}.ac-p>div{display:flex;flex-direction:column}.ac-p .nota{font-size:12.5px}
 #pagAvisarBoletos[hidden]{display:none!important}
+.pag-nomes{margin:12px 0 14px;display:grid;gap:8px}
+.pag-nomes .pn{margin:0;padding:10px 12px;border-radius:12px;font-size:14.5px;line-height:1.45;background:rgba(236,231,220,.05);border-left:4px solid var(--osso2)}
+.pag-nomes .pn b{display:block;font-size:13px;letter-spacing:.3px;margin-bottom:2px}
+.pag-nomes .pn.ok{border-left-color:var(--presente)}.pag-nomes .pn.ok b{color:var(--presente)}
+.pag-nomes .pn.comp{border-left-color:#E9B949}.pag-nomes .pn.comp b{color:#E9B949}
+.pag-nomes .pn.ab{border-left-color:var(--falta)}.pag-nomes .pn.ab b{color:var(--falta)}
+.pag-info{margin-top:16px;border:1px solid rgba(236,231,220,.14);border-radius:14px;padding:10px 12px;background:rgba(236,231,220,.03)}
+.pag-info>summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--osso2)}
+.pag-info[open]>summary{margin-bottom:10px}
 .multi{position:relative}
 section.filtros{position:relative}
 section.filtros.lista-aberta{z-index:30}   /* só enquanto a lista de funções está aberta (não cobre o menu de baixo) */.multi-bt{width:100%;text-align:left;background:var(--campo,#111);color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px 34px 10px 12px;font:inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -998,6 +1007,20 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   <section class="painel js so-adm" id="pagView">
     <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div>
       <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div></div>
+    <div class="pag-nomes" id="pagNomes"></div>
+    <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
+      <div class="pag-kpis" id="pagKpis"></div></div>
+    <div class="pag-lista" id="pagLista"></div>
+    <div class="lw-bts" style="margin:10px 0 4px"><button type="button" class="btn zap" id="pagSalvar2" hidden>Salvar alterações</button></div>
+    <div class="lw-bts pag-fim">
+      <button type="button" class="btn zap" id="pagCopiar">Copiar mensagem para o comando</button>
+      <a class="btn" id="pagZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
+      <button type="button" class="btn" id="pagImg">📸 Gerar imagem dos pagamentos</button>
+      <button type="button" class="btn" id="pagLer">📷 Ler imagem dos pagamentos</button><input type="file" id="pagLerArq" accept="image/*" hidden>
+    </div>
+    <div id="pagLido"></div>
+    <details class="pag-prev"><summary>Ver a mensagem que será copiada</summary><pre id="pagMsg"></pre></details>
+    <details class="pag-info" id="pagInfo"><summary>ℹ️ Informações: verificação automática, boletos, antecipados e afastados</summary>
     <div class="pag-agenda" id="pagAgenda"></div>
     <details class="bmk-si" id="bmkSIBox" hidden><summary>🔖 Botão do Sistema Insanos: pegar os boletos do mês sem copiar links</summary>
       <ol class="nota" style="margin:10px 0 8px;padding-left:20px;line-height:1.55">
@@ -1011,20 +1034,9 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     </details>
     <div id="pagAntec"></div>
     <div id="pagAfast"></div>
-    <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
-      <div class="pag-kpis" id="pagKpis"></div></div>
     <p class="nota" id="pagVerif"></p>
     <p class="nota" id="pagEnvios" style="line-height:1.6"></p>
-    <div class="pag-lista" id="pagLista"></div>
-    <div class="lw-bts" style="margin:10px 0 4px"><button type="button" class="btn zap" id="pagSalvar2" hidden>Salvar alterações</button></div>
-    <div class="lw-bts pag-fim">
-      <button type="button" class="btn zap" id="pagCopiar">Copiar mensagem para o comando</button>
-      <a class="btn" id="pagZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
-      <button type="button" class="btn" id="pagImg">📸 Gerar imagem dos pagamentos</button>
-      <button type="button" class="btn" id="pagLer">📷 Ler imagem dos pagamentos</button><input type="file" id="pagLerArq" accept="image/*" hidden>
-    </div>
-    <div id="pagLido"></div>
-    <details class="pag-prev"><summary>Ver a mensagem que será copiada</summary><pre id="pagMsg"></pre></details>
+    </details>
   </section>
 
   <section class="painel js so-adm" id="lancar" style="margin-top:22px">
@@ -2590,6 +2602,10 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
   const ord=[...M].sort((a,b)=>a.o-b.o);
   const cls=n=>pagAdesao(n)||(pagTravado(n)&&!(n in pagPend))?"pago":/aguard/i.test(pagStatus(n))?"aguard":"aberto";
   const cont={pago:0,aguard:0,aberto:0};ord.forEach(m=>cont[cls(m.n)]++);
+  {const nomes=k=>ord.filter(m=>cls(m.n)===k).map(m=>esc(m.n)).join(", ")||"ninguém";   // resumo para o comando ler de cara
+   $("pagNomes").innerHTML=`<p class="pn ok"><b>✅ Pagos (${cont.pago})</b> ${nomes("pago")}</p>
+     <p class="pn comp"><b>⏰ Em compensação (${cont.aguard})</b> ${nomes("aguard")}</p>
+     <p class="pn ab"><b>⏳ Não pagos (${cont.aberto})</b> ${nomes("aberto")}</p>`}
   const tot=ord.length,venc=P.venc?P.venc.slice(8,10)+"/"+P.venc.slice(5,7)+"/"+P.venc.slice(0,4):"–";
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const dv=P.venc?Math.round((new Date(+P.venc.slice(0,4),+P.venc.slice(5,7)-1,+P.venc.slice(8,10))-hoje)/864e5):null;
