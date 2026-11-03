@@ -371,8 +371,7 @@ const bioB=document.getElementById("bioB"),bioOf=document.getElementById("bioOf"
 const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
 (async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
-  if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
-    if(!location.hash)setTimeout(()=>{const ab=document.getElementById("otpBox");if(!(ab&&!ab.hidden))bioEntrar(true)},600)}}catch(_){}})();   // já pede a digital ao abrir
+  if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID"}}catch(_){}})();   // a digital abre só com o toque (o SOS fica sempre à mão)
 const bioB64=x=>btoa(String.fromCharCode(...new Uint8Array(x))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const bioDe64=x=>Uint8Array.from(atob(x.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-x.length%4)%4)),c=>c.charCodeAt(0));
 async function bioEntrar(auto){erro.textContent="";try{
@@ -829,7 +828,10 @@ def snip_versao(auto):
             'var ag=Date.now();if(ag-ult<60000)return;ult=ag;fetch("versao.json?t="+ag,{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v)return;'
             'if(j.v!==V){if(AUTO){location.reload();return}faixa("🔄 Tem uma versão nova do painel · toque para atualizar",function(){location.reload()})}else some()})'
             '.catch(function(){faixa("📴 Sem internet · você está vendo a última versão guardada",some)})}'
-            'document.addEventListener("visibilitychange",function(){if(!document.hidden)ver()});iv=setInterval(ver,600000);setTimeout(ver,3000)})();</script>')
+            'document.addEventListener("visibilitychange",function(){if(!document.hidden)ver()});'
+            'addEventListener("focus",ver);addEventListener("online",function(){ult=0;ver()});'
+            'try{navigator.serviceWorker&&navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.tipo==="verificar_versao"){ult=0;setTimeout(ver,1500)}})}catch(_){}'
+            'iv=setInterval(function(){if(!document.hidden)ver()},120000);setTimeout(ver,3000)})();</script>')
 
 def montar_lembretes(membros, eventos, eventos_ins, pag):
     """Pendências de cada irmão com e-mail: insights sem resposta (últimos 7 dias), eventos sem confirmação
@@ -2409,7 +2411,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v17";
+const CACHE = "insanos-v18";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2422,6 +2424,7 @@ self.addEventListener("fetch", e => {
   }).catch(() => caches.match(r, {ignoreSearch: true})));
 });
 self.addEventListener("push", e => {
+  e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(cs => cs.forEach(c => c.postMessage({tipo: "verificar_versao"}))).catch(() => {}));
   let d = {};
   try { d = e.data.json(); } catch (_) { d = {title: "Insanos ADM", body: e.data ? e.data.text() : ""}; }
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "icon-192.png", tag: d.tag || "aviso", renotify: true,
