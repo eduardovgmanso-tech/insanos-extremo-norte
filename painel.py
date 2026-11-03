@@ -352,8 +352,12 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
   <div id="erro" role="alert"></div>
   <a id="solic" class="solic" hidden target="_blank" rel="noopener">📩 Solicitar acesso</a>
   <button type="button" class="tut-abrir" id="tutLink" onclick="tutAbrir()">📲 Como instalar o app</button>
+  <style>.avs{display:block;text-align:left;margin-top:6px}.av{border-top:1px solid rgba(236,231,220,.14);padding:8px 2px}.av summary{cursor:pointer;list-style:none;font-size:13px;color:#d9d2c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .av summary::-webkit-details-marker{display:none}.av summary::after{content:" ▾";color:#9c958a}.av[open] summary::after{content:" ▴"}.av summary b{color:#ECE7DC;font-weight:600}
+  .av ul{margin:6px 0 2px;padding-left:18px;font-size:12.5px;color:#cfc8bb;line-height:1.5}.atual-dt{display:block;text-align:right;font-size:11px;color:#9c958a;margin-top:8px}
+  .registro:empty{display:none}</style>
   <p class="registro">__REGISTRO__</p>
-  <p class="atual">__ATUAL__</p>
+  <div class="atual">__ATUAL__</div>
   <script>try{var np=document.getElementById("novoPag");if(np&&np.dataset.ts&&np.dataset.ts>(localStorage.getItem("pag_visto")||"")){np.hidden=false;document.getElementById("novoPagTxt").hidden=false}}catch(_){}</script>
 </form>
 <script>
@@ -367,10 +371,11 @@ const bioB=document.getElementById("bioB"),bioOf=document.getElementById("bioOf"
 const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
 (async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
-  if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID"}}catch(_){}})();
+  if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
+    if(!location.hash)setTimeout(()=>{const ab=document.getElementById("otpBox");if(!(ab&&!ab.hidden))bioEntrar(true)},600)}}catch(_){}})();   // já pede a digital ao abrir
 const bioB64=x=>btoa(String.fromCharCode(...new Uint8Array(x))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const bioDe64=x=>Uint8Array.from(atob(x.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-x.length%4)%4)),c=>c.charCodeAt(0));
-bioB.onclick=async()=>{erro.textContent="";try{
+async function bioEntrar(auto){erro.textContent="";try{
   let ids=[];try{ids=JSON.parse(localStorage.getItem("bio_ids")||"[]")}catch(_){}
   const pk={challenge:bioRnd(),userVerification:"required",timeout:60000,rpId:location.hostname};
   if(ids.length)pk.allowCredentials=ids.map(i=>({type:"public-key",id:bioDe64(i),transports:["internal","hybrid"]}));   // a chave deste celular: vai direto para a digital
@@ -381,10 +386,12 @@ bioB.onclick=async()=>{erro.textContent="";try{
   const em=new TextDecoder().decode(a.response.userHandle||new Uint8Array());
   if(!em.includes("@"))throw new Error("sem e-mail");
   cpf.value=em;document.getElementById("f").requestSubmit()}
-  catch(e){   // não achou a chave da digital neste celular (ou foi cancelado): esquece e oferece ativar de novo na próxima entrada
+  catch(e){if(auto)return;   // ao abrir o app (sem toque): se o celular não deixou ou a pessoa cancelou, o botão continua lá
+    // não achou a chave da digital neste celular (ou foi cancelado): esquece e oferece ativar de novo na próxima entrada
     try{localStorage.removeItem("bio_on");localStorage.removeItem("bio_ids");localStorage.removeItem("bio_nao")}catch(_){}
     bioB.hidden=true;
-    erro.textContent="Não consegui usar a digital neste celular. Entre com o seu e-mail: em seguida, o painel oferece ativar a digital de novo."}};
+    erro.textContent="Não consegui usar a digital neste celular. Entre com o seu e-mail: em seguida, o painel oferece ativar a digital de novo."}}
+bioB.onclick=()=>bioEntrar(false);
 // depois de entrar com o e-mail: oferece ativar a digital (uma vez por e-mail neste celular)
 function bioPerguntar(d,seguir){
   let ja="";try{ja=(localStorage.getItem("bio_on")||"")+"|"+(localStorage.getItem("bio_nao")||"")}catch(_){}
@@ -780,6 +787,37 @@ document.getElementById("tutJa").onclick=function(){if(tutEv){tutEv.prompt();tut
 </script>"""
 
 FILA_RECENTE = []   # resumo das últimas linhas da aba Fila (a nuvem preenche): "Meus envios" da página nova
+def info_login(gerado, verif):
+    """Embaixo da entrada: duas linhas que abrem ao toque (eventos e insights; pagamentos) e a data pequena no canto."""
+    import html as _h
+    def _pag(t):
+        return bool(re.search(r"pagament|boleto|mensalid", t, re.I))
+    itens = [x for x in FILA_RECENTE if not re.search(r"erro", x.get("sit", ""), re.I)]
+    ger = [x for x in itens if not _pag(x.get("txt", ""))][:5]
+    pagl = [x for x in itens if _pag(x.get("txt", ""))][:4]
+    def curto(t):     # "Insight · Insight 018 (02/11)" -> "💬 Insight 018 (02/11)"; "Lista · Bonde (15/11)" -> "🗓️ Bonde (15/11)"
+        t = str(t)
+        if t.startswith("Insight · "):
+            return "💬 " + t[10:]
+        if t.startswith("Lista · "):
+            return "🗓️ " + t[8:]
+        return t
+    li = lambda x: f'<li><b>{_h.escape(x.get("q", ""))}</b> · {_h.escape(curto(x.get("txt", "")))}</li>'
+    if ger:
+        corpo1, resumo1 = "".join(li(x) for x in ger), curto(ger[0].get("txt", ""))
+    elif ULTIMA_ALTERACAO_TXT:
+        corpo1, resumo1 = f"<li>{_h.escape(ULTIMA_ALTERACAO_TXT)}</li>", ULTIMA_ALTERACAO_TXT
+    else:
+        corpo1, resumo1 = "<li>Nenhuma novidade recente</li>", "sem novidades"
+    corpo2 = (f"<li>Verificados: <b>{_h.escape(str(verif.get('quando')))}</b></li>" if verif.get("quando") else "") + "".join(li(x) for x in pagl)
+    resumo2 = f"verificados {verif.get('quando')}" if verif.get("quando") else (pagl[0].get("txt", "") if pagl else "sem novidades")
+    m = re.match(r"(\d{2})/(\d{2})/\d{4}(.*)", str(gerado))
+    abrev = f"{m.group(1)}/{['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][int(m.group(2)) - 1]}{m.group(3)}" if m else str(gerado)
+    return ('<span class="avs">'
+            f'<details class="av"><summary>📋 Eventos e insights · <b>{_h.escape(resumo1[:48])}</b></summary><ul>{corpo1}</ul></details>'
+            f'<details class="av"><summary>💵 Pagamentos · <b>{_h.escape(str(resumo2)[:48])}</b></summary><ul>{corpo2 or "<li>Nenhuma novidade recente</li>"}</ul></details>'
+            f'</span><span class="atual-dt">Atualizado {_h.escape(abrev)}</span>')
+
 VERSAO_ATUAL = ""   # assinatura do conteúdo publicado: muda só quando o painel muda (versao.json)
 
 def snip_versao(auto):
@@ -806,15 +844,16 @@ def montar_lembretes(membros, eventos, eventos_ins, pag):
                     ent[i] = e["d"]
     def conta_irmao(i, d):
         return i in ent and d >= ent[i]
+    passados = [e for e in eventos_ins if e["d"] <= hoje]
+    ult_ins = max(passados, key=lambda e: e["d"]) if passados else None   # quando sai um insight novo, os anteriores param de avisar
     pessoas = []
     for i, m in enumerate(membros):
         email = EMAIL_APELIDO_INV.get(m["n"].lower(), "")
         if "@" not in email:
             continue
         ins = []
-        for e in eventos_ins:
-            if sete <= e["d"] <= hoje and conta_irmao(i, e["d"]) and e["p"][i] != 1:
-                ins.append({"d": e["d"], "nome": e["e"], "resp": sum(1 for v in e["p"] if v == 1)})
+        if ult_ins and sete <= ult_ins["d"] and conta_irmao(i, ult_ins["d"]) and ult_ins["p"][i] != 1:   # só o insight mais recente
+            ins.append({"d": ult_ins["d"], "nome": ult_ins["e"], "resp": sum(1 for v in ult_ins["p"] if v == 1)})
         evs = []
         for e in eventos:
             if e["d"] >= hoje and e["p"][i] in (None, "", "-") and (conta_irmao(i, e["d"]) or i in ent):
@@ -973,7 +1012,7 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
     return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
-                 .replace("__MANIFEST__", "manifest-adm.json").replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(True)).replace("__VERSAO__", VERSAO_ATUAL).replace("__REGISTRO__", "🔎 Os acessos a este painel são registrados pelo comando." if ACESSOS_URL else "")
+                 .replace("__MANIFEST__", "manifest-adm.json").replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(True)).replace("__VERSAO__", VERSAO_ATUAL).replace("__REGISTRO__", "")
                  .replace("__ACESSOS_URL__", ACESSOS_URL))
 
 # ---------------------------------------------------------------------
@@ -2805,12 +2844,7 @@ def main():
         _v["novos"] = _v.get("novos_pagos", 0)
     except Exception:
         _v = {}
-    INFO_LOGIN = f"Última atualização: {gerado}"
-    if ULTIMA_ALTERACAO_TXT:
-        import html as _h
-        INFO_LOGIN += f"<br>Última alteração: {_h.escape(ULTIMA_ALTERACAO_TXT)}"
-    if _v.get("quando"):
-        INFO_LOGIN += f"<br>Pagamentos verificados: {_v['quando']}"
+    INFO_LOGIN = info_login(gerado, _v)
     # tela de CPF do ADM: ponto verde quando há pagamento novo que você ainda não viu (some ao abrir a tela Pagamentos)
     _up = _v.get("ultimo_pagamento") or {}
     ULTIMO_PAG_TS = _up.get("ts", "")

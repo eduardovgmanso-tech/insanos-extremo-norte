@@ -858,6 +858,29 @@ def escrever_otp(api, pid, g):
     if emails:
         _gravar(api, pid, [(f"'_otp'!A{i}", e) for i, e in enumerate(emails, start=1)])
 
+def enviar_aviso_insight(g, ins_novos):
+    """Assim que um insight é lançado: aviso para quem ainda não consta como respondido (só o insight mais recente)."""
+    L = getattr(g, "LEMBRETES", None) or {}
+    env = _json_ler("lembretes_enviados.json", {})
+    hoje = datetime.date.today().isoformat()
+    n = 0
+    for d, nome in ins_novos:
+        for p in L.get("pessoas", []):
+            if not any(x["d"] == d and x["nome"] == nome for x in p.get("ins", [])):
+                continue
+            k = f"{hoje}|lanc|ins|{d}|{nome}|{p['email']}"
+            if k in env:
+                continue
+            try:
+                g.notificar(f"💬 {nome} no ar", f"Fala, {p['n']}! Saiu o {nome}. Quando puder, responda no grupo do WhatsApp. 🤝",
+                            "lembrete-ins", icone="notif-insight.png", so_para=p["email"])
+                env[k] = 1; n += 1
+            except Exception as e:
+                print(f"Aviso: aviso do insight não enviado ({e}).")
+    _json_gravar("lembretes_enviados.json", env)
+    if n:
+        print(f"Aviso do insight enviado: {n} irmão(s).")
+
 def enviar_convites(g, eventos_novos):
     """Assim que um evento é lançado: convite com os botões ✅ Vou / ❌ Não vou para quem ainda não respondeu."""
     L = getattr(g, "LEMBRETES", None) or {}
@@ -1483,6 +1506,10 @@ def main():
                      and str(d.get("data", "")) >= datetime.date.today().isoformat()]
             if novos:
                 enviar_convites(g, novos)
+            ins_novos = [(d.get("data"), d.get("evento")) for _, _, d in (resumo_fila or [])
+                         if d.get("tipo") == "lancamento_presenca" and str(d.get("aba") or "").lower().startswith("insig")]
+            if ins_novos:
+                enviar_aviso_insight(g, ins_novos)
         except Exception as e:
             print(f"Aviso: convites não enviados ({type(e).__name__}: {e}).")
         if RESPOSTAS:
