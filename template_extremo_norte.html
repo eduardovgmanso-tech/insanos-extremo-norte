@@ -700,22 +700,6 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       <label>Data do insight<input type="date" id="izData"></label>
       <label class="inteiro">Assinatura<select id="izAssin"></select></label>
     </div>
-    <div class="iz-zap">
-      <div class="lanc-acoes"><button type="button" class="btn zap" id="izLer">📲 Ler conversa do WhatsApp</button>
-      <button type="button" class="btn" id="izColarBt">📋 Colar mensagens</button></div>
-      <div id="izColarBox" hidden style="margin-top:10px">
-        <textarea id="izColar" rows="6" style="width:100%;border-radius:12px;padding:10px;font:inherit;background:rgba(0,0,0,.35);color:inherit;border:1px solid rgba(236,231,220,.25)" placeholder="No grupo: segure a primeira resposta, marque as outras, toque em Copiar e cole aqui."></textarea>
-        <div class="lanc-acoes" style="margin-top:8px"><button type="button" class="btn zap" id="izColarLer">Ler mensagens coladas</button></div>
-      </div>
-      <input type="file" id="izArq" accept=".txt,.zip,text/plain,application/zip" hidden>
-      <div class="lanc-grade" style="margin-top:10px">
-        <label>Ler mensagens de<input type="datetime-local" id="izDe"></label>
-        <label>até<input type="datetime-local" id="izAte"></label>
-      </div>
-      <p class="nota" style="margin:4px 0 0">O período já vem do dia do insight até a véspera da próxima reunião. Se quiser, ajuste (por exemplo, a partir da hora em que o insight foi postado).</p>
-      <p class="nota" style="margin:6px 0 0"><b>Colar:</b> no grupo, segure a primeira resposta, marque as outras, toque em <b>Copiar</b> e cole aqui. <b>Arquivo:</b> exporte a conversa do grupo pelo WhatsApp do <b>celular</b> (⋮ › Mais › Exportar conversa › <b>Sem mídia</b>) e escolha o arquivo aqui (.zip ou .txt). A conversa é lida só neste aparelho e não é enviada a lugar nenhum.</p>
-      <p class="nota" id="izLido" style="margin:6px 0 0"></p>
-    </div>
     <div class="lanc-acoes" style="margin-top:14px">
       <button type="button" class="btn" data-iztodos="1">Todos ✅</button>
       <button type="button" class="btn" data-iztodos="0">Todos ❌</button>
@@ -1302,7 +1286,7 @@ function izMontar(){if(!$("insZap")||MODO!=="adm")return;
   $("izAssin").innerHTML=`<option value="">Assinatura (escolha alguém do Comando)</option>`+cmd.map(m=>`<option value="${esc(m.n)}" ${sub&&m.n===sub.n?"selected":""}>${esc(cargoBase(m.c))} (${esc(m.n)})</option>`).join("");
   $("izEv").onchange=()=>{iz.k=$("izEv").value==="novo"?null:+$("izEv").value;izCarregar()};
   ["izNum","izData","izAssin"].forEach(id=>$(id).addEventListener("input",izAtualiza));
-  $("izData").addEventListener("change",izPeriodo);$("izAssin").addEventListener("change",izAtualiza);
+  $("izData").addEventListener("change",izPeriodo);   // (sem efeito: a leitura da conversa foi retirada)$("izAssin").addEventListener("change",izAtualiza);
   $("insZap").addEventListener("click",ev=>{
     const b=ev.target.closest("#izLista .seg button");
     if(b){const n=b.dataset.n,v=b.dataset.v==="1"?1:b.dataset.v==="0"?0:"-";iz.marca[n]=iz.marca[n]===v?null:v;izListaUI();izAtualiza();return}
@@ -1313,11 +1297,11 @@ function izMontar(){if(!$("insZap")||MODO!=="adm")return;
     $("izCopiar").textContent=ok?"Copiado! Cole no grupo":"Não consegui copiar";setTimeout(()=>$("izCopiar").textContent="Copiar para o WhatsApp",2500)};
   $("izZap").addEventListener("click",ev=>{if(!$("izAssin").value){ev.preventDefault();alert("Escolha a Assinatura antes de enviar.");$("izAssin").focus()}});
   $("izSalvar").onclick=izSalvar;
-  $("izLer").onclick=()=>{if(!$("izData").value){alert("Informe a data do insight antes de ler a conversa.");$("izData").focus();return}$("izArq").value="";$("izArq").click()};
-  $("izArq").onchange=()=>{const f=$("izArq").files[0];if(f)izLerConversa(f)};
-  $("izColarBt").onclick=async()=>{if(!$("izData").value){alert("Informe a data do insight antes de colar as mensagens.");$("izData").focus();return}
+  if($("izLer"))$("izLer").onclick=()=>{if(!$("izData").value){alert("Informe a data do insight antes de ler a conversa.");$("izData").focus();return}$("izArq").value="";$("izArq").click()};
+  if($("izArq"))$("izArq").onchange=()=>{const f=$("izArq").files[0];if(f)izLerConversa(f)};
+  if($("izColarBt"))$("izColarBt").onclick=async()=>{if(!$("izData").value){alert("Informe a data do insight antes de colar as mensagens.");$("izData").focus();return}
     izColarAbrir();try{const c=await navigator.clipboard.readText();if(c&&/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(c))$("izColar").value=c}catch(_){}};
-  $("izColarLer").onclick=()=>{const tx=$("izColar").value.trim();if(!tx){alert("Cole as mensagens copiadas do grupo.");return}izLerConversa(null,tx)};
+  if($("izColarLer"))$("izColarLer").onclick=()=>{const tx=$("izColar").value.trim();if(!tx){alert("Cole as mensagens copiadas do grupo.");return}izLerConversa(null,tx)};
   izCarregar()}
 function izListaUI(){const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
   $("izLista").innerHTML=GRUPOS.map(g=>{const ms=ord.filter(m=>grupoDe(m)===g);if(!ms.length)return "";
