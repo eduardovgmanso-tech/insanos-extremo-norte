@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v19";
+const CACHE = "insanos-v20";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -19,7 +19,8 @@ self.addEventListener("push", e => {
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
-  if (d.rsvp) { op.data.rsvp = d.rsvp; op.actions = [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; op.requireInteraction = true; }
+  if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
+    op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
   if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
     op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
@@ -89,6 +90,14 @@ self.addEventListener("notificationclick", e => {
     }
     e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
   }
+  if (dd.rsvp && e.action === "resp" && dd.ru && dd.para) {   // insight: "Já respondi" direto na notificação
+    const r = dd.rsvp;
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
+        painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
+      .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
+    return;
+  }
+  if (dd.rsvp && dd.rsvp.m === "ins" && !e.action) { e.waitUntil(clients.openWindow("adm.html#insight")); return; }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
