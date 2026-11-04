@@ -7,6 +7,15 @@
   "sede_local": "Sede Extremo Norte sp3 ( Quintos bar burg )",
   "sede_endereco": "Rua Silvio Brant correia, n° 313 - Vila Ema - SP.",
   "assinatura_local": "Extremo Norte SP3 - Vila Ema",
-  "autorizados": ["Queijo", "Brawl", "Maycon", "Edu", "Demonão"],
-  "acessos_somente": ["Edu"]
+  "autorizados": [
+    "Queijo",
+    "Brawl",
+    "Maycon",
+    "Edu",
+    "Demonão"
+  ],
+  "acessos_somente": [
+    "Edu"
+  ],
+  "regional_adm": "@Marcello - Marcello - Regional ADM - SP3"
 }
