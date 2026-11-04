@@ -597,6 +597,8 @@ document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt
 <button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
 ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
   <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></div>`:""}
+${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p class="nota" id="insTx" style="margin:0 0 10px">Ainda não consta a sua resposta. Já respondeu no grupo? Toque abaixo para marcar.</p>
+  <div class="qbts"><button class="qz" id="insBt">✅ Já respondi</button></div></div>`:""}
 <div class="card"><h2>Minha adesão em ${D.ano}</h2><div class="cavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
 <div class="card"><h2>Minha posição (presença)</h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
 <div class="card"><h2>Comparação</h2>
@@ -646,6 +648,12 @@ function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>!FF||e[2]!==1);
     if(b.classList.contains("qc")){try{await navigator.clipboard.writeText(texto(e));b.textContent="✅ Copiado"}catch(_){alert("Não consegui copiar: selecione o texto e copie.")}return}
     if(b.classList.contains("qz"))window.open("https://wa.me/?text="+encodeURIComponent(texto(e)),"_blank")})}
 // próximos eventos: responder "Vou / Não vou" (vai para a aba Acessos com a assinatura; a nuvem marca na Presença)
+// insight: "Já respondi" (vai para a aba Acessos com a assinatura; a nuvem marca SIM na aba Insights)
+(function(){const b=document.getElementById("insBt");if(!b)return;let feito=false;try{feito=localStorage.getItem("insr_"+D.email)===D.insp.d+"|"+D.insp.e}catch(_){}
+  const ok=()=>{b.textContent="✅ Marcado como respondido";b.disabled=true;document.getElementById("insTx").textContent="Valeu! A sua resposta entra na lista em até 30 minutos."};
+  if(feito)ok();
+  b.onclick=async()=>{try{await fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|resp|"+D.insp.d+"|"+D.insp.tk+"|"+D.insp.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})});
+    try{localStorage.setItem("insr_"+D.email,D.insp.d+"|"+D.insp.e)}catch(_){}ok()}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}}})();
 function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;let loc={};try{loc=JSON.parse(localStorage.getItem("rsvp_"+D.email)||"{}")}catch(_){}
   el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
     const txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"Ainda não respondeu";
@@ -746,7 +754,10 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
                            "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
-                          for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()]}
+                          for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()],
+                 "insp": (lambda ui: {"d": ui["d"], "e": ui["e"], "tk": token_rsvp(email, ui["d"], ui["e"])}
+                          if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
+                          max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
         PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
                           .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
@@ -2196,7 +2207,7 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
             info = json.loads(sub) if isinstance(sub, str) else sub
             extra = {"para": em, "ru": ACESSOS_URL} if ACESSOS_URL and "@" in em else {}
             if rsvp and extra:   # botões ✅ Vou / ❌ Não vou: a resposta leva a assinatura daquele irmão
-                extra["rsvp"] = {"d": rsvp["d"], "e": rsvp["e"], "tk": token_rsvp(em, rsvp["d"], rsvp["e"])}
+                extra["rsvp"] = {"d": rsvp["d"], "e": rsvp["e"], "tk": token_rsvp(em, rsvp["d"], rsvp["e"]), "m": rsvp.get("m", "ev")}
             dados_i = json.dumps(dict(json.loads(dados), **extra), ensure_ascii=False) if extra else dados
             wp.webpush(subscription_info=info, data=dados_i, vapid_private_key=ARQ_VAPID_PEM,
                        vapid_claims={"sub": "mailto:painel@insanos.app"}, ttl=86400)
@@ -2476,7 +2487,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v19";
+const CACHE = "insanos-v20";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2496,7 +2507,8 @@ self.addEventListener("push", e => {
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
-  if (d.rsvp) { op.data.rsvp = d.rsvp; op.actions = [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; op.requireInteraction = true; }
+  if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
+    op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
   if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
     op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
@@ -2566,6 +2578,14 @@ self.addEventListener("notificationclick", e => {
     }
     e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
   }
+  if (dd.rsvp && e.action === "resp" && dd.ru && dd.para) {   // insight: "Já respondi" direto na notificação
+    const r = dd.rsvp;
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
+        painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
+      .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
+    return;
+  }
+  if (dd.rsvp && dd.rsvp.m === "ins" && !e.action) { e.waitUntil(clients.openWindow("adm.html#insight")); return; }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,

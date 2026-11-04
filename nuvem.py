@@ -696,7 +696,8 @@ def aplicar_respostas(api, pid, g):
         _, resp, d, tk, nome = partes
         email = str(r[1]).strip().lower()
         chave = f"{r[0]}|{email}|{d}|{nome}|{resp}"
-        if chave in vistos or d < hoje or resp not in ("vou", "nao"):
+        lim = (datetime.date.today() - datetime.timedelta(days=10)).isoformat() if resp == "resp" else hoje
+        if chave in vistos or d < lim or resp not in ("vou", "nao", "resp"):
             continue
         vistos.add(chave)
         if tk != g.token_rsvp(email, d, nome):
@@ -714,42 +715,50 @@ def aplicar_respostas(api, pid, g):
                 row = list(row) + [""] * 40
                 if "@" in str(row[C["email"] - 1]):
                     ap_de[str(row[C["email"] - 1]).strip().lower()] = str(row[1]).strip()
-        aba = _aba_real(api, pid, "Presenca")
-        v = _ler(api, pid, f"'{aba}'!A1:BZ60")
-        lin = lambda r: list(v[r - 1]) + [""] * 80 if len(v) >= r else [""] * 80
-        cols, c = {}, 4
-        while True:
-            nm = str(lin(6)[c - 1]).strip()
-            if not nm or nm.lower().startswith("presen"):
-                break
-            cols[_sa(nm)] = c; c += 1
-        def data_da_linha(r):
-            x = lin(r)[1]
-            if isinstance(x, (int, float)) and x > 20000:
-                return (datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(x))).date().isoformat()
-            try:
-                return datetime.datetime.strptime(str(x)[:10], "%d/%m/%Y").date().isoformat()
-            except ValueError:
-                return ""
         gr = []
-        for (email, d, nome), (_, resp) in novas.items():
-            ap = ap_de.get(email)
-            cc = cols.get(_sa(ap)) if ap else None
-            linha = next((r for r in range(8, 43) if data_da_linha(r) == d and _sa(lin(r)[2]) == _sa(nome)), None)
-            if not (ap and cc and linha):
+        # Vou / Não vou -> aba Presenca; Já respondi (insight) -> aba Insights
+        for aba_nome, so_resp in (("Presenca", False), ("Insights", True)):
+            grupo = {k: x for k, x in novas.items() if (x[1] == "resp") == so_resp}
+            if not grupo:
                 continue
-            atual = str(lin(linha)[cc - 1]).strip().upper()
-            cel = f"{d}|{nome}|{ap}"
-            novo = "SIM" if resp == "vou" else "NÃO"
-            if atual in ("", "-") or celulas.get(cel) == atual:     # vale a marcação do comando; o irmão só muda a dele
-                if atual != novo:
-                    gr.append((f"'{aba}'!{_col(cc)}{linha}", novo))
-                celulas[cel] = novo
-                feitas.append((ap, nome, resp))
+            aba = _aba_real(api, pid, aba_nome)
+            if not aba:
+                continue
+            v = _ler(api, pid, f"'{aba}'!A1:BZ400")
+            lin = lambda r: list(v[r - 1]) + [""] * 80 if len(v) >= r else [""] * 80
+            cols, c = {}, 4
+            while True:
+                nm = str(lin(6)[c - 1]).strip()
+                if not nm or nm.lower().startswith("presen") or nm.lower().startswith("insig") or nm.lower().startswith("%"):
+                    break
+                cols[_sa(nm)] = c; c += 1
+            def data_da_linha(r):
+                x = lin(r)[1]
+                if isinstance(x, (int, float)) and x > 20000:
+                    return (datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(x))).date().isoformat()
+                try:
+                    return datetime.datetime.strptime(str(x)[:10], "%d/%m/%Y").date().isoformat()
+                except ValueError:
+                    return ""
+            for (email, d, nome), (_, resp) in grupo.items():
+                ap = ap_de.get(email)
+                cc = cols.get(_sa(ap)) if ap else None
+                linha = next((r for r in range(8, len(v) + 1) if data_da_linha(r) == d and _sa(lin(r)[2]) == _sa(nome)), None)
+                if not (ap and cc and linha):
+                    continue
+                atual = str(lin(linha)[cc - 1]).strip().upper()
+                cel = f"{aba_nome}|{d}|{nome}|{ap}"
+                novo = "SIM" if resp in ("vou", "resp") else "NÃO"
+                livre = ("", "-") + (("NÃO", "NAO") if resp == "resp" else ())     # no insight, o NÃO padrão vira SIM quando o irmão marca
+                if atual in livre or celulas.get(cel) == atual or celulas.get(f"{d}|{nome}|{ap}") == atual:   # vale a marcação do comando
+                    if atual != novo:
+                        gr.append((f"'{aba}'!{_col(cc)}{linha}", novo))
+                    celulas[cel] = novo
+                    feitas.append((ap, nome, resp))
         _gravar(api, pid, gr)
     _json_gravar("rsvp.json", {"vistos": sorted(vistos)[-800:], "celulas": celulas})
     if feitas:
-        print("Respostas dos irmãos aplicadas: " + ", ".join(f"{a} ({'vai' if r == 'vou' else 'não vai'})" for a, _, r in feitas))
+        print("Respostas dos irmãos aplicadas: " + ", ".join(f"{a} ({'vai' if r == 'vou' else 'respondeu' if r == 'resp' else 'não vai'})" for a, _, r in feitas))
     RESPOSTAS.extend(feitas)
     return feitas
 
@@ -872,8 +881,8 @@ def enviar_aviso_insight(g, ins_novos):
             if k in env:
                 continue
             try:
-                g.notificar(f"💬 {nome} no ar", f"Fala, {p['n']}! Saiu o {nome}. Quando puder, responda no grupo do WhatsApp. 🤝",
-                            "lembrete-ins", icone="notif-insight.png", so_para=p["email"])
+                g.notificar(f"💬 {nome} no ar", f"Fala, {p['n']}! Saiu o {nome}. Responda no grupo do WhatsApp e toque em Já respondi. 🤝",
+                            "lembrete-ins", icone="notif-insight.png", so_para=p["email"], rsvp={"d": d, "e": nome, "m": "ins"})
                 env[k] = 1; n += 1
             except Exception as e:
                 print(f"Aviso: aviso do insight não enviado ({e}).")
@@ -1001,7 +1010,8 @@ def enviar_lembretes(g):
             else:
                 tit = "💬 Só falta você, irmão"
                 corpo = f"{ap}, o {nomes[0]} já tem {xs[0]['resp']} respostas. A sua opinião também conta: responde lá quando der. 💀"
-            manda(f"{hoje}|{slot}|ins|{email}", tit, corpo, "lembrete-ins", icone="notif-insight.png", so_para=email)
+            manda(f"{hoje}|{slot}|ins|{email}", tit, corpo + " Já respondeu? Toque em Já respondi.", "lembrete-ins", icone="notif-insight.png", so_para=email,
+                  rsvp={"d": xs[0]["d"], "e": xs[0]["nome"], "m": "ins"} if len(xs) == 1 else None)
         # eventos sem confirmação: 9h, 13h e 19h, até o dia do evento
         for ev in p.get("ev", []):
             emoji, icone = _tipo_aviso({"tipo": "lancamento_presenca", "aba": "Presenca", "evento": ev["nome"]})
@@ -1523,7 +1533,7 @@ def main():
             try:
                 por = {}
                 for ap, nome, r in RESPOSTAS:
-                    por.setdefault(nome, []).append(f"{ap} {'✅' if r == 'vou' else '❌'}")
+                    por.setdefault(nome, []).append(f"{ap} {'✅' if r in ('vou', 'resp') else '❌'}")
                 g.notificar("✋ Respostas dos irmãos", " · ".join(f"{n}: {', '.join(x)}" for n, x in por.items()), "atualizacao", icone="notif-evento.png")
             except Exception as e:
                 print(f"Aviso: aviso das respostas não enviado ({e}).")
