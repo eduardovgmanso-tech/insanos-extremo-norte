@@ -371,8 +371,7 @@ const solic=document.getElementById("solic");
 const bioB=document.getElementById("bioB"),bioOf=document.getElementById("bioOf");
 const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
-(async()=>{try{bioPode=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&   // digital só no celular (no computador: e-mail + código)
-    !!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+(async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());   // celular: digital/Face ID · computador: Windows Hello
   if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
     if(!location.hash.startsWith("#sos="))soDigital()}}catch(_){}})();   // a digital abre só com o toque (o SOS fica sempre à mão)
 // com a digital cadastrada neste celular: a entrada mostra só a digital; o e-mail fica a um toque (ou aparece se a digital falhar)
@@ -390,7 +389,8 @@ async function bioEntrar(auto){erro.textContent="";try{
   if(ids.length)pk.allowCredentials=ids.map(i=>({type:"public-key",id:bioDe64(i),transports:["internal"]}));   // só a digital deste celular (não procura outros aparelhos)   // a chave deste celular: vai direto para a digital
   let a=null;
   try{a=await navigator.credentials.get({publicKey:pk})}
-  catch(e1){if(!ids.length)throw e1;delete pk.allowCredentials;pk.challenge=bioRnd();a=await navigator.credentials.get({publicKey:pk})}   // a chave anotada sumiu: tenta qualquer chave deste site
+  catch(e1){if(!ids.length||!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent))throw e1;   // no computador não procura outros aparelhos (evita a janela do Chrome)
+    delete pk.allowCredentials;pk.challenge=bioRnd();a=await navigator.credentials.get({publicKey:pk})}   // celular: a chave anotada sumiu, tenta qualquer chave deste site
   try{const id=bioB64(a.rawId);if(!ids.includes(id))localStorage.setItem("bio_ids",JSON.stringify([...ids,id].slice(-3)))}catch(_){}
   const em=new TextDecoder().decode(a.response.userHandle||new Uint8Array());
   if(!em.includes("@"))throw new Error("sem e-mail");
