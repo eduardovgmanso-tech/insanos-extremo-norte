@@ -252,6 +252,14 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .lanc-l{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.22)}
 .lanc-l.sem-status{}
 .mostrar-falta .lanc-l.sem-status{box-shadow:inset 3px 0 0 #D25A57;background:rgba(163,48,47,.14)}
+.mostrar-falta #lLista .lw-l.sem-status{box-shadow:inset 3px 0 0 #D25A57;background:rgba(163,48,47,.14)}
+#lancDet.lanc-ev summary h2::before{content:none}
+#lLista,#lLista *{box-sizing:border-box}
+#lLista .seg button{min-width:38px;padding:5px 8px}
+#lLista .seg button[aria-pressed="true"][data-v="Sim"]{background:var(--presente)}
+#lLista .seg button[aria-pressed="true"][data-v="Staff"]{background:#B98A1E}
+#lLista .seg button[aria-pressed="true"][data-v="Não"]{background:var(--sangue)}
+#lLista .seg button[aria-pressed="true"][data-v="-"]{background:#555}
 .lanc-l span{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seg{display:inline-flex;border:1px solid rgba(236,231,220,.25);border-radius:8px;overflow:hidden;flex-shrink:0}
 .seg button{background:transparent;color:var(--osso2);border:0;padding:7px 9px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;min-width:38px;min-height:36px}
@@ -1041,23 +1049,22 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
         <button type="button" role="tab" data-lt="insight" aria-selected="false">💬 Insight</button>
       </div></div>
     <div id="lancInsLugar"></div>
-    <details id="lancDet">
-      <summary><h2 style="display:inline">Lançar evento</h2><span class="sub" style="margin-left:10px">para o comando registrar a presença de um evento novo</span></summary>
-      <div class="lanc-topo">
-        <label>Data do evento<input type="date" id="lData"></label>
+    <details id="lancDet" class="lanc-ev">
+      <summary><div class="pag-cab" style="margin:0"><div><h2 style="margin:0">Lista do evento</h2><p class="sub" style="margin:4px 0 0">Marque quem foi, quem fez staff e quem faltou, e salve na nuvem.</p></div></div></summary>
+      <div class="lw-campos" id="lCampos" style="margin-top:12px">
+        <label class="inteiro">Evento<select id="lEv"></select></label>
         <label>Nome do evento<input type="text" id="lNome" maxlength="80" placeholder="Ex.: Reunião mensal"></label>
+        <label>Data do evento<input type="date" id="lData"></label>
       </div>
-      <div class="lanc-acoes">
-        <button type="button" class="btn" data-todos="Sim">Todos Sim</button>
-        <button type="button" class="btn" data-todos="Não">Todos Não</button>
+      <div class="lanc-acoes" style="margin-top:14px">
+        <button type="button" class="btn" data-todos="Sim">Todos ✅</button>
+        <button type="button" class="btn" data-todos="Não">Todos ❌</button>
+        <button type="button" class="btn" data-todos="">Limpar marcações</button>
         <span id="lCont" class="lanc-cont"></span>
       </div>
       <div id="lLista"></div>
-      <div class="lanc-fim">
-        <button type="button" class="btn zap" id="lSalvar">Salvar lançamento</button>
-        <p class="dica" id="lDica"></p>
-      </div>
-    </details>
+      <div class="lw-bts" style="margin-top:16px"><button type="button" class="btn" id="lSalvar">💾 Salvar na nuvem</button></div>
+      <p class="nota" id="lDica" style="margin:2px 0 8px"></p>
   </section>
 
   <footer id="rodape"></footer>
@@ -3565,12 +3572,11 @@ function montarLancamento(){
   const ord=[...M].sort((a,b)=>a.o-b.o);
   ord.forEach(m=>lanc[m.n]="");
   $("lLista").innerHTML=GRUPOS.map(g=>{const ms=ord.filter(m=>grupoDe(m)===g);if(!ms.length)return "";
-    return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lanc-grade">${ms.map(m=>`<div class="lanc-l"><span>${esc(m.n)}</span>
-      <div class="seg" role="group" aria-label="${esc(m.n)}">${["Sim","Staff","Não","-"].map(v=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="false" ${v==="Staff"?'title="Fez staff (conta como presença)"':""}>${v==="-"?"–":v==="Staff"?"🛠️ Staff":v}</button>`).join("")}</div></div>`).join("")}</div>`}).join("");
+    return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lw-col">${ms.map(m=>`<div class="lw-l"><div class="lw-lin"><span>${esc(lwNome(m))}</span>
+      <div class="seg" role="group" aria-label="${esc(m.n)}">${[["Sim","✅","Foi"],["Staff","🛠️","Fez staff (conta como presença)"],["Não","❌","Faltou"],["-","–","Não conta"]].map(([v,r,ti])=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="false" title="${ti}">${r}</button>`).join("")}</div></div></div>`).join("")}</div>`}).join("");
+  lancEventos();
   const hoje=new Date();$("lData").value=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;
-  $("lDica").textContent=DADOS.nuvem?"Ao salvar, o lançamento vai direto para a planilha do Google, e o painel se atualiza em uns 3 minutos.":podeCompartilhar()
-    ?"No celular, ao salvar abre o compartilhar: mande o arquivo para o Eduardo pelo WhatsApp."
-    :"O arquivo vai para Downloads. O GerarPainel.bat encontra e importa sozinho na próxima vez que rodar.";
+  $("lDica").textContent="Ao salvar, a lista vai direto para a planilha (aba Presenca), e o painel se atualiza em uns 3 minutos. Evento que ainda vai acontecer: os irmãos recebem o convite com Vou e Não vou.";
   atualizaLanc();
   $("lancar").addEventListener("click",ev=>{
     const b=ev.target.closest(".seg button");
@@ -3583,7 +3589,15 @@ function montarLancamento(){
 function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
     (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
-  document.querySelectorAll("#lLista .lanc-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])})}
+  document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])})}
+// seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
+function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
+  s.innerHTML=`<option value="novo">➕ Novo evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
+  s.onchange=()=>{const k=s.value,e=k==="novo"?null:(EV_SETS.pres||[])[+k];
+    const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
+    Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
+    document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",lanc[x.dataset.n]===x.dataset.v&&x.dataset.v!==""));
+    document.getElementById("lancar").classList.remove("mostrar-falta");atualizaLanc()}}
 async function salvarLancamento(){
   const d=$("lData").value,n=$("lNome").value.trim();
   if(!d){alert("Informe a data do evento.");$("lData").focus();return}
@@ -3591,11 +3605,12 @@ async function salvarLancamento(){
   const faltam=[...M].sort((a,b)=>a.o-b.o).filter(m=>!lanc[m.n]).map(m=>m.n);
   if(faltam.length){document.getElementById("lancar").classList.add("mostrar-falta");atualizaLanc();
     if(!confirm(`${faltam.length} ${faltam.length===1?"irmão ficou":"irmãos ficaram"} sem marcação:\n\n${faltam.join(", ")}\n\nEles ficam em branco na planilha e contam como "ainda não" na % do evento. Você pode completar depois pelo quadro do evento.\n\nSalvar assim mesmo?`)){
-      const x=document.querySelector("#lLista .lanc-l.sem-status");if(x)x.scrollIntoView({block:"center"});return}}
-  if(EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Salvar mesmo assim?"))return;
+      const x=document.querySelector("#lLista .lw-l.sem-status");if(x)x.scrollIntoView({block:"center"});return}}
+  const editando=$("lEv")&&$("lEv").value!=="novo";
+  if(!editando&&EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Para corrigir a lista dele, escolha o evento no campo Evento. Salvar mesmo assim?"))return;
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
-  if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="Salvar lançamento",4000);return}
+  if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
   const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();
