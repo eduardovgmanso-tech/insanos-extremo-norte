@@ -1229,6 +1229,7 @@ def verificar_boletos(api, pid, g):
     if not aba:
         print("Verificação de pagamentos: aba PGTO não encontrada."); return False
     print(f"Verificando pagamentos (ciclo com vencimento em {ciclo:%d/%m/%Y})...")
+    diag_mostrados = 0
     v = _ler(api, pid, f"'{aba}'!A1:J400")
     manual = g._manual_carregar(ciclo)
     inativos = g.inativos_planilha()
@@ -1250,6 +1251,12 @@ def verificar_boletos(api, pid, g):
         except Exception as e:
             item["obs"] = "não consegui abrir o boleto"; itens.append(item); print(f"  {rotulo}: não abriu ({e})"); continue
         item["selo"], item["venc_boleto"] = selo, (vb.isoformat() if vb else None)
+        print(f"  {rotulo}: lido no boleto -> situação: {selo or 'NÃO ENCONTRADA'} · vencimento: {vb:%d/%m/%Y}" if vb else f"  {rotulo}: lido no boleto -> situação: {selo or 'NÃO ENCONTRADA'} · vencimento: não encontrado")
+        if not selo and diag_mostrados < 2:      # mostra o trecho da página para acertar a leitura (sem dados pessoais: só o que vem depois do vencimento)
+            diag_mostrados += 1
+            pg = getattr(g, "ULTIMA_PAGINA_BOLETO", "") or ""
+            i0 = pg.find("Vencimento")
+            print("    trecho da página depois do vencimento: " + re.sub(r"\s+", " ", pg[i0:i0 + 700] if i0 >= 0 else pg[:300]))
         boleto_do_mes = not vb or (vb.year, vb.month) == (ciclo.year, ciclo.month)
         if boleto_do_mes and selo and "pag" in selo.lower():
             novo = "Pago em Dia"

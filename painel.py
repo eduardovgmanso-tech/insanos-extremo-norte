@@ -371,7 +371,8 @@ const solic=document.getElementById("solic");
 const bioB=document.getElementById("bioB"),bioOf=document.getElementById("bioOf");
 const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
-(async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+(async()=>{try{bioPode=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&   // digital só no celular (no computador: e-mail + código)
+    !!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
   if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
     if(!location.hash.startsWith("#sos="))soDigital()}}catch(_){}})();   // a digital abre só com o toque (o SOS fica sempre à mão)
 // com a digital cadastrada neste celular: a entrada mostra só a digital; o e-mail fica a um toque (ou aparece se a digital falhar)
@@ -386,7 +387,7 @@ const bioDe64=x=>Uint8Array.from(atob(x.replace(/-/g,"+").replace(/_/g,"/")+"=".
 async function bioEntrar(auto){erro.textContent="";try{
   let ids=[];try{ids=JSON.parse(localStorage.getItem("bio_ids")||"[]")}catch(_){}
   const pk={challenge:bioRnd(),userVerification:"required",timeout:60000,rpId:location.hostname};
-  if(ids.length)pk.allowCredentials=ids.map(i=>({type:"public-key",id:bioDe64(i),transports:["internal","hybrid"]}));   // a chave deste celular: vai direto para a digital
+  if(ids.length)pk.allowCredentials=ids.map(i=>({type:"public-key",id:bioDe64(i),transports:["internal"]}));   // só a digital deste celular (não procura outros aparelhos)   // a chave deste celular: vai direto para a digital
   let a=null;
   try{a=await navigator.credentials.get({publicKey:pk})}
   catch(e1){if(!ids.length)throw e1;delete pk.allowCredentials;pk.challenge=bioRnd();a=await navigator.credentials.get({publicKey:pk})}   // a chave anotada sumiu: tenta qualquer chave deste site
@@ -1329,12 +1330,16 @@ def _log(msg):
     except OSError:
         pass
 
+ULTIMA_PAGINA_BOLETO = ""
+
 def _ler_boleto(url):
     """Devolve (texto do selo de status ou None, data de vencimento do boleto ou None)."""
     import re, urllib.request, html as H
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=25) as r:
         bruto = r.read().decode("utf-8", "ignore")
+        global ULTIMA_PAGINA_BOLETO
+        ULTIMA_PAGINA_BOLETO = bruto   # diagnóstico: a verificação mostra o trecho quando não acha a situação
     selo = re.search(r'class="status_warning"[^>]*>\s*([^<]+?)\s*<', bruto)          # página da Iugu
     texto = re.sub(r"\s+", " ", H.unescape(re.sub(r"<[^>]+>", " ", bruto)))
     v = re.search(r"Vencimento\D{0,40}(\d{2})/(\d{2})/(\d{4})", texto, re.I)
