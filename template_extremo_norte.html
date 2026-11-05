@@ -274,7 +274,7 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 @media (min-width:901px){body.adm header{min-height:0!important;padding-right:0;margin-bottom:18px}}   /* com os três quadrados, o topo não precisa reservar espaço */
 .quadros3{display:flex;gap:8px}
 .q3{width:84px;height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.06);color:var(--osso);font-weight:700;font-size:13px;cursor:pointer;padding:6px}
-.q3 img{width:38px;height:auto}.q3 svg{width:34px;height:auto}
+.q3 img{width:38px;height:auto}.q3 .q3-2l{font-size:11px;line-height:1.15;text-align:center}.q3 svg{width:34px;height:auto}
 .q3.sos{background:#c62828;border-color:#c62828;color:#fff}.q3.sos b{font-family:"Big Shoulders Display",Impact,sans-serif;font-size:26px;line-height:1;letter-spacing:1px}.q3.sos span{font-size:10.5px;font-weight:700;opacity:.92}
 .fa-veu{position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center}
 .fa-cx{background:#1b1714;color:var(--osso);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));border-top:3px solid var(--ouro)}
@@ -911,7 +911,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       <div class="lw-bts" style="margin-top:12px"><button type="button" class="btn zap" id="cadEfetivar">✅ Efetivar entrada</button></div>
       <p class="nota" id="cadAviso"></p>
     </div>
-    <div class="cad-bloco">
+    <div class="cad-bloco" id="pushBloco" hidden>
       <h2>🔔 Notificações neste aparelho</h2>
       <p class="sub" id="pushStatus">Verificando…</p>
       <div class="lw-bts"><button type="button" class="btn" id="pushAtivar2">🔔 Ativar</button><button type="button" class="btn lw-limpar" id="pushDesativar">Desativar</button></div>
@@ -2436,7 +2436,7 @@ const pushSuportado=()=>!!(DADOS.push&&DADOS.push.pub&&"serviceWorker" in naviga
 const ehIphone=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent),ehApp=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
 async function pushInscricao(){try{const r=await navigator.serviceWorker.ready;return await r.pushManager.getSubscription()}catch(e){return null}}
 async function pushEnviar(obj){try{await fetch(DADOS.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify(obj)})}catch(e){}}
-async function pushAtivar(){
+async function pushAtivar(){try{localStorage.removeItem("push_off")}catch(_){}
   if(ehIphone()&&!ehApp()){alert("No iPhone, as notificações só funcionam com o app instalado: Safari › Compartilhar › Adicionar à Tela de Início. Depois abra pelo ícone e ative aqui.");return}
   const perm=await Notification.requestPermission();
   if(perm!=="granted"){alert(perm==="denied"?"As notificações estão bloqueadas para este app. Libere em Configurações do celular › Apps › Insanos ADM (ou Chrome) › Notificações.":"Permissão não concedida.");pushTela();return}
@@ -2446,7 +2446,20 @@ async function pushAtivar(){
     await pushEnviar({tipo:"push",email,sub:JSON.stringify(s)});
     alert("🔔 Notificações ativadas neste aparelho!")}catch(e){alert("Não consegui ativar as notificações neste aparelho ("+(e.message||e)+").")}
   pushTela()}
-async function pushDesativar(){const s=await pushInscricao();if(s){await pushEnviar({tipo:"push_sair",endpoint:s.endpoint});try{await s.unsubscribe()}catch(e){}}
+// avisos: com a permissão já dada, refaz o registro sozinho (app reinstalado, celular trocado, registro antigo)
+async function pushSincronizar(){try{
+  if(MODO!=="adm"||!DADOS.push||!pushSuportado()||Notification.permission!=="granted")return;
+  try{if(localStorage.getItem("push_off"))return}catch(_){}
+  let email="";try{email=sessionStorage.getItem("painel_email")||""}catch(_){}if(!email.includes("@"))return;
+  const r=await navigator.serviceWorker.ready;let s=await r.pushManager.getSubscription();
+  if(!s)s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pushB64(DADOS.push.pub)});
+  let u={};try{u=JSON.parse(localStorage.getItem("push_sync")||"{}")}catch(_){}
+  if(u.e===email&&u.ep===s.endpoint&&Date.now()-u.t<864e5)return;   // já registrado hoje, com este aparelho e este e-mail
+  await pushEnviar({tipo:"push",email,sub:JSON.stringify(s)});
+  try{localStorage.setItem("push_sync",JSON.stringify({e:email,ep:s.endpoint,t:Date.now()}))}catch(_){}pushTela()}catch(e){}}
+setTimeout(pushSincronizar,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)pushSincronizar()});
+async function pushDesativar(){try{localStorage.setItem("push_off","1")}catch(_){}   // desligado de propósito: o registro automático respeita
+  const s=await pushInscricao();if(s){await pushEnviar({tipo:"push_sair",endpoint:s.endpoint});try{await s.unsubscribe()}catch(e){}}
   alert("Notificações desativadas neste aparelho.");pushTela()}
 async function pushTela(){const bar=$("pushBar"),st=$("pushStatus");if(!bar||MODO!=="adm")return;
   if(!DADOS.push){bar.hidden=true;if(st)st.textContent="Notificações não configuradas.";return}
@@ -2523,7 +2536,7 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
   ["site18","doc18","man18","dash18","plan18"].forEach(id=>{const a=$(id);if(a)a.classList.add("q-velho")});
   const q=document.createElement("div");q.id="quadros3";q.className="quadros3";
   q.innerHTML=`<button type="button" class="q3" data-q="clube">${ico("site18")}<span>Clube</span></button>
-    <button type="button" class="q3" data-q="gestao">${ico("dash18")}<span>Gestão</span></button>
+    <button type="button" class="q3" data-q="gestao">${ico("dash18")}<span class="q3-2l">Gestão e Notificações</span></button>
     <button type="button" class="q3 sos" data-q="sos"><b>SOS</b><span>Preciso de ajuda</span></button>`;
   dir.prepend(q);
   q.onclick=e=>{const b=e.target.closest("[data-q]");if(!b)return;const k=b.dataset.q;
@@ -2532,8 +2545,15 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
       {ico:ico("doc18"),t:"RDI",d:"Regulamento",href:href("doc18")},{ico:ico("man18"),t:"Manual do integrante",d:"Abrir o manual",href:href("man18")}]);
     if(k==="gestao"){const it=[{ico:ico("dash18"),t:"Dashboard",d:"Cards e comparativo entre meses",fn:()=>irPara("dash")}];
       const pl=$("plan18");if(pl&&!pl.hidden&&pl.getAttribute("href"))it.push({ico:ico("plan18"),t:"Planilha",d:"Abrir a planilha do Google",href:pl.getAttribute("href")});
+      it.push({ico:"🔔",t:"Notificações neste aparelho",d:(($("pushStatus")||{}).textContent||"Ativar ou desativar os avisos neste celular").slice(0,90),fn:pushFolha});
       if(window.TEM_ACESSOS)it.push({ico:'<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#E9B949" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#E9B949" stroke-width="2" stroke-linecap="round"/></svg>',t:"Acessos",d:"Quem entrou, avisos, ADM e visitantes",fn:()=>irPara("acessos")});
-      folhaAtalhos("📊 Gestão",it)}}}
+      folhaAtalhos("📊 Gestão e Notificações",it)}}}
+// notificações deste aparelho: a mesma ativação de antes (o bloco que ficava no Cadastro), agora pela Gestão
+function pushFolha(){try{pushTela()}catch(_){}
+  folhaAtalhos("🔔 Notificações neste aparelho",[
+    {ico:"ℹ️",t:(($("pushStatus")||{}).textContent||"Verificando…"),d:"Pagamento novo, listas, respostas dos irmãos e o SOS, direto neste celular.",fn:pushFolha},
+    {ico:"🔔",t:"Ativar",d:"Recebe os avisos neste aparelho",fn:async()=>{await pushAtivar();pushFolha()}},
+    {ico:"🔕",t:"Desativar",d:"Para de receber neste aparelho",fn:async()=>{if(confirm("Desativar as notificações neste aparelho?")){await pushDesativar();pushFolha()}}}])}
 // ---- Pagamentos › Regional: a situação das mensalidades pronta para o regional (mensagem + fly com o código de leitura)
 function pagRegionalTexto(mencao){const c=window.PAG_CONT||{pago:0,aguard:0,aberto:0};
   const MES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];

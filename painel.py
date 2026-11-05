@@ -673,13 +673,13 @@ async function avTela(){const st=document.getElementById("avSt"),at=document.get
   let s=null;try{const r=await navigator.serviceWorker.ready;s=await r.pushManager.getSubscription()}catch(e){}
   const on=!!s&&Notification.permission==="granted";at.hidden=on;de.hidden=!on;
   st.textContent=on?"✅ Avisos ativados neste celular. Você recebe só os seus lembretes.":"Receba lembretes das listas e da agenda da divisão, só para você."}
-document.getElementById("avAt").onclick=async()=>{if(ehIph()&&!ehApp()){alert("No iPhone, instale o app primeiro: Safari › Compartilhar › Adicionar à Tela de Início.");return}
+document.getElementById("avAt").onclick=async()=>{try{localStorage.removeItem("push_off")}catch(_){}if(ehIph()&&!ehApp()){alert("No iPhone, instale o app primeiro: Safari › Compartilhar › Adicionar à Tela de Início.");return}
   const perm=await Notification.requestPermission();if(perm!=="granted"){alert("Permissão não concedida. Libere as notificações nas configurações do celular.");return}
   try{const r=await navigator.serviceWorker.ready;let s=await r.pushManager.getSubscription();
     if(!s)s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(D.push.pub)});
     await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
     alert("🔔 Avisos ativados neste celular!")}catch(e){alert("Não consegui ativar os avisos ("+(e.message||e)+").")}avTela()};
-document.getElementById("avDes").onclick=async()=>{try{const r=await navigator.serviceWorker.ready,s=await r.pushManager.getSubscription();
+document.getElementById("avDes").onclick=async()=>{try{localStorage.setItem("push_off","1")}catch(_){}try{const r=await navigator.serviceWorker.ready,s=await r.pushManager.getSubscription();
   if(s){await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push_sair",endpoint:s.endpoint})});await s.unsubscribe()}}catch(e){}alert("Avisos desativados.");avTela()};
 // SOS: guarda a localização só neste celular (a notificação calcula a distância sem mandar nada para ninguém)
 const locIdb=(v)=>new Promise(r=>{try{const o=indexedDB.open("insanos",1);o.onupgradeneeded=()=>o.result.createObjectStore("kv");o.onsuccess=()=>{const t=o.result.transaction("kv","readwrite");t.objectStore("kv").put(v,"loc");t.oncomplete=()=>r(1)};o.onerror=()=>r(0)}catch(e){r(0)}});
@@ -689,6 +689,16 @@ const locPega=(avisa)=>navigator.geolocation&&navigator.geolocation.getCurrentPo
 document.getElementById("locAt").onclick=()=>locPega(true);
 try{navigator.permissions&&navigator.permissions.query({name:"geolocation"}).then(x=>{if(x.state==="granted")locPega(false)})}catch(_){}
 avTela();
+// avisos: com a permissão já dada, refaz o registro sozinho (app reinstalado, celular trocado, registro antigo)
+async function avSinc(){try{if(!D.push||!("serviceWorker" in navigator)||!("PushManager" in window)||Notification.permission!=="granted")return;
+  try{if(localStorage.getItem("push_off"))return}catch(_){}   // desligado de propósito
+  const r=await navigator.serviceWorker.ready;let s=await r.pushManager.getSubscription();
+  if(!s)s=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(D.push.pub)});
+  let u={};try{u=JSON.parse(localStorage.getItem("push_sync")||"{}")}catch(_){}
+  if(u.e===D.email&&u.ep===s.endpoint&&Date.now()-u.t<864e5)return;
+  await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
+  try{localStorage.setItem("push_sync",JSON.stringify({e:D.email,ep:s.endpoint,t:Date.now()}))}catch(_){}avTela()}catch(e){}}
+setTimeout(avSinc,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)avSinc()});
 try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.getElementById("instalar").hidden=true}catch(e){}
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
