@@ -510,7 +510,8 @@ document.getElementById("f").addEventListener("submit",async ev=>{
   solic.hidden=true;
   const d=cpf.value.trim().toLowerCase();
   const registrar=ok=>{try{const u="__ACESSOS_URL__";if(!u)return;
-    const ua=navigator.userAgent,ap=/iPhone|iPad/.test(ua)?"iPhone":/Android/.test(ua)?"Celular Android":/Windows/.test(ua)?"Computador Windows":/Mac/.test(ua)?"Mac":"Outro";
+    const ua=navigator.userAgent,ap=(/iPhone|iPad/.test(ua)?"iPhone":/Android/.test(ua)?"Celular Android":/Windows/.test(ua)?"Computador Windows":/Mac/.test(ua)?"Mac":"Outro")
+      +((matchMedia("(display-mode: standalone)").matches||navigator.standalone)?" · app":" · navegador");
     const corpo=JSON.stringify({email:d.includes("@")?d:"(senha coletiva)",ok,painel:/ADM/.test(document.title)?"ADM":"Geral",aparelho:ap});
     if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([corpo],{type:"text/plain"}));else fetch(u,{method:"POST",mode:"no-cors",body:corpo})}catch(_){}};
   if(!d){erro.textContent="Digite o seu e-mail.";return}
@@ -527,7 +528,7 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     for(const s of P.slots){try{chave=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct));break}catch(e){}}
     if(!chave){   // não é do comando: tenta o "Meu painel" do irmão
       for(const s of (P.pes||[])){try{const h=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));
-        try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro"});
+        try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:(/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro")+((matchMedia("(display-mode: standalone)").matches||navigator.standalone)?" · app":" · navegador")});
           if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}}catch(_){}
         try{sessionStorage.setItem("painel_email",d)}catch(_){}
         const abre=()=>{document.open();document.write(h.split("__CAV__").join(P.cav||""));document.close()};
@@ -2175,6 +2176,23 @@ def token_rsvp(email, d, nome):
 
 ADM_EMAILS = set()     # e-mails do comando (fixos + liberados): os avisos gerais vão só para eles
 
+def aparelhos_com_avisos():
+    """Quantos aparelhos cada e-mail tem com os avisos ativos (para a tela Acessos)."""
+    if not ACESSOS_URL:
+        return {}
+    import urllib.request, urllib.parse
+    try:
+        with urllib.request.urlopen(ACESSOS_URL + "?push=1&chave=" + urllib.parse.quote(ACESSOS_CHAVE), timeout=25) as r:
+            inscritos = json.loads(r.read().decode("utf-8"))
+    except Exception:
+        return {}
+    cont = {}
+    for item in inscritos if isinstance(inscritos, list) else []:
+        em = str(item[0] if isinstance(item, (list, tuple)) and item else "").strip().lower()
+        if "@" in em:
+            cont[em] = cont.get(em, 0) + 1
+    return cont
+
 def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None, rsvp=None,
               todos=False, excluir=None, extra=None):
     """Manda a notificação. Sem so_para: só para os celulares do comando (ADM).
@@ -3064,7 +3082,8 @@ def main():
             ACESSOS = {"cifrado": cifrar_para({"url": ACESSOS_URL, "chave": ACESSOS_CHAVE, "mapa": dict(EMAIL_APELIDO),
                                               "regs": (buscar_acessos() or [])[1:], "planilha": PLANILHA_URL,
                                               "fixos": AUTORIZADOS, "extra": ADM_EXTRA, "vis": visitantes,
-                                              "comEmail": sorted(ap for ap, e in EMAIL_APELIDO_INV.items() if "@" in e)}, _so)}
+                                              "comEmail": sorted(ap for ap, e in EMAIL_APELIDO_INV.items() if "@" in e),
+                                              "push": aparelhos_com_avisos()}, _so)}
         else:
             print("Aviso: e-mail de " + ", ".join(ACESSOS_SOMENTE) + " não encontrado: a tela Acessos não vai aparecer.")
     FLY = {}      # "Gerar fly" removido: o fly oficial é feito no site do clube

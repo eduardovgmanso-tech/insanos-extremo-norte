@@ -978,7 +978,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="pag-cab"><div><h2 style="margin:0">Acessos</h2><p class="sub" style="margin:4px 0 0" id="acSub">Quem entrou no painel e as tentativas com e-mail sem acesso.</p></div>
       <div class="pag-bts"><button type="button" class="btn" id="acAtualizar">🔄 Atualizar</button></div></div>
     <div class="pag-kpis" id="acKpis"></div>
-    <div class="lw-tipos" id="acFiltro" style="margin:6px 0 12px"><button type="button" data-acf="" aria-selected="true">Todos</button><button type="button" data-acf="Entrou" aria-selected="false">Entraram</button><button type="button" data-acf="Sem acesso" aria-selected="false">Sem acesso</button><button type="button" data-acf="Avisos" aria-selected="false">🔔 Avisos</button></div>
+    <div class="lw-tipos" id="acFiltro" style="margin:6px 0 12px"><button type="button" data-acf="" aria-selected="true">Todos</button><button type="button" data-acf="Entrou" aria-selected="false">Entraram</button><button type="button" data-acf="Sem acesso" aria-selected="false">Sem acesso</button><button type="button" data-acf="Avisos" aria-selected="false">🔔 Avisos</button><button type="button" data-acf="Irmaos" aria-selected="false">📱 Irmãos</button></div>
     <div id="acLista"></div>
     <div class="cad-bloco">
       <h2>🔑 Acesso de ADM</h2>
@@ -3537,6 +3537,7 @@ function acDesenhar(){const A=ACX||{},mapa=A.mapa||{};
     .sort((a,b)=>(b.d||0)-(a.d||0));
   const ehAviso=r=>/^(🔔|👆|👋)/.test(String(r.pn||""));
   if(acFiltro==="Avisos"){acAvisos(todos.filter(ehAviso));return}
+  if(acFiltro==="Irmaos"){acIrmaos(todos.filter(r=>!ehAviso(r)&&!/^✋/.test(String(r.pn||""))));return}
   const regs=todos.filter(r=>!ehAviso(r));
   const hoje=new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}),sete=Date.now()-7*864e5;
   const dia=r=>r.d&&r.d.toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"})===hoje;
@@ -3572,6 +3573,22 @@ function acAvisos(av){const sete=Date.now()-7*864e5,s7=av.filter(r=>r.d&&r.d>=se
   $("acLista").innerHTML=av.length?`<p class="nota" style="margin:4px 0 6px">Por irmão (últimos 7 dias)</p>${resumo}<p class="nota" style="margin:14px 0 6px">Histórico (mais recentes)</p>${hist}
     <p class="nota" style="margin-top:10px">"Recebeu" = o aviso apareceu no celular dele. "Abriu" = ele tocou no aviso. "Dispensou" = jogou o alerta de SOS para o lado sem responder. Quem bloqueou as notificações não aparece aqui.</p>`
     :'<div class="vazio">Nenhum aviso registrado ainda. Os registros aparecem quando os irmãos ativarem os avisos no Meu painel.</div>'}
+// quem tem o app instalado, quem tem os avisos ativos e quando entrou pela última vez (um por irmão)
+function acIrmaos(regs){const A=ACX||{},mapa=A.mapa||{},push=A.push||{};
+  const emailDe={};Object.entries(mapa).forEach(([e,ap])=>{emailDe[String(ap).toLowerCase()]=String(e).toLowerCase()});
+  const af=new Set((DADOS.afastados||[]).map(a=>typeof a==="string"?a:(a&&a.n)||""));
+  const lin=[...M_FULL].filter(m=>!af.has(m.n)).sort((a,b)=>a.o-b.o).map(m=>{const em=emailDe[m.n.toLowerCase()]||"";
+    const ult=em?regs.find(r=>String(r.em).toLowerCase()===em&&/entrou/i.test(String(r.res||""))):null;
+    const doIrmao=em?regs.filter(r=>String(r.em).toLowerCase()===em&&/entrou/i.test(String(r.res||""))):[];
+    const app=doIrmao.some(r=>/· app/.test(String(r.ap||""))),nav=!app&&doIrmao.some(r=>/· navegador/.test(String(r.ap||"")));   // já entrou pelo app alguma vez
+    return {m,em,n:push[em]||0,ult,app,nav}});
+  const comAv=lin.filter(x=>x.n).length,comApp=lin.filter(x=>x.app).length,nunca=lin.filter(x=>x.em&&!x.ult).length,semEmail=lin.filter(x=>!x.em).length;
+  $("acKpis").innerHTML=`<div><span>Com avisos ativos</span><b style="color:var(--presente)">${comAv} de ${lin.length}</b></div><div><span>Entraram pelo app</span><b>${comApp}</b></div>
+    <div><span>Nunca entraram</span><b style="color:var(--falta)">${nunca}</b></div><div><span>Sem e-mail na planilha</span><b>${semEmail}</b></div>`;
+  $("acLista").innerHTML=lin.map(x=>{const st=!x.em?'<span class="r">sem e-mail</span>':x.n?`<span class="r ok">🔔 ${x.n} aparelho${x.n>1?"s":""}</span>`:'<span class="r">🔕 sem avisos</span>';
+    const como=!x.em?"Sem e-mail: não entra no app":!x.ult?"Nunca entrou":`${x.app?"📱 App instalado":x.nav?"🌐 Pelo navegador":"Entrou"} · última entrada ${acFmt(x.ult.d)}`;
+    return `<div class="ac-l"><div class="w"><b>${esc(x.m.n)}</b><span>${como}</span></div>${st}</div>`}).join("")+
+    '<p class="nota" style="margin-top:10px">"App instalado" e "navegador" aparecem a partir das entradas feitas depois desta atualização. Os avisos contam os aparelhos registrados com o e-mail de cada irmão.</p>'}
 // ---- Fotos (só no ADM): galeria com download ----
 let lbK=0;
 function montarFotos(){const F=DADOS.fotos||[],g=$("galeria");if(!g)return;
