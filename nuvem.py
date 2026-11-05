@@ -519,6 +519,7 @@ def _mes_k(v):
 
 BOLETOS_DISPONIVEIS = []   # meses cujos boletos acabaram de entrar na coluna J (nesta rodada)
 AVISO_BOLETO_MANUAL = []   # botão "📲 Avisar quem não pagou" (tela Pagamentos): aviso na hora
+VERIFICAR_AGORA = []       # botão "🔄 Verificar agora" (tela Pagamentos): verifica os boletos nesta rodada
 
 def aplicar_boletos(api, pid, d):
     """Boletos lidos no Sistema Insanos (botão no navegador): grava o link de cada irmão na PGTO.
@@ -1090,6 +1091,9 @@ def processar_fila(api, pid):
                 res, sit = aplicar_integrante(api, pid, d), "feito"
             elif tp == "boletos_sistema":
                 res, sit = aplicar_boletos(api, pid, d), "feito"
+            elif tp == "verificar_pagamentos":
+                VERIFICAR_AGORA.append(1)
+                res, sit = "verificação dos boletos pedida pela tela Pagamentos", "feito"
             elif tp == "boletos_aviso":
                 AVISO_BOLETO_MANUAL.append(1)
                 res, sit = "aviso de boleto disponível: enviado depois de publicar o painel", "feito"
@@ -1107,7 +1111,7 @@ def processar_fila(api, pid):
             res, sit = f"{type(e).__name__}: {e}", "erro"
         _gravar(api, pid, [(f"'{aba}'!E{i}", sit), (f"'{aba}'!F{i}", f"{datetime.datetime.now():%d/%m/%Y %H:%M} · {res}")])
         print(f"Fila linha {i}: {sit} · {res}"); n += 1
-        if sit == "feito" and tp not in ("teste_pagamento", "adm_extra", "visitante", "boletos_aviso"):   # estes não avisam o comando
+        if sit == "feito" and tp not in ("teste_pagamento", "adm_extra", "visitante", "boletos_aviso", "verificar_pagamentos"):   # estes não avisam o comando
             resumo.append((_resumo_item(d), str(row[1]).strip().lower(), d))
     return resumo
 
@@ -1463,7 +1467,7 @@ def main():
             verificar_antecipados(api, planilha_id, g)
         except Exception as e:
             print(f"Aviso: verificação dos antecipados falhou ({type(e).__name__}: {e}).")
-    if evento == "workflow_dispatch" or (evento == "schedule" and epoca_pag and 7 <= agora.hour <= 18):
+    if evento == "workflow_dispatch" or VERIFICAR_AGORA or (evento == "schedule" and epoca_pag and 7 <= agora.hour <= 18):
         try:
             if verificar_boletos(api, planilha_id, g):
                 print("Relendo a planilha com os pagamentos atualizados...")

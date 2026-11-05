@@ -534,7 +534,7 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .dqr{display:flex;align-items:center;gap:14px;margin-top:14px}.dqr canvas{width:120px;height:120px;border-radius:10px;flex:0 0 120px}.dqr p{margin:0}
 .dlido td,.dlido th{padding:8px 6px;text-align:left}.dlido td:not(:first-child),.dlido th:not(:first-child){text-align:center;white-space:nowrap}
 .ac-p{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--linha)}.ac-p>div{display:flex;flex-direction:column}.ac-p .nota{font-size:12.5px}
-#pagAvisarBoletos[hidden]{display:none!important}
+#pagAvisarBoletos[hidden],#pagVerificar[hidden]{display:none!important}
 .pag-nomes{margin:12px 0 14px;display:grid;gap:8px}
 .pag-nomes .pn{margin:0;padding:10px 12px;border-radius:12px;font-size:14.5px;line-height:1.45;background:rgba(236,231,220,.05);border-left:4px solid var(--osso2)}
 .pag-nomes .pn b{display:block;font-size:13px;letter-spacing:.3px;margin-bottom:2px}
@@ -1009,7 +1009,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
 
   <section class="painel js so-adm" id="pagView">
     <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div>
-      <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagRegional">📊 Regional</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div></div>
+      <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagRegional">📊 Regional</button><button type="button" class="btn" id="pagVerificar" hidden>🔄 Verificar agora</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div></div>
     <div class="pag-nomes" id="pagNomes"></div>
     <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
       <div class="pag-kpis" id="pagKpis"></div></div>
@@ -3668,6 +3668,8 @@ function bmkSICodigo(){const N=DADOS.nuvem;if(!N||!N.url)return "";
   $("bmkSICopiar").onclick=async()=>{try{await navigator.clipboard.writeText(bmkSICodigo());avisoRapido("📋 Código copiado. No Chrome: botão direito na barra de favoritos > Adicionar página > cole no campo URL.")}catch(_){prompt("Copie o código:",bmkSICodigo())}}})();
 // teste do aviso de pagamento (chega só no celular de quem pediu, com o botão do WhatsApp e a lista do status)
 if($("pagRegional"))$("pagRegional").onclick=pagRegionalAbrir;
+if($("pagVerificar")&&DADOS.nuvem&&DADOS.nuvem.url){$("pagVerificar").hidden=false;   // verifica os boletos agora (sem esperar a rodada agendada)
+  $("pagVerificar").onclick=()=>nuvemEnviar({tipo:"verificar_pagamentos"},"Verificação pedida. Em uns 3 minutos, quem pagou aparece atualizado (feche e abra o app, ou toque na faixa de versão nova).")}
 if($("pagAvisarBoletos")&&DADOS.nuvem&&DADOS.nuvem.url){$("pagAvisarBoletos").hidden=false;
   $("pagAvisarBoletos").onclick=()=>{const P=DADOS.pag||{},falta=Object.keys(P.status||{}).filter(n=>!/pago|aguard|ades/i.test(P.status[n]||"")).length;
     if(confirm(`Mandar agora o aviso "o boleto do mês está disponível" para quem ainda não pagou${falta?` (${falta} irmão${falta>1?"s":""})`:""}?\n\nSó recebe quem ativou os avisos no celular. Cada irmão recebe no máximo um aviso de boleto por dia.`))
