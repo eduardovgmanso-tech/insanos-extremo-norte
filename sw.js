@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v20";
+const CACHE = "insanos-v21";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -19,6 +19,7 @@ self.addEventListener("push", e => {
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
+  if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t})); }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
@@ -90,6 +91,14 @@ self.addEventListener("notificationclick", e => {
     }
     e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
   }
+  if (dd.msg && e.action && dd.para) {   // mensagem: resposta rápida direto na notificação
+    const m = dd.msg, txt = ((m.rs || []).find(x => x[0] === e.action) || [])[1] || "";
+    e.waitUntil(fetch(m.ou, {method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain;charset=utf-8"},
+        body: JSON.stringify({tipo: "msg_resp", email: dd.para, id: m.id, tk: m.tk, resp: txt})}).catch(() => {})
+      .then(() => self.registration.showNotification("↩️ Resposta enviada", {body: txt, icon: "icon-192.png", badge: "notif-badge.png", tag: "msg-ok"})));
+    return;
+  }
+  if (dd.msg && !e.action) { e.waitUntil(clients.openWindow("adm.html#mensagens")); return; }
   if (dd.rsvp && e.action === "resp" && dd.ru && dd.para) {   // insight: "Já respondi" direto na notificação
     const r = dd.rsvp;
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
