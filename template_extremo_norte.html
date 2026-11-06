@@ -1936,7 +1936,7 @@ function diTexto(n,comCpf){const m=M_FULL.find(x=>x.n===n);if(!m)return "";const
   const af=(DADOS.afastados||[]).find(a=>a.n===m.n);
   const L=[`*📇 ${m.n}*`,"",x.nc?`*Nome completo:* ${x.nc}`:null,`*Nº do sistema:* ${m.num||"–"}`,`*Cargo/função:* ${m.c||"–"}`,`*Posição na lista:* ${String(m.lg||"").trim()||"–"}`,
     m.nasc?`*Nascimento:* ${br(m.nasc)}${m.idade?` (${m.idade} anos)`:""}`:null,tel?`*Telefone:* ${tel}`:null,comCpf&&x.cpf?`*CPF:* ${x.cpf}`:null,
-    x.col?`*Colete:* ${x.col}`:null,x.tamc?`*Camiseta:* ${x.tamc}`:null,ENTRADA[m.n]?`*Na divisão desde:* ${br(ENTRADA[m.n])} (1º evento marcado)`:null,
+    x.col?`*Colete:* ${x.col}`:null,x.tamc?`*Camiseta:* ${x.tamc}`:null,m.ent?`*Entrada no MC:* ${fmtEnt(m.ent)} · ${pinDe(m)[1]}${pinProx(m)?` (${pinProx(m)[0]} em ${pinProx(m)[1]})`:" (maior pin)"}`:null,
     af?`*Situação:* afastado${af.desde?" desde "+br(af.desde):""}`:"*Situação:* ativo","",`*Presença em ${ano}:* ${conta("pres")}`,`*Insights em ${ano}:* ${conta("ins")}`,"",`_${DIV_NOME} ${DIV_REG}_`];
   return L.filter(l=>l!==null).join("\n").trim()}
 function dbDadosMeses(ms){const um=ms.map(dbDados),nomes=[];um.forEach(D=>D.g.forEach(x=>{if(!nomes.some(y=>y[0]===x[0]))nomes.push([x[0],x[1]])}));
