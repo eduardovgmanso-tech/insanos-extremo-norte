@@ -863,6 +863,94 @@ def processar_sos(api, pid, g, repeticao=None):
     _gravar(api, pid, gr)
     return n
 
+MSG_LIMITE_IRMAO = 5       # mensagens por dia de quem não é do comando
+MSG_RESPOSTAS = [("r_ok", "✅ Recebido"), ("r_zap", "📲 Te respondo no WhatsApp")]
+
+def _msg_token(id_msg, email):
+    import hmac, hashlib
+    return hmac.new(os.environ.get("OTP_SEGREDO", "").encode(), f"{id_msg}|{email}".encode(), hashlib.sha256).hexdigest()[:16]
+
+def processar_mensagens(api, pid, g):
+    """Mensagens pelo app (aba Mensagens, preenchida pelo projeto do código por e-mail):
+    comando -> qualquer irmão; irmão -> só o comando (até 5 por dia). Respostas rápidas voltam para quem mandou."""
+    if "Mensagens" not in _ids(api, pid):
+        return 0
+    v = _ler(api, pid, "'Mensagens'!A1:J3000")
+    linhas = [(i, list(r) + [""] * 10) for i, r in enumerate(v[1:], start=2)]
+    if not any(str(r[8]).strip() == "novo" for _, r in linhas):
+        return 0
+    di = _ler(api, pid, "'Dados Integrantes'!A1:BZ300")
+    cab = [str(x).strip().lower() for x in (di[0] if di else [])]
+    c_mail = next((k for k, x in enumerate(cab) if "mail" in x), None)
+    por_ap, por_email = {}, {}
+    for r in di[1:]:
+        r = list(r) + [""] * 80
+        ap, em = str(r[1]).strip(), str(r[c_mail] if c_mail is not None else "").strip().lower()
+        if ap:
+            por_ap[_sa(ap)] = (em, ap, str(r[2]).strip())
+            if "@" in em:
+                por_email[em] = (ap, str(r[2]).strip())
+    comando = {_sa(a) for a in getattr(g, "AUTORIZADOS", [])} | {_sa(a) for a in (_json_ler("adm_extra.json", []) or []) if isinstance(a, str)}
+    hoje = datetime.date.today()
+    def dia(x):
+        try:
+            return datetime.datetime.fromisoformat(str(x)[:19]).date() if not isinstance(x, (int, float)) else (datetime.date(1899, 12, 30) + datetime.timedelta(days=int(x)))
+        except ValueError:
+            try:
+                return datetime.datetime.strptime(str(x)[:10], "%d/%m/%Y").date()
+            except ValueError:
+                return None
+    enviadas_hoje = {}
+    for _, r in linhas:
+        if str(r[1]) == "Mensagem" and str(r[8]).startswith("enviada") and dia(r[0]) == hoje:
+            enviadas_hoje[str(r[3]).strip().lower()] = enviadas_hoje.get(str(r[3]).strip().lower(), 0) + 1
+    ou = os.environ.get("OTP_URL", "")
+    gr, n = [], 0
+    msgs = {str(r[2]): r for _, r in linhas if str(r[1]) == "Mensagem"}
+    for i, r in linhas:
+        if str(r[8]).strip() != "novo":
+            continue
+        try:
+            de = str(r[3]).strip().lower()
+            if de not in por_email:
+                gr.append((f"'Mensagens'!I{i}", "recusada: remetente não encontrado na planilha")); continue
+            ap_de, cargo_de = por_email[de]
+            if str(r[1]) == "Mensagem":
+                eh_cmd = _sa(ap_de) in comando
+                dest = [x.strip() for x in str(r[6]).split(";") if x.strip()]
+                if not eh_cmd and any(_sa(x) not in comando for x in dest):
+                    gr.append((f"'Mensagens'!I{i}", "recusada: irmão só pode mandar para o comando")); continue
+                if not eh_cmd and enviadas_hoje.get(de, 0) >= MSG_LIMITE_IRMAO:
+                    gr.append((f"'Mensagens'!I{i}", f"recusada: limite de {MSG_LIMITE_IRMAO} mensagens por dia")); continue
+                emails = [por_ap[_sa(x)][0] for x in dest if _sa(x) in por_ap and "@" in por_ap[_sa(x)][0] and por_ap[_sa(x)][0] != de]
+                for em in emails:
+                    g.notificar(f"✉️ Mensagem de {ap_de}" + (f" ({cargo_de})" if cargo_de else ""), str(r[7]), f"msg-{r[2]}", icone="notif-social.png",
+                                so_para=em, extra={"msg": {"id": str(r[2]), "tk": _msg_token(r[2], em), "ou": ou, "rs": MSG_RESPOSTAS}})
+                gr.append((f"'Mensagens'!I{i}", f"enviada para {len(emails)} irmão(s)"))
+                gr.append((f"'Mensagens'!J{i}", "; ".join(emails)))
+                if not eh_cmd:
+                    enviadas_hoje[de] = enviadas_hoje.get(de, 0) + 1
+                print(f"Mensagem de {ap_de} para {len(emails)} irmão(s) ({str(r[5]) or 'individual'}).")
+                n += 1
+            else:                                   # resposta rápida: volta para quem mandou a mensagem
+                orig = msgs.get(str(r[2]))
+                if not orig:
+                    gr.append((f"'Mensagens'!I{i}", "recusada: mensagem original não encontrada")); continue
+                recebeu = [x.strip().lower() for x in str(orig[9]).split(";") if x.strip()]
+                alvo = str(orig[3]).strip().lower()
+                if de not in recebeu and de != alvo:
+                    gr.append((f"'Mensagens'!I{i}", "recusada: não recebeu essa mensagem")); continue
+                para = alvo if de != alvo else None
+                if para:
+                    trecho = str(orig[7])[:60] + ("…" if len(str(orig[7])) > 60 else "")
+                    g.notificar(f"↩️ {ap_de} respondeu: {r[7]}", f"Sobre: {trecho}", f"msg-r-{r[2]}", icone="notif-social.png", so_para=para)
+                gr.append((f"'Mensagens'!I{i}", "enviada"))
+                n += 1
+        except Exception as e:
+            print(f"Aviso: mensagem não processada ({type(e).__name__}: {e}).")
+    _gravar(api, pid, gr)
+    return n
+
 def acompanhar_sos(api, pid, g, dormir=None, relogio=None):
     """Durante ~3 minutos: avisa na hora quem está indo e repete o alerta (com 1 e 3 minutos) se ninguém confirmar."""
     import time
@@ -1405,6 +1493,10 @@ def main():
     if os.environ.get("SOMENTE_SOS"):       # rotina rápida do SOS (sos.yml): só o alerta, sem gerar o painel
         preparar_ambiente()
         print(f"SOS: {processar_sos(api, planilha_id, g)} registro(s) processado(s).")
+        try:
+            print(f"Mensagens: {processar_mensagens(api, planilha_id, g)} processada(s).")
+        except Exception as e:
+            print(f"Aviso: mensagens não processadas ({type(e).__name__}: {e}).")
         acompanhar_sos(api, planilha_id, g)
         return
     aba_estado = estado_carregar(api, planilha_id)
@@ -1432,6 +1524,10 @@ def main():
         processar_sos(api, planilha_id, g)
     except Exception as e:
         print(f"Aviso: SOS não processado ({type(e).__name__}: {e}).")
+    try:                                     # reforço também para as mensagens
+        processar_mensagens(api, planilha_id, g)
+    except Exception as e:
+        print(f"Aviso: mensagens não processadas ({type(e).__name__}: {e}).")
     xlsx = os.path.join(PASTA, "Insanos.xlsx")
     print("Lendo a planilha do Google...")
     montar_planilha(ler_google(planilha_id, cred, api), xlsx)

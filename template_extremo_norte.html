@@ -2560,6 +2560,7 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
       {ico:ico("doc18"),t:"RDI",d:"Regulamento",href:href("doc18")},{ico:ico("man18"),t:"Manual do integrante",d:"Abrir o manual",href:href("man18")}]);
     if(k==="gestao"){const it=[{ico:ico("dash18"),t:"Dashboard",d:"Cards e comparativo entre meses",fn:()=>irPara("dash")}];
       const pl=$("plan18");if(pl&&!pl.hidden&&pl.getAttribute("href"))it.push({ico:ico("plan18"),t:"Planilha",d:"Abrir a planilha do Google",href:pl.getAttribute("href")});
+      it.push({ico:"✉️",t:"Mensagens",d:"Mandar para todos, um grupo ou um irmão, e ver as respostas",fn:()=>abrirMensagens(msgCfgAdm())});
       it.push({ico:"🔔",t:"Notificações neste aparelho",d:(($("pushStatus")||{}).textContent||"Ativar ou desativar os avisos neste celular").slice(0,90),fn:pushFolha});
       if(window.TEM_ACESSOS)it.push({ico:'<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#E9B949" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#E9B949" stroke-width="2" stroke-linecap="round"/></svg>',t:"Acessos",d:"Quem entrou, avisos, ADM e visitantes",fn:()=>irPara("acessos")});
       folhaAtalhos("📊 Gestão e Notificações",it)}}}
@@ -2614,6 +2615,16 @@ function honrMontar(){const af=new Set((DADOS.afastados||[]).map(a=>typeof a==="
     ${Object.keys(ent).length?`<div class="pin-ent"><b>🎁 Entregas de ${prox}</b>${["Bronze","Prata","Ouro"].filter(x=>ent[x]).map(x=>`<p><img src="pin-${x.toLowerCase()}.png" alt="">Pin ${x}: ${ent[x].map(esc).join(", ")}</p>`).join("")}</div>`:""}
     ${["ouro","prata","bronze","caveira"].map(k=>{const g=ord.filter(m=>pinDe(m)[0]===k);return g.length?`<div class="pin-g">${PINS.find(p=>p[0]===k)[1]} · ${g.length}</div>`+g.map(linha).join(""):""}).join("")}
     ${sem.length?`<div class="pin-g">Sem data de entrada · ${sem.length}</div><p class="nota">${sem.map(m=>esc(m.n)).join(", ")}: preencha a coluna "Entrada no MC" na aba Dados Integrantes.</p>`:""}</div>`}
+// mensagens (comando): todos, grupos e um irmão, montados na hora
+function msgCfgAdm(){const af=new Set((DADOS.afastados||[]).map(a=>typeof a==="string"?a:(a&&a.n)||""));let em="";try{em=(sessionStorage.getItem("painel_email")||"").toLowerCase()}catch(_){}
+  const eu=String((DADOS.quem||{})[em]||"").toLowerCase(),at=[...M_FULL].filter(m=>!af.has(m.n)&&m.n.toLowerCase()!==eu).sort((a,b)=>a.o-b.o);
+  const grupos={};GRUPOS.forEach(g=>{const ms=at.filter(m=>grupoDe(m)===g).map(m=>m.n);if(ms.length)grupos[g.charAt(0).toUpperCase()+g.slice(1)]=ms});
+  try{if(!window.PAG_CLS)montarPagamentos()}catch(_){}
+  if(window.PAG_CLS)grupos["⏳ Quem não pagou"]=at.filter(m=>window.PAG_CLS(m.n)==="aberto").map(m=>m.n);
+  const ins=[...(EV_SETS.ins||[])].sort((a,b)=>a.d<b.d?1:-1)[0];
+  if(ins)grupos[`💬 Não respondeu o ${ins.e}`]=at.filter(m=>ins.p[M_FULL.findIndex(x=>x.n===m.n)]!==1).map(m=>m.n);
+  return {modo:"adm",todos:at.map(m=>m.n),nomes:at.map(m=>({n:m.n,c:m.c})),grupos}}
+if(location.hash==="#mensagens")setTimeout(()=>{try{if(MODO==="adm"&&window.abrirMensagens)abrirMensagens(msgCfgAdm())}catch(_){}},1500);
 // o pin de quem entrou, no topo do ADM
 function pinTopo(){try{if(MODO!=="adm"||document.getElementById("pinTopo"))return;let em="";try{em=(sessionStorage.getItem("painel_email")||"").toLowerCase()}catch(_){}
   const ap=(DADOS.quem||{})[em],m=ap&&M_FULL.find(x=>x.n.toLowerCase()===String(ap).toLowerCase()),pn=pinDe(m);if(!pn)return;const p=pinProx(m);
@@ -2700,7 +2711,7 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     $("pagLer").onclick=()=>{$("pagLerArq").value="";$("pagLerArq").click()};$("pagLerArq").onchange=()=>{const f=$("pagLerArq").files[0];if(f)lerImagemPagamentos(f)}}
   const P=DADOS.pag;if(!P){$("pagView").innerHTML='<div class="vazio">A planilha não tem as abas PGTO e Pagamentos.</div>';return}
   const ord=[...M].sort((a,b)=>a.o-b.o);
-  const cls=n=>pagAdesao(n)||(pagTravado(n)&&!(n in pagPend))?"pago":/aguard/i.test(pagStatus(n))?"aguard":"aberto";
+  const cls=n=>pagAdesao(n)||(pagTravado(n)&&!(n in pagPend))?"pago":/aguard/i.test(pagStatus(n))?"aguard":"aberto";window.PAG_CLS=cls;
   const cont={pago:0,aguard:0,aberto:0};ord.forEach(m=>cont[cls(m.n)]++);window.PAG_CONT=cont;
   {const nomes=k=>ord.filter(m=>cls(m.n)===k).map(m=>esc(m.n)).join(", ")||"ninguém";   // resumo para o comando ler de cara
    $("pagNomes").innerHTML=`<p class="pn ok"><b>✅ Pagos (${cont.pago})</b> ${nomes("pago")}</p>

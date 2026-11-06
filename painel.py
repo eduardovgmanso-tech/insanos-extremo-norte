@@ -582,6 +582,7 @@ details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary
 .ev .q{border:1px solid rgba(240,182,180,.5);background:transparent;color:#F2A3A3;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
 .qbox{background:rgba(236,231,220,.05);border-radius:12px;padding:10px;margin:4px 0 10px}.qbox pre{white-space:pre-wrap;font-family:inherit;font-size:13px;margin:0 0 8px}
 .qbts{display:flex;gap:8px}.qbts button{flex:1;padding:9px;border-radius:999px;border:1px solid var(--linha);background:transparent;color:var(--osso);font-weight:700}.qbts .qz{background:#1f8f4e;border-color:#1f8f4e;color:#fff}
+.msg-meu{display:block;width:100%;margin:-4px 0 14px;padding:13px;border-radius:16px;border:1px solid rgba(233,185,73,.45);background:rgba(233,185,73,.08);color:#ECE7DC;font-weight:800;font-size:16px}
 .sos-meu{display:block;width:100%;margin:0 0 14px;padding:15px;border-radius:16px;border:0;background:#c62828;color:#fff;font-weight:900;font-size:17px;letter-spacing:.3px;box-shadow:0 0 0 3px rgba(198,40,40,.22)}
 .nota{color:var(--osso2);font-size:12.5px}.sair{display:block;margin:18px auto 0;background:transparent;border:1px solid var(--linha);color:var(--osso);border-radius:999px;padding:10px 22px;font-weight:700}
 </style></head><body><div class="w" id="app"></div><script>
@@ -599,6 +600,7 @@ const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
 <h1 style="display:flex;align-items:center;gap:12px">${es(D.n)}${PIN?`<img src="pin-${PIN[0]}.png" alt="${PIN[1]}" title="${PIN[1]}" style="width:44px;height:auto">`:""}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}${PIN?" · "+PIN[1]:""}</p>
 <button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
+<button class="msg-meu" onclick="abrirMensagens({modo:'irmao',comando:D.cmd||[]})">✉️ Mensagens · falar com o comando</button>
 ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
   <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></div>`:""}
 ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p class="nota" id="insTx" style="margin:0 0 10px">Ainda não consta a sua resposta. Já respondeu no grupo? Toque abaixo para marcar.</p>
@@ -702,7 +704,8 @@ async function avSinc(){try{if(!D.push||!("serviceWorker" in navigator)||!("Push
   if(u.e===D.email&&u.ep===s.endpoint&&Date.now()-u.t<864e5)return;
   await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
   try{localStorage.setItem("push_sync",JSON.stringify({e:D.email,ep:s.endpoint,t:Date.now()}))}catch(_){}avTela()}catch(e){}}
-setTimeout(avSinc,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)avSinc()});
+setTimeout(avSinc,2500);
+if(location.hash==="#mensagens")setTimeout(()=>{try{abrirMensagens({modo:"irmao",comando:D.cmd||[]})}catch(_){}},900);document.addEventListener("visibilitychange",()=>{if(!document.hidden)avSinc()});
 try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.getElementById("instalar").hidden=true}catch(e){}
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
@@ -760,7 +763,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
-        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""), "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
+        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""), "cmd": [{"n": x["n"], "c": x.get("c", "")} for x in membros if x["n"].lower() in {a.lower() for a in AUTORIZADOS + ADM_EXTRA} and x["n"] != m["n"]], "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
                  "min": RANK_MIN_MEU, "pres": est[i][0], "ins": est[i][1],
                  "mf": [media(mesmo, 0), media(mesmo, 1)], "md": [media(todos, 0), media(todos, 1)],
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
@@ -773,7 +776,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                           if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
                           max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
         PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
-                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO)))
+                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
 
 TUTORIAL_APP = r"""<style>
@@ -868,6 +871,82 @@ SOS_MODULO = r"""<style>
         box.querySelector("[data-z]").onclick=async()=>{if(navigator.share){try{await navigator.share({text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
         box.querySelector("[data-c]").onclick=async e=>{try{await navigator.clipboard.writeText(tx);e.target.textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(tx)}};
         box.querySelector("[data-f]").onclick=fecha}})};
+})();
+</script>"""
+
+MSG_MODULO = r"""<style>
+.msgm-lbl{display:block;font-size:13px;color:#BDB7AA;margin:12px 0 6px}
+.msgm-tabs{display:flex;gap:6px}.msgm-tabs button{flex:1;padding:10px 6px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:transparent;color:#ECE7DC;font:inherit;font-weight:700;font-size:14px}
+.msgm-tabs button[aria-pressed="true"]{background:#ECE7DC;color:#141210}
+.msgm-sel,.msgm-txt{width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:#ECE7DC;font:inherit;font-size:15px}
+.msgm-txt{min-height:110px;resize:vertical}.msgm-cont{font-size:12px;color:#BDB7AA;text-align:right;margin-top:4px}
+.msgm-it{padding:12px;border-radius:14px;background:rgba(236,231,220,.05);border:1px solid rgba(236,231,220,.1);margin-bottom:8px}
+.msgm-it .q{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:#BDB7AA}.msgm-it b{display:block;color:#ECE7DC;font-size:14.5px;margin-top:4px}
+.msgm-it p{margin:6px 0 0;font-size:14.5px;line-height:1.4;white-space:pre-wrap}.msgm-it .rsp{margin-top:8px;font-size:13px;color:#E9B949}
+.msgm-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.msgm-chips button{padding:7px 12px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:#ECE7DC;font:inherit;font-size:13px}
+</style>
+<script>
+// Mensagens pelo app: o comando manda para todos, um grupo ou um irmão; o irmão manda para alguém do comando.
+// Quem manda é identificado pelo celular (a mesma assinatura do SOS); as regras e o limite são conferidos na nuvem.
+(function(){
+  const cache=()=>{try{return JSON.parse(localStorage.getItem("otp_s")||"{}")}catch(_){return {}}};
+  const quem=()=>{const c=cache();let b=null;for(const e in c)if(c[e].exp>Date.now()&&(!b||c[e].exp>c[b].exp))b=e;return b?{email:b,s:c[b].s}:null};
+  const es=x=>String(x==null?"":x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const RESP=["✅ Recebido","📲 Te respondo no WhatsApp","📞 Me liga"];
+  const post=async o=>{const r=await fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o)});return r.json()};
+  let veu=null;const fecha=()=>{if(veu){veu.remove();veu=null}};
+  const abre=html=>{fecha();veu=document.createElement("div");veu.className="sosm-veu";veu.innerHTML=`<div class="sosm-cx" style="border-top-color:#E9B949" role="dialog" aria-modal="true">${html}</div>`;
+    veu.onclick=e=>{if(e.target===veu)fecha()};document.body.appendChild(veu);return veu.firstChild};
+  const quando=iso=>{const d=new Date(iso),h=new Date(),ont=new Date(h-864e5),hm=d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    return d.toDateString()===h.toDateString()?"hoje "+hm:d.toDateString()===ont.toDateString()?"ontem "+hm:d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+hm};
+  window.abrirMensagens=async function(cfg){window.MSG_CFG=cfg=cfg||window.MSG_CFG||{};const q=quem();
+    if(!window.SOS_URL||!q){abre(`<h3>📨 Mensagens</h3><p>Para usar as mensagens, entre uma vez no app com o seu e-mail e o código que chega no e-mail, neste celular.</p><button class="sosm-b" data-f>Fechar</button>`).querySelector("[data-f]").onclick=fecha;return}
+    const cx=abre(`<h3>📨 Mensagens</h3><button class="sosm-b verde" data-n style="margin:0 0 12px">✉️ ${cfg.modo==="adm"?"Nova mensagem":"Mensagem para o comando"}</button><div data-h><p>Carregando…</p></div><button class="sosm-b" data-f>Fechar</button>`);
+    cx.querySelector("[data-f]").onclick=fecha;cx.querySelector("[data-n]").onclick=()=>escrever(cfg);
+    let j;try{j=await post({tipo:"msg_hist",email:q.email,s:q.s})}catch(_){j={ok:false,erro:"sem internet?"}}
+    const h=cx.querySelector("[data-h]");if(!h)return;
+    if(!j.ok){h.innerHTML=`<p>⚠️ Não consegui carregar as mensagens (${es(j.erro||"")}).</p>`;return}
+    if(!j.itens.length){h.innerHTML='<p style="color:#BDB7AA">Nenhuma mensagem nos últimos 90 dias.</p>';return}
+    h.innerHTML=j.itens.map(it=>{const jaResp=it.resp.some(r=>r.de==="Você");
+      return `<div class="msgm-it"><div class="q"><span>${it.minha?"Enviada":"Recebida"} · ${quando(it.q)}</span><span>${it.minha?(/^enviada/.test(it.sit)?"✅ "+es(it.sit):/^recusada/.test(it.sit)?"⚠️ "+es(it.sit):"⏳ enviando…"):""}</span></div>
+        <b>${it.minha?"Para: "+es(it.rot||it.dest):"De "+es(it.de)}</b><p>${es(it.tx)}</p>
+        ${it.resp.length?`<div class="rsp">↩️ ${it.resp.map(r=>es(r.de)+": "+es(r.tx)).join(" · ")}</div>`:""}
+        ${!it.minha&&!jaResp?`<div class="msgm-chips">${RESP.map(r=>`<button data-r="${es(r)}" data-id="${es(it.id)}">${es(r)}</button>`).join("")}</div>`:""}</div>`}).join("");
+    h.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{b.disabled=true;
+      try{const r=await post({tipo:"msg_resp",email:q.email,s:q.s,id:b.dataset.id,resp:b.dataset.r});if(!r.ok)throw new Error(r.erro);
+        b.parentNode.outerHTML=`<div class="rsp">↩️ Você: ${es(b.dataset.r)} (enviando…)</div>`}catch(e){b.disabled=false;alert("Não consegui responder agora ("+(e.message||e)+").")}})};
+  function escrever(cfg){const q=quem();let modo=cfg.modo==="adm"?"todos":"um";
+    const opts=cfg.modo==="adm"?null:(cfg.comando||[]);
+    const cx=abre(`<h3>✉️ ${cfg.modo==="adm"?"Nova mensagem":"Mensagem para o comando"}</h3>
+      ${cfg.modo==="adm"?`<label class="msgm-lbl">Para</label><div class="msgm-tabs"><button data-m="todos">📣 Todos</button><button data-m="grupo">👥 Grupo</button><button data-m="um">👤 Um irmão</button></div>`:""}
+      <div data-alvo></div>
+      <label class="msgm-lbl">Mensagem</label><textarea class="msgm-txt" maxlength="300" placeholder="Escreva a mensagem"></textarea><div class="msgm-cont">0 / 300</div>
+      <button class="sosm-b verde" data-env>✉️ Enviar</button>
+      <p style="font-size:12.5px;color:#BDB7AA;margin:8px 0 0">${cfg.modo==="adm"?"Chega em 1 a 3 minutos para quem tem o app com os avisos ativos.":"Você pode mandar até 5 mensagens por dia. As respostas aparecem em 📨 Mensagens."}</p>
+      <button class="sosm-b" data-f>Cancelar</button>`);
+    cx.querySelector("[data-f]").onclick=()=>abrirMensagens(cfg);
+    const tx=cx.querySelector("textarea"),cont=cx.querySelector(".msgm-cont"),env=cx.querySelector("[data-env]"),alvo=cx.querySelector("[data-alvo]");
+    tx.oninput=()=>{cont.textContent=tx.value.length+" / 300"};
+    const destino=()=>{if(cfg.modo!=="adm"){const s=alvo.querySelector("select");return s&&s.value?{para:[s.value],rot:s.value}:null}
+      if(modo==="todos")return {para:(cfg.todos||[]),rot:"📣 Todos"};
+      const s=alvo.querySelector("select");if(!s||!s.value)return null;
+      if(modo==="grupo"){const g=(cfg.grupos||{})[s.value]||[];return {para:g,rot:"👥 "+s.value}}
+      return {para:[s.value],rot:s.value}};
+    const conta=()=>{const d=destino();env.textContent=d&&d.para.length>1?`✉️ Enviar para ${d.para.length} irmãos`:"✉️ Enviar"};
+    const desenha=()=>{cx.querySelectorAll("[data-m]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===modo));
+      if(cfg.modo!=="adm")alvo.innerHTML=`<label class="msgm-lbl">Para quem</label><select class="msgm-sel"><option value="">Escolha…</option>${opts.map(o=>`<option value="${es(o.n)}">${es(o.n)}${o.c?" · "+es(o.c):""}</option>`).join("")}</select>`;
+      else if(modo==="grupo")alvo.innerHTML=`<label class="msgm-lbl">Grupo</label><select class="msgm-sel"><option value="">Escolha…</option>${Object.entries(cfg.grupos||{}).filter(([,v])=>v.length).map(([k,v])=>`<option value="${es(k)}">${es(k)} (${v.length})</option>`).join("")}</select>`;
+      else if(modo==="um")alvo.innerHTML=`<label class="msgm-lbl">Irmão</label><select class="msgm-sel"><option value="">Escolha…</option>${(cfg.nomes||[]).map(o=>`<option value="${es(o.n)}">${es(o.n)}${o.c?" · "+es(o.c):""}</option>`).join("")}</select>`;
+      else alvo.innerHTML=`<p style="font-size:13px;color:#BDB7AA;margin:10px 0 0">Vai para os ${(cfg.todos||[]).length} irmãos ativos.</p>`;
+      const s=alvo.querySelector("select");if(s)s.onchange=conta;conta()};
+    cx.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{modo=b.dataset.m;desenha()});desenha();
+    env.onclick=async()=>{const d=destino(),t=tx.value.trim();if(!d||!d.para.length){alert("Escolha para quem enviar.");return}if(!t){alert("Escreva a mensagem.");return}
+      if(d.para.length>1&&!confirm(`Enviar para ${d.para.length} irmãos?`))return;
+      env.disabled=true;env.textContent="Enviando…";
+      try{const r=await post({tipo:"msg",email:q.email,s:q.s,para:d.para,rotulo:d.rot,texto:t});if(!r.ok)throw new Error(r.erro);
+        const c2=abre(`<h3>✅ Mensagem enviada</h3><p>Chega em 1 a 3 minutos para quem tem o app com os avisos ativos. As respostas aparecem em 📨 Mensagens.</p><button class="sosm-b" data-f>Ver mensagens</button>`);
+        c2.querySelector("[data-f]").onclick=()=>abrirMensagens(cfg)}
+      catch(e){env.disabled=false;conta();alert("Não consegui enviar agora ("+(e.message||e)+").")}}}
 })();
 </script>"""
 
@@ -2518,7 +2597,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v20";
+const CACHE = "insanos-v21";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2538,6 +2617,7 @@ self.addEventListener("push", e => {
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
+  if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t})); }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
@@ -2609,6 +2689,14 @@ self.addEventListener("notificationclick", e => {
     }
     e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
   }
+  if (dd.msg && e.action && dd.para) {   // mensagem: resposta rápida direto na notificação
+    const m = dd.msg, txt = ((m.rs || []).find(x => x[0] === e.action) || [])[1] || "";
+    e.waitUntil(fetch(m.ou, {method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain;charset=utf-8"},
+        body: JSON.stringify({tipo: "msg_resp", email: dd.para, id: m.id, tk: m.tk, resp: txt})}).catch(() => {})
+      .then(() => self.registration.showNotification("↩️ Resposta enviada", {body: txt, icon: "icon-192.png", badge: "notif-badge.png", tag: "msg-ok"})));
+    return;
+  }
+  if (dd.msg && !e.action) { e.waitUntil(clients.openWindow("adm.html#mensagens")); return; }
   if (dd.rsvp && e.action === "resp" && dd.ru && dd.para) {   // insight: "Já respondi" direto na notificação
     const r = dd.rsvp;
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
@@ -2773,6 +2861,8 @@ def main():
                 ve = r_full[col_ent]
                 if isinstance(ve, datetime.datetime):
                     ve = ve.date()
+                if isinstance(ve, (int, float)) and not isinstance(ve, bool) and 20000 < ve < 80000:   # data vinda do Google como número
+                    ve = datetime.date(1899, 12, 30) + datetime.timedelta(days=int(ve))
                 if isinstance(ve, datetime.date):
                     entradas[apelido.lower()] = ve.isoformat()
                 else:
@@ -2956,7 +3046,7 @@ def main():
         pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
         pagina = pagina.replace("</body>", snip_versao(False) + "</body>", 1).replace("__VERSAO__", VERSAO_ATUAL)
         if dados.get("modo") == "adm":       # SOS dentro do painel ADM (quadrado do topo)
-            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + "</body>", 1)
+            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + "</body>", 1)
         if dados.get("modo") == "geral" and caminho == SAIDA:
             global GERAL_RAW
             GERAL_RAW = pagina
