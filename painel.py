@@ -586,6 +586,9 @@ details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary
 .nota{color:var(--osso2);font-size:12.5px}.sair{display:block;margin:18px auto 0;background:transparent;border:1px solid var(--linha);color:var(--osso);border-radius:999px;padding:10px 22px;font-weight:700}
 </style></head><body><div class="w" id="app"></div><script>
 const D=__DADOS__,CAV="__CAV__";
+// honrarias: o pin pelo ano de entrada no MC (entregue no começo do ano em que completa 3, 6 ou 9 anos)
+const PIN=(()=>{if(!D.ent)return null;const a=new Date().getFullYear()-(+String(D.ent).slice(0,4));
+  return a>=9?["ouro","Pin Ouro"]:a>=6?["prata","Pin Prata"]:a>=3?["bronze","Pin Bronze"]:["caveira","Pin Caveira"]})();
 const cor=v=>v==null?["transparent","#ECE7DC"]:v>=90?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F3DE8A","#EBD27A"]:["#F2A3A3","#EE9A9A"];
 const pc=a=>a&&a[1]?Math.round(a[0]*100/a[1]):null,es=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const MS=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -594,7 +597,7 @@ const bar=(r,v)=>`<div class="br"><span>${r}</span><div class="tr"><i style="wid
 const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
-<h1>${es(D.n)}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}</p>
+<h1 style="display:flex;align-items:center;gap:12px">${es(D.n)}${PIN?`<img src="pin-${PIN[0]}.png" alt="${PIN[1]}" title="${PIN[1]}" style="width:44px;height:auto">`:""}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}${PIN?" · "+PIN[1]:""}</p>
 <button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
 ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
   <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></div>`:""}
@@ -757,7 +760,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
-        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
+        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""), "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
                  "min": RANK_MIN_MEU, "pres": est[i][0], "ins": est[i][1],
                  "mf": [media(mesmo, 0), media(mesmo, 1)], "md": [media(todos, 0), media(todos, 1)],
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
@@ -2652,7 +2655,7 @@ self.addEventListener("notificationclick", e => {
                 arq[f"icon-{t}.png"] = f.read()
     pasta_app = os.path.join(PASTA, "app")
     for nome in (sorted(os.listdir(pasta_app)) if os.path.isdir(pasta_app) else []):
-        if (nome.startswith("notif-") or nome.startswith("atalho-")) and nome.endswith(".png"):     # imagens das notificações e dos atalhos
+        if (nome.startswith("notif-") or nome.startswith("atalho-") or nome.startswith("pin-")) and nome.endswith(".png"):     # notificações, atalhos e pins (honrarias)
             with open(os.path.join(pasta_app, nome), "rb") as f:
                 arq[nome] = f.read()
     return arq
@@ -2734,6 +2737,8 @@ def main():
     _semac = lambda v: "".join(ch for ch in __import__("unicodedata").normalize("NFD", str(v or "").lower()) if not __import__("unicodedata").combining(ch)).strip()
     col_sit = next((k for k, v in enumerate(cab_di) if _semac(v).startswith("situa")), None)
     col_desde = next((k for k, v in enumerate(cab_di) if "afastad" in _semac(v)), None)
+    col_ent = next((k for k, v in enumerate(cab_di) if _semac(v).startswith("entrada")), None)   # "Entrada no MC" (honrarias)
+    entradas = {}
     situ = {}          # apelido -> {"s": ativo|afastado|excluido, "desde": data, "linha": n, "d": Numero Lista, "grau": ...}
     ordem_di = []      # apelidos na ordem das linhas da aba
     emails = {}
@@ -2764,6 +2769,20 @@ def main():
                                      nasc if isinstance(nasc, datetime.date) else None,
                                      str(r[5]) if r[5] is not None else "")   # "Lista/grau" (ex.: "01. VI "), sem cortar espaços
             cpfs[apelido.lower()] = "".join(ch for ch in texto(r[11]) if ch.isdigit())
+            if col_ent is not None and col_ent < len(r_full):
+                ve = r_full[col_ent]
+                if isinstance(ve, datetime.datetime):
+                    ve = ve.date()
+                if isinstance(ve, datetime.date):
+                    entradas[apelido.lower()] = ve.isoformat()
+                else:
+                    mm = re.match(r"\s*(\d{1,2})/(\d{1,2})/(\d{2,4})", texto(ve))
+                    if mm:
+                        a = int(mm.group(3)); a = a + 2000 if a < 100 else a
+                        try:
+                            entradas[apelido.lower()] = datetime.date(a, int(mm.group(2)), int(mm.group(1))).isoformat()
+                        except ValueError:
+                            pass
             if col_email is not None:
                 emails[apelido.lower()] = texto(r_full[col_email] if col_email < len(r_full) else "").lower()
             # dados para a Solicitação kit/colete (vão SÓ para o ADM do computador, nunca para o link)
@@ -2823,7 +2842,7 @@ def main():
         if nome.lower() not in info:
             avisos.append(nome)
         m = {"n": nome, "c": cargo or texto(lin_cargos[c]), "num": num, "o": ordem, "tel": tel, "lg": lg,
-             "x": extra_colete.get(nome.lower(), {})}
+             "x": extra_colete.get(nome.lower(), {}), "ent": entradas.get(nome.lower(), "")}
         if nasc:  # nascimento (coluna "Nascimento") e idade calculada na data de hoje
             hoje = datetime.date.today()
             m["nasc"] = nasc.isoformat()
@@ -3089,7 +3108,8 @@ def main():
     FLY = {}      # "Gerar fly" removido: o fly oficial é feito no site do clube
     gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
-    dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+    dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")),
+                 "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]

@@ -88,6 +88,34 @@ def _gravar(api, pid, dados):
         api.spreadsheets().values().batchUpdate(spreadsheetId=pid, body={"valueInputOption": "USER_ENTERED",
             "data": [{"range": r, "values": [[v]]} for r, v in dados]}).execute()
 
+def migrar_entradas(api, pid):
+    """Honrarias: cria a coluna "Entrada no MC" na aba Dados Integrantes (no fim, sem mexer nas outras) e preenche
+    as datas do arquivo entradas_iniciais.json, só nas células vazias. Roda em toda rodada, mas só escreve uma vez."""
+    if not os.path.exists("entradas_iniciais.json"):
+        return
+    try:
+        ini = {_sa(k): v for k, v in json.load(open("entradas_iniciais.json", encoding="utf-8")).items() if not str(k).startswith("_")}
+        aba = _aba_real(api, pid, "Dados Integrantes")
+        if not aba or not ini:
+            return
+        v = _ler(api, pid, f"'{aba}'!A1:BZ300")
+        cab = [str(x).strip() for x in (v[0] if v else [])]
+        col = next((i + 1 for i, x in enumerate(cab) if _sa(x).startswith("entrada")), None)
+        gr = []
+        if col is None:
+            col = max([i + 1 for i, x in enumerate(cab) if x] or [0]) + 1
+            gr.append((f"'{aba}'!{_col(col)}1", "Entrada no MC"))
+        for r in range(2, len(v) + 1):
+            lin = list(v[r - 1]) + [""] * 80
+            d = ini.get(_sa(lin[1]))
+            if d and not str(lin[col - 1]).strip():
+                gr.append((f"'{aba}'!{_col(col)}{r}", d))
+        if gr:
+            _gravar(api, pid, gr)
+            print(f"Honrarias: coluna 'Entrada no MC' ({_col(col)}) com {len(gr) - (1 if gr and gr[0][1] == 'Entrada no MC' else 0)} data(s) preenchida(s).")
+    except Exception as e:
+        print(f"Aviso: datas de entrada não preenchidas ({type(e).__name__}: {e}).")
+
 def aplicar_evento(api, pid, d):
     """Lançar evento / Insights / Salvar no Excel: data + nome + marcações na aba (Presenca ou Insights)."""
     aba = _aba_real(api, pid, d.get("aba") or "Presenca")
@@ -1380,6 +1408,7 @@ def main():
         acompanhar_sos(api, planilha_id, g)
         return
     aba_estado = estado_carregar(api, planilha_id)
+    migrar_entradas(api, planilha_id)
     resumo_fila = processar_fila(api, planilha_id)
     try:
         g.FILA_RECENTE[:] = fila_recente(api, planilha_id)     # "Meus envios" do protótipo do novo layout

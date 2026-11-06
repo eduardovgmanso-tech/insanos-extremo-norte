@@ -432,6 +432,20 @@ body.adm[data-view="fotos"] .periodo{display:none}
 .lb-bts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 body.adm #kitView{display:none}
 body.adm[data-view="kit"] #kitView{display:block}
+body.adm #honrView{display:none}
+body.adm[data-view="honr"] #honrView{display:block}
+body.adm[data-view="honr"] .v-painel{display:none!important}
+body.adm[data-view="honr"] .periodo{display:none}
+.pin-chip{display:inline-flex;align-items:center;gap:10px;margin-top:10px;padding:6px 14px 6px 6px;border-radius:999px;background:rgba(236,231,220,.07);border:1px solid rgba(233,185,73,.35)}
+.pin-chip img{width:34px;height:auto}.pin-chip b{font-size:14px;display:block}.pin-chip span{font-size:12px;color:var(--osso2);display:block}
+.hon .sub2{margin:18px 0 8px;font-size:17px;font-weight:800;color:#E9B949}
+.pin-leg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 14px}.pin-leg div{text-align:center;padding:8px 4px;border-radius:12px;background:rgba(236,231,220,.05)}
+.pin-leg img{width:58px;height:auto}.pin-leg b{display:block;font-size:13px;margin-top:4px}.pin-leg span{font-size:11.5px;color:var(--osso2)}
+.pin-ent{padding:12px;border-radius:14px;margin:0 0 14px;background:rgba(233,185,73,.08);border:1px solid rgba(233,185,73,.35)}.pin-ent b{color:#E9B949}.pin-ent p{margin:6px 0 0;font-size:14px;line-height:1.45}
+.pin-ent img{width:22px;height:auto;vertical-align:middle;margin-right:4px}
+.pin-g{margin:14px 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--osso2);font-weight:700}
+.pin-l{display:flex;align-items:center;gap:12px;padding:9px 12px;margin-bottom:7px;border-radius:14px;background:rgba(236,231,220,.05);border:1px solid rgba(236,231,220,.1)}
+.pin-l img{width:38px;height:auto}.pin-l b{display:block;font-size:14px}.pin-l span{font-size:12px;color:var(--osso2)}.pin-l .x{margin-left:auto;text-align:right;font-size:12px;color:var(--osso2);white-space:nowrap}.pin-l .x.ent{color:#E9B949;font-weight:700}
 body.adm[data-view="kit"] .v-painel{display:none!important}
 body.adm[data-view="kit"] .periodo{display:none}
 #kcZap[aria-disabled=true]{opacity:.45;pointer-events:none}
@@ -942,6 +956,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     </div>
   </section>
 
+  <section class="painel js so-adm" id="honrView"><div id="honrConteudo"></div></section>
   <section class="painel js so-adm" id="kitView">
     <div class="pag-cab"><div><h2 style="margin:0">Solicitação kit/colete</h2><p class="sub" style="margin:4px 0 0">Escolha o integrante e o painel preenche o pedido com os dados da planilha.</p></div></div>
     <div class="lw-tipos" role="tablist" id="kcTipos">
@@ -2506,7 +2521,7 @@ function montarMenu(){
   if(MODO!=="adm")return;
   document.body.classList.add("adm");document.body.dataset.view="painel";
   const w=document.querySelector(".wrap");
-  [...w.children].forEach(el=>{if(!["HEADER","FOOTER"].includes(el.tagName)&&!["pagView","lancar","listasView","fichaView","kitView","lightbox","acessosView","dashView"].includes(el.id))el.classList.add("v-painel")});
+  [...w.children].forEach(el=>{if(!["HEADER","FOOTER"].includes(el.tagName)&&!["pagView","lancar","listasView","fichaView","kitView","honrView","lightbox","acessosView","dashView"].includes(el.id))el.classList.add("v-painel")});
   const abertos=Object.values((DADOS.pag||{}).status||{}).filter(s=>!/pago/i.test(s)).length;
   const nav=document.createElement("nav");nav.className="lateral";nav.setAttribute("aria-label","Menu");
   nav.innerHTML=`<div class="marca"><img alt="" src="${LOGO}"><div><b>Extremo Norte</b><small>Painel ADM</small></div></div>
@@ -2517,8 +2532,8 @@ function montarMenu(){
     <button type="button" data-mais><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>Mais</span></button>`;
   document.body.prepend(nav);
   nav.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(b){irPara(b.dataset.v);return}
-    if(ev.target.closest("button[data-mais]"))folhaAtalhos("Mais",[{ico:"📇",t:"Cadastro",d:"Novo irmão, dados, cargo e situação",fn:()=>irPara("ficha")},{ico:"🎽",t:"Kit/colete",d:"Solicitação para o regional",fn:()=>irPara("kit")}])});
-  montarQuadros();
+    if(ev.target.closest("button[data-mais]"))folhaAtalhos("Mais",[{ico:"📇",t:"Cadastro",d:"Novo irmão, dados, cargo e situação",fn:()=>irPara("ficha")},{ico:"🎽",t:"Kit/colete",d:"Solicitação para o regional",fn:()=>irPara("kit")},{ico:"🏅",t:"Honrarias",d:"Pin Caveira e as próximas honrarias",fn:()=>irPara("honr")}])});
+  montarQuadros();pinTopo();
   montarPagamentos();montarListas();montarFicha();montarKit();montarAcessos();montarCadastro();montarDash();if(DADOS.nuvem){const c=document.querySelector('[data-cad="cpf"]');if(c&&c.closest("label"))c.closest("label").hidden=true}
 }
 // ---- topo do ADM: três quadrados (Clube, Gestão e SOS). Os atalhos de antes continuam, dentro das folhas.
@@ -2582,6 +2597,29 @@ function pagRegionalAbrir(){let v=document.getElementById("folhaAt");if(v)v.remo
   document.getElementById("regZap").onclick=()=>window.open("https://wa.me/?text="+encodeURIComponent(tx()),"_blank");
   document.getElementById("regFly").onclick=()=>{v.remove();const b=$("pagImg");if(b)b.click()};
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()}}
+// ---- Honrarias › Pin Caveira: pelo ano de entrada no MC (entregue no começo do ano em que completa 3, 6 ou 9 anos)
+const PINS=[["caveira","Pin Caveira","até 3 anos"],["bronze","Pin Bronze","3 anos"],["prata","Pin Prata","6 anos"],["ouro","Pin Ouro","9 anos"]];
+function pinDe(m){if(!m||!m.ent)return null;const a=new Date().getFullYear()-(+String(m.ent).slice(0,4));return PINS[a>=9?3:a>=6?2:a>=3?1:0]}
+function pinProx(m){if(!m||!m.ent)return null;const y=+String(m.ent).slice(0,4),a=new Date().getFullYear()-y;return a<3?["Bronze",y+3]:a<6?["Prata",y+6]:a<9?["Ouro",y+9]:null}
+const fmtEnt=d=>d?`${d.slice(8,10)}/${d.slice(5,7)}/${d.slice(0,4)}`:"";
+function honrMontar(){const af=new Set((DADOS.afastados||[]).map(a=>typeof a==="string"?a:(a&&a.n)||""));
+  const lst=M_FULL.filter(m=>!af.has(m.n)),com=lst.filter(m=>m.ent),sem=lst.filter(m=>!m.ent),prox=new Date().getFullYear()+1;
+  const ord=[...com].sort((a,b)=>a.ent<b.ent?-1:a.ent>b.ent?1:0),cont={};com.forEach(m=>{const k=pinDe(m)[0];cont[k]=(cont[k]||0)+1});
+  const ent={};com.forEach(m=>{const p=pinProx(m);if(p&&p[1]===prox)(ent[p[0]]=ent[p[0]]||[]).push(m.n)});
+  const linha=m=>{const[k,t]=pinDe(m),p=pinProx(m);return `<div class="pin-l"><img src="pin-${k}.png" alt=""><div><b>${esc(lwNome(m))}</b><span>${t} · desde ${fmtEnt(m.ent)}</span></div>
+    <div class="x${p&&p[1]===prox?" ent":""}">${p?(p[1]===prox?`🎁 ${p[0]} em ${p[1]}`:`${p[0]} em ${p[1]}`):"🏆 Maior pin"}</div></div>`};
+  $("honrConteudo").innerHTML=`<div class="hon"><h2>🏅 Honrarias</h2><p class="nota" style="margin:4px 0 0">As honrarias de cada irmão, calculadas pela data de entrada no MC (coluna "Entrada no MC" da aba Dados Integrantes).</p>
+    <div class="sub2">📍 Pin Caveira</div><p class="nota" style="margin:0 0 6px">Entregue no começo do ano em que o irmão completa 3, 6 ou 9 anos de Insanos M.C.</p>
+    <div class="pin-leg">${PINS.map(([k,t,c])=>`<div><img src="pin-${k}.png" alt=""><b>${t}</b><span>${c} · ${cont[k]||0} irmão${(cont[k]||0)===1?"":"s"}</span></div>`).join("")}</div>
+    ${Object.keys(ent).length?`<div class="pin-ent"><b>🎁 Entregas de ${prox}</b>${["Bronze","Prata","Ouro"].filter(x=>ent[x]).map(x=>`<p><img src="pin-${x.toLowerCase()}.png" alt="">Pin ${x}: ${ent[x].map(esc).join(", ")}</p>`).join("")}</div>`:""}
+    ${["ouro","prata","bronze","caveira"].map(k=>{const g=ord.filter(m=>pinDe(m)[0]===k);return g.length?`<div class="pin-g">${PINS.find(p=>p[0]===k)[1]} · ${g.length}</div>`+g.map(linha).join(""):""}).join("")}
+    ${sem.length?`<div class="pin-g">Sem data de entrada · ${sem.length}</div><p class="nota">${sem.map(m=>esc(m.n)).join(", ")}: preencha a coluna "Entrada no MC" na aba Dados Integrantes.</p>`:""}</div>`}
+// o pin de quem entrou, no topo do ADM
+function pinTopo(){try{if(MODO!=="adm"||document.getElementById("pinTopo"))return;let em="";try{em=(sessionStorage.getItem("painel_email")||"").toLowerCase()}catch(_){}
+  const ap=(DADOS.quem||{})[em],m=ap&&M_FULL.find(x=>x.n.toLowerCase()===String(ap).toLowerCase()),pn=pinDe(m);if(!pn)return;const p=pinProx(m);
+  const c=document.createElement("div");c.id="pinTopo";c.className="pin-chip";
+  c.innerHTML=`<img src="pin-${pn[0]}.png" alt=""><div><b>${esc(m.n)} · ${pn[1]}</b><span>Insanos M.C. desde ${fmtEnt(m.ent)}${p?` · 🎁 ${p[0]} em ${p[1]}`:""}</span></div>`;
+  const h=document.querySelector("header .sub")||document.querySelector("header p")||document.querySelector("header h1");if(h)h.after(c)}catch(_){}}
 let LANC_TIPO="evento",INS_CASA=null;
 function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
   if(!INS_CASA){INS_CASA=document.createComment("lugar da lista do insight");z.parentNode.insertBefore(INS_CASA,z)}
@@ -2591,7 +2629,7 @@ function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
     try{izAtualiza()}catch(e){}}
   else{if(z.parentNode!==INS_CASA.parentNode)INS_CASA.parentNode.insertBefore(z,INS_CASA.nextSibling);
     z.hidden=!(document.body.dataset.view==="painel"&&ANAL==="ins"&&IZ_MODO==="preencher");$("lancDet").hidden=false;if(tp==="evento")$("lancDet").open=true}}
-const TELA_TIT={pag:"Pagamentos",lancar:"Lançar",ficha:"Cadastro",kit:"Kit / colete",acessos:"Acessos",listas:"Lista WhatsApp",dash:"Dashboard"};
+const TELA_TIT={pag:"Pagamentos",lancar:"Lançar",ficha:"Cadastro",kit:"Kit / colete",honr:"Honrarias",acessos:"Acessos",listas:"Lista WhatsApp",dash:"Dashboard"};
 function irPara(v){
   document.body.dataset.view=v;
   {const h=document.querySelector("header h1");if(h&&h.firstChild&&TELA_TIT[v])h.firstChild.nodeValue=TELA_TIT[v];
@@ -2605,10 +2643,11 @@ function irPara(v){
   if(v==="acessos"){try{acBuscar()}catch(e){}}
   if(v==="dash"){try{dashMostrar()}catch(e){console.error(e)}}
   if(v==="lancar")lancTipo(LANC_TIPO);
+  if(v==="honr"){try{honrMontar()}catch(e){console.error(e)}}
   if(v==="pag"){try{window.PAG_VISTO_ANT=localStorage.getItem("pag_visto")||"";localStorage.setItem("pag_visto",(DADOS.pag&&DADOS.pag.ultimo_pag)||new Date().toISOString().slice(0,19))}catch(e){}
     try{montarPagamentos()}catch(e){}}
   document.querySelectorAll(".lateral button[data-v]").forEach(b=>b.dataset.v===v?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
-  {const bm=document.querySelector(".lateral button[data-mais]");if(bm)["ficha","kit","acessos","dash"].includes(v)?bm.setAttribute("aria-current","page"):bm.removeAttribute("aria-current")}
+  {const bm=document.querySelector(".lateral button[data-mais]");if(bm)["ficha","kit","honr","acessos","dash"].includes(v)?bm.setAttribute("aria-current","page"):bm.removeAttribute("aria-current")}
   if(v==="lancar")$("lancDet").open=true;
   window.scrollTo({top:0,behavior:"instant"in window?"instant":"auto"});
 }
