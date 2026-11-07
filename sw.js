@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v21";
+const CACHE = "insanos-v22";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -11,6 +11,12 @@ self.addEventListener("fetch", e => {
     return resp;
   }).catch(() => caches.match(r, {ignoreSearch: true})));
 });
+// número de mensagens não lidas no ícone do app (as notificações de mensagem que ainda estão na tela)
+function marcarIcone() {
+  return self.registration.getNotifications().then(ns => { const n = ns.filter(x => String(x.tag || "").startsWith("msg-") && !String(x.tag).startsWith("msg-r-")).length;
+    if (self.navigator.setAppBadge) return n ? self.navigator.setAppBadge(n) : self.navigator.clearAppBadge(); }).catch(() => {});
+}
+self.addEventListener("notificationclose", e => { e.waitUntil(marcarIcone()); });
 self.addEventListener("push", e => {
   e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(cs => cs.forEach(c => c.postMessage({tipo: "verificar_versao"}))).catch(() => {}));
   let d = {};
@@ -19,7 +25,8 @@ self.addEventListener("push", e => {
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
-  if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t})); }
+  if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t}));
+    if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
@@ -44,9 +51,9 @@ self.addEventListener("push", e => {
   const VIB = {pag: [120, 90, 120], evento: [450], social: [450], pub: [450], insight: [150],
                cadastro: [200, 100, 200, 100, 200], niver: [100, 70, 100, 70, 100], aviso: [450, 120, 120]};
   const tipo = ((d.icon || "").match(/notif-([a-z]+)\.png/) || [])[1] || (d.tag === "pagamento" ? "pag" : d.tag === "aniversario" ? "niver" : d.tag === "afastamento" ? "aviso" : "");
-  op.vibrate = VIB[tipo] || [200];
+  if (!(d.msg && d.msg.imp)) op.vibrate = VIB[tipo] || [200];
   // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
-  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), registrarRecebeu(d)]));
+  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op).then(() => d.msg ? marcarIcone() : null), registrarRecebeu(d)]));
 });
 function registrarRecebeu(d) {
   return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
@@ -91,6 +98,7 @@ self.addEventListener("notificationclick", e => {
     }
     e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
   }
+  if (dd.msg) e.waitUntil(new Promise(r => setTimeout(r, 300)).then(marcarIcone));
   if (dd.msg && e.action && dd.para) {   // mensagem: resposta rápida direto na notificação
     const m = dd.msg, txt = ((m.rs || []).find(x => x[0] === e.action) || [])[1] || "";
     e.waitUntil(fetch(m.ou, {method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain;charset=utf-8"},
