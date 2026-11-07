@@ -2570,7 +2570,26 @@ function pushFolha(){try{pushTela()}catch(_){}
   folhaAtalhos("🔔 Notificações neste aparelho",[
     {ico:"ℹ️",t:(($("pushStatus")||{}).textContent||"Verificando…"),d:"Pagamento novo, listas, respostas dos irmãos e o SOS, direto neste celular.",fn:pushFolha},
     {ico:"🔔",t:"Ativar",d:"Recebe os avisos neste aparelho",fn:async()=>{await pushAtivar();pushFolha()}},
-    {ico:"🔕",t:"Desativar",d:"Para de receber neste aparelho",fn:async()=>{if(confirm("Desativar as notificações neste aparelho?")){await pushDesativar();pushFolha()}}}])}
+    {ico:"🔕",t:"Desativar",d:"Para de receber neste aparelho",fn:async()=>{if(confirm("Desativar as notificações neste aparelho?")){await pushDesativar();pushFolha()}}},
+    {ico:"📲",t:"Testar as notificações",d:"Ver neste celular como chega cada tipo de aviso",fn:testeFolha}])}
+// teste das notificações: o ajudante do app mostra um aviso de exemplo, igual aos de verdade (os botões não enviam nada)
+function testeFolha(){let em="";try{em=(sessionStorage.getItem("painel_email")||"").toLowerCase()}catch(_){}
+  const eu=String((DADOS.quem||{})[em]||"irmão").replace(/^./,c=>c.toUpperCase()),hoje=new Date(),dd=x=>{const d=new Date(hoje.getTime()+x*864e5);return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`};
+  const rs=[["r_ok","✅ Recebido"],["r_zap","📲 Te respondo no WhatsApp"]];
+  const T=[
+    ["🆘","SOS","Alerta de irmão precisando de ajuda, com Estou indo e Ver no mapa",{title:"🆘 SOS · Pane/acidente",body:`Teste precisa de ajuda. Pane/acidente · agora`,icon:"notif-aviso.png",tag:"sos-teste",sos:{id:"teste",lat:"",lng:"",nome:"Teste",cat:"pane"},url:"adm.html"}],
+    ["🎉","Evento (Vou / Não vou)","Convite de evento com os botões de resposta",{title:`🎉 Ação Social · ${dd(10)}`,body:`Fala, ${eu}! Você vai? Responde aqui embaixo.`,icon:"notif-evento.png",tag:"t-ev",rsvp:{d:"2099-01-01",e:"Ação Social",tk:"x",m:"ev"}}],
+    ["💬","Insight (Já respondi)","Lembrete do insight com o botão Já respondi",{title:"💬 Insight 019 no ar",body:`Fala, ${eu}! Saiu o Insight 019. Responda no grupo do WhatsApp e toque em Já respondi. 🤝`,icon:"notif-insight.png",tag:"t-ins",rsvp:{d:"2099-01-01",e:"Insight 019",tk:"x",m:"ins"}}],
+    ["✉️","Mensagem comum","Mensagem do comando com as respostas rápidas",{title:"✉️ Mensagem de Queijo (Diretor)",body:"Fala, irmão! Reunião sexta às 20h na sede.",icon:"notif-social.png",tag:"msg-teste1",msg:{id:"t1",tk:"x",ou:"",rs,imp:0}}],
+    ["📌","Mensagem importante","Fixa na tela, vibração forte e a faixa do comando",{title:"📌 IMPORTANTE · Mensagem de Queijo (Diretor)",body:"Atenção: a reunião de sexta foi transferida para sábado, 10h, na sede.",icon:"notif-social.png",tag:"msg-teste2",msg:{id:"t2",tk:"x",ou:"",rs,imp:1}}],
+    ["📅","Boleto da mensalidade","Aviso do boleto com o botão Abrir meu boleto",{title:"📅 Agenda da divisão",body:`Fala, ${eu}! O boleto da mensalidade já está disponível. Vence em ${dd(5)}.`,icon:"notif-pag.png",tag:"t-bol",link:"https://www.insanosmcbrasil.com.br",lrot:"Abrir meu boleto"}],
+    ["💵","Pagamento novo (comando)","O aviso que o comando recebe quando alguém paga",{title:"💵 Pagamento novo",body:"Bispo pagou a mensalidade. 77% pagos (17 de 22).",icon:"notif-pag.png",tag:"pagamento"}]];
+  folhaAtalhos("📲 Testar as notificações",T.map(([ico,t,d,p])=>({ico,t,d,fn:()=>testeEnviar(p)})))}
+async function testeEnviar(p){
+  if(!("serviceWorker" in navigator)||!("Notification" in window)){alert("Este aparelho não mostra notificações do app.");return}
+  if(Notification.permission!=="granted"){alert("Ative as notificações neste aparelho primeiro (Gestão e Notificações › Notificações neste aparelho › Ativar).");return}
+  try{const r=await navigator.serviceWorker.ready;(r.active||navigator.serviceWorker.controller).postMessage({tipo:"teste_aviso",d:p});
+    setTimeout(testeFolha,400)}catch(e){alert("Não consegui mostrar o teste ("+(e.message||e)+").")}}
 // ---- Pagamentos › Regional: a situação das mensalidades pronta para o regional (mensagem + fly com o código de leitura)
 function pagRegionalTexto(mencao){const c=window.PAG_CONT||{pago:0,aguard:0,aberto:0};
   const MES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];

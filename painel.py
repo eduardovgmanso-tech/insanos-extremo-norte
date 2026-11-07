@@ -556,6 +556,7 @@ GERAL_RAW = ""         # painel de presença sem dados pessoais (o que o visitan
 CAVEIRA_URL = ""       # imagem da caveira (vem do template): usada no "Meu painel"
 MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu painel
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
+PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
 PESSOAIS = []          # [(email, html)] trancados no mesmo cofre do painel, cada um com o e-mail do irmão
 MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Meu painel · Insanos</title><meta name="theme-color" content="#0d0c0b">
@@ -596,6 +597,16 @@ const PIN=(()=>{if(!D.ent)return null;const a=new Date().getFullYear()-(+String(
 const cor=v=>v==null?["transparent","#ECE7DC"]:v>=90?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F3DE8A","#EBD27A"]:["#F2A3A3","#EE9A9A"];
 const pc=a=>a&&a[1]?Math.round(a[0]*100/a[1]):null,es=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const MS=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const MESES_N=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+// Minha mensalidade: a situação do mês, o boleto a um toque e, se precisar, o pedido do boleto ao ADM
+function mensQuadro(){const M=D.mens,st=String(M.st||""),mes=M.venc?MESES_N[+M.venc.slice(5,7)-1]:"",venc=M.venc?M.venc.slice(8,10)+"/"+M.venc.slice(5,7):"";
+  const pago=/pag|ades/i.test(st)&&!/aberto/i.test(st),comp=/aguard|compens/i.test(st);
+  if(pago)return `<div class="card" id="mensal"><h2>💵 Minha mensalidade</h2><p style="margin:0;font-weight:700;color:#4CAF6A">✅ ${mes} paga. Valeu, irmão!</p></div>`;
+  return `<div class="card" id="mensal"><h2>💵 Minha mensalidade</h2>
+    <p style="margin:0 0 10px;font-weight:700">${comp?`⏰ ${mes} em compensação`:`⏳ ${mes} em aberto${venc?" · vence em "+venc:""}`}</p>
+    <div class="qbts">${M.lk?`<a class="qz" href="${es(M.lk)}" target="_blank" rel="noopener" style="text-decoration:none">📄 Abrir meu boleto</a>`:""}
+    ${M.adm?`<button id="mensPedir">🙋 Pedir o boleto ao ${es(M.adm)}</button>`:""}</div>
+    <p class="nota" id="mensTx" style="margin:8px 0 0">${M.lk?"O boleto também chega pelos avisos do app.":"O boleto deste mês ainda não está no painel. Se precisar, peça ao comando."}</p></div>`}
 const cav=(v,r,sub)=>`<div class="cv"><span class="cav" style="--cav:url('${CAV}');--c:${cor(v)[0]};--p:${v||0}%"></span><b style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</b><span>${r}</span><small>${sub}</small></div>`;
 const bar=(r,v)=>`<div class="br"><span>${r}</span><div class="tr"><i style="width:${v||0}%;background:${cor(v)[1]}"></i></div><em style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</em></div>`;
 const vp=pc(D.pres),vi=pc(D.ins);
@@ -609,8 +620,12 @@ ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximo
   <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></div>`:""}
 ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p class="nota" id="insTx" style="margin:0 0 10px">Ainda não consta a sua resposta. Já respondeu no grupo? Toque abaixo para marcar.</p>
   <div class="qbts"><button class="qz" id="insBt">✅ Já respondi</button></div></div>`:""}
-<div class="card"><h2>Minha adesão em ${D.ano}</h2><div class="cavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
-<div class="card"><h2>Minha posição (presença)</h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
+${D.mens&&D.mens.st?mensQuadro():""}
+<div class="card per"><label style="display:flex;align-items:center;gap:10px;font-weight:700">📅 Período
+  <select id="perSel" style="flex:1;padding:10px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:inherit;font:inherit;font-size:15px">
+  <option value="">Ano todo (${D.ano})</option>${[...D.meses].reverse().map(m=>`<option value="${m.ym}">${MESES_N[+m.ym.slice(5)-1]}/${m.ym.slice(0,4)}</option>`).join("")}</select></label></div>
+<div class="card" id="adesaoCard"><h2 id="adTit">Minha adesão em ${D.ano}</h2><div class="cavs" id="adCavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
+<div class="card"><h2>Minha posição (presença) <span class="nota" style="font-weight:500">· no ano</span></h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
 <div class="card"><h2>Comparação</h2>
   <div class="cmp"><p>Presença</p>${bar("Eu",vp)}${bar("Média "+es(D.g),D.mf[0])}${bar("Média da divisão",D.md[0])}</div>
   <div class="cmp"><p>Insights</p>${bar("Eu",vi)}${bar("Média "+es(D.g),D.mf[1])}${bar("Média da divisão",D.md[1])}</div></div>
@@ -618,7 +633,7 @@ ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p 
   const ch=(v,x)=>x&&x[1]?`<span class="ch" style="color:${cor(v)[1]};background:rgba(236,231,220,.05)">${x[0]}/${x[1]} · ${v}%</span>`:'<span class="nota">–</span>';
   return `<div class="mes"><b>${MS[+m.ym.slice(5)-1]}/${m.ym.slice(2,4)}</b>${ch(a,m.p)}${ch(b,m.i)}</div>`}).join("")}
 </div>
-<div class="card"><h2>📋 Minhas presenças em ${D.ano}</h2>
+<div class="card"><h2 id="mpTit">📋 Minhas presenças em ${D.ano}</h2>
   <div class="tabs" id="tTipo"><button data-t="ev" class="on">🗓️ Eventos</button><button data-t="iv">💬 Insights</button></div>
   <div class="tabs peq" id="tFil"><button data-f="" class="on">Todos</button><button data-f="x">❌ Só onde faltei</button></div>
   <div id="lista"></div>
@@ -649,12 +664,12 @@ ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p 
 <p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
 <button class="sair" onclick="try{sessionStorage.clear()}catch(e){}location.reload()">Sair</button>`;
 // lista de presenças com filtro e "Questionar"
-let TT="ev",FF="",ABERTO=-1;
+let TT="ev",FF="",ABERTO=-1,PER="";   // PER: mês escolhido no Período ("" = ano todo)
 const br=d=>d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4);
 const texto=e=>TT==="ev"
   ?`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não fui* ao evento *${e[1]}* de *${br(e[0])}*, mas eu estive presente.\n\nPodem conferir o lançamento? Obrigado! 🤝`
   :`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não respondi* o insight *${e[1]}* de *${br(e[0])}*, mas eu respondi.\n\nPodem conferir o lançamento? Obrigado! 🤝`;
-function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>!FF||e[2]!==1);
+function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>(!FF||e[2]!==1)&&(!PER||e[0].startsWith(PER)));
   document.getElementById("lista").innerHTML=L.length?L.map((e,k)=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span><b style="flex:1;font-weight:500">${es(e[1])}</b>
     ${e[2]===1?"":`<button class="q" data-k="${k}">Questionar</button>`}</div>${k===ABERTO?`<div class="qbox"><pre>${es(texto(e))}</pre>
       <div class="qbts"><button class="qc" data-k="${k}">📋 Copiar</button><button class="qz" data-k="${k}">Abrir no WhatsApp</button></div></div>`:""}`).join("")
@@ -715,6 +730,13 @@ async function avSinc(){try{if(!D.push||!("serviceWorker" in navigator)||!("Push
   await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
   try{localStorage.setItem("push_sync",JSON.stringify({e:D.email,ep:s.endpoint,t:Date.now()}))}catch(_){}avTela()}catch(e){}}
 setTimeout(avSinc,2500);
+(function(){const b=document.getElementById("mensPedir");if(!b)return;const chave="bol_pedido_"+D.email,hoje=new Date().toISOString().slice(0,10);
+  const feito=()=>{b.disabled=true;b.textContent="✅ Pedido enviado hoje";document.getElementById("mensTx").textContent=`O ${D.mens.adm} recebe o seu pedido em 1 a 3 minutos. A resposta aparece em ✉️ Mensagens.`};
+  try{if(localStorage.getItem(chave)===hoje)feito()}catch(_){}
+  b.onclick=async()=>{const mes=MESES_N[+String(D.mens.venc).slice(5,7)-1]||"";b.disabled=true;b.textContent="Enviando…";
+    try{const r=await msgEnviar([D.mens.adm],"🧾 Pedido de boleto",`🧾 Fala, ${D.mens.adm}! Sou o ${D.n}. Pode me mandar o boleto da mensalidade de ${mes.toLowerCase()}? Valeu!`);
+      if(!r||!r.ok)throw new Error((r&&r.erro)||"não enviado");try{localStorage.setItem(chave,hoje)}catch(_){}feito()}
+    catch(e){b.disabled=false;b.textContent=`🙋 Pedir o boleto ao ${D.mens.adm}`;alert("Não consegui pedir agora ("+(e.message||e)+"). Entre uma vez no app com o seu e-mail e o código, se ainda não entrou.")}}})();
 try{if(sessionStorage.getItem("ver_irmao")==="1"){const f=document.getElementById("comoIrmao");f.hidden=false;
   document.getElementById("voltarCmd").onclick=e=>{e.preventDefault();try{sessionStorage.removeItem("ver_irmao")}catch(_){}location.href=location.pathname}}}catch(_){}
 if(location.hash==="#mensagens")setTimeout(()=>{try{abrirMensagens({modo:"irmao",comando:D.cmd||[]})}catch(_){}},900);
@@ -723,6 +745,11 @@ try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 desenha();
+document.getElementById("perSel").onchange=ev=>{PER=ev.target.value;const m=D.meses.find(x=>x.ym===PER);
+  const nome=PER?MESES_N[+PER.slice(5)-1]+"/"+PER.slice(0,4):D.ano,P=PER?(m?m.p:[0,0]):D.pres,I=PER?(m?m.i:[0,0]):D.ins;
+  document.getElementById("adTit").textContent="Minha adesão em "+nome;document.getElementById("mpTit").textContent="📋 Minhas presenças em "+nome;
+  document.getElementById("adCavs").innerHTML=cav(pc(P),"Presença",P[1]?`${P[0]} de ${P[1]} eventos`:"sem eventos")+cav(pc(I),"Insights",I[1]?`${I[0]} de ${I[1]} insights`:"sem insights");
+  ABERTO=-1;desenha()};
 </script>__TUTORIAL____VERSAOSNIP____SOSMOD__</body></html>"""
 
 RANK_MIN_MEU = 3       # mesmo mínimo do ranking do painel
@@ -776,7 +803,10 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
-        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""), "cmd": [{"n": x["n"], "c": x.get("c", "")} for x in membros if x["n"].lower() in {a.lower() for a in AUTORIZADOS + ADM_EXTRA} and x["n"] != m["n"]], "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
+        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""),
+                 "mens": ({"st": PAG_MEU.get("st", {}).get(m["n"], ""), "lk": PAG_MEU.get("lk", {}).get(m["n"], ""), "venc": PAG_MEU.get("venc", ""),
+                           "adm": next((x["n"] for x in membros if str(x.get("c", "")).strip().lower().startswith("adm")), "")} if PAG_MEU else None),
+                 "cmd": [{"n": x["n"], "c": x.get("c", "")} for x in membros if x["n"].lower() in {a.lower() for a in AUTORIZADOS + ADM_EXTRA} and x["n"] != m["n"]], "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
                  "min": RANK_MIN_MEU, "pres": est[i][0], "ins": est[i][1],
                  "mf": [media(mesmo, 0), media(mesmo, 1)], "md": [media(todos, 0), media(todos, 1)],
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
@@ -931,6 +961,8 @@ MSG_MODULO = r"""<style>
     h.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{b.disabled=true;
       try{const r=await post({tipo:"msg_resp",email:q.email,s:q.s,id:b.dataset.id,resp:b.dataset.r});if(!r.ok)throw new Error(r.erro);
         b.parentNode.outerHTML=`<div class="rsp">↩️ Você: ${es(b.dataset.r)} (enviando…)</div>`}catch(e){b.disabled=false;alert("Não consegui responder agora ("+(e.message||e)+").")}})};
+  window.msgEnviar=async function(para,rot,texto){const q=quem();if(!window.SOS_URL||!q)return {ok:false,erro:"sem identificação neste celular"};
+    return post({tipo:"msg",email:q.email,s:q.s,para,rotulo:rot,texto})};
   window.msgNaoLidas=async function(cfg){try{if(navigator.clearAppBadge)navigator.clearAppBadge()}catch(_){}
     const q=quem();if(!window.SOS_URL||!q)return;let j;try{j=await post({tipo:"msg_hist",email:q.email,s:q.s})}catch(_){return}
     const novas=(j&&j.ok?j.itens:[]).filter(it=>!it.minha&&!it.lido).sort((a,b)=>(/^📌/.test(b.rot||"")?1:0)-(/^📌/.test(a.rot||"")?1:0));
@@ -2625,7 +2657,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v22";
+const CACHE = "insanos-v23";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2643,10 +2675,11 @@ function marcarIcone() {
     if (self.navigator.setAppBadge) return n ? self.navigator.setAppBadge(n) : self.navigator.clearAppBadge(); }).catch(() => {});
 }
 self.addEventListener("notificationclose", e => { e.waitUntil(marcarIcone()); });
-self.addEventListener("push", e => {
+const aoPush = e => {
   e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(cs => cs.forEach(c => c.postMessage({tipo: "verificar_versao"}))).catch(() => {}));
   let d = {};
   try { d = e.data.json(); } catch (_) { d = {title: "Insanos ADM", body: e.data ? e.data.text() : ""}; }
+  const teste = !!d.teste;   // aviso de teste (Gestão › Notificações › Testar): aparece igual, mas os botões não enviam nada
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "notif-badge.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
@@ -2655,7 +2688,7 @@ self.addEventListener("push", e => {
     if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
-  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
+  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || ""; op.data.teste = teste ? 1 : 0;
   if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
     op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
     op.vibrate = [1000, 250, 1000, 250, 1000, 250, 1000, 250, 1000];   // alarme (onde o celular respeitar o padrão)
@@ -2669,7 +2702,7 @@ self.addEventListener("push", e => {
       const velha = Date.now() - l.ts > 12 * 3600e3;
       op.body += " · a ~" + (km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1).replace(".", ",") + " km") + " de você" + (velha ? " (localização antiga)" : "");
     }).catch(() => {}) : Promise.resolve();
-    const guarda = idbSet("sos_ativo", {d: S, url: op.data.sosUrl, ts: Date.now(), titulo: d.title || ""});   // para a faixa "SOS em andamento"
+    const guarda = teste ? Promise.resolve() : idbSet("sos_ativo", {d: S, url: op.data.sosUrl, ts: Date.now(), titulo: d.title || ""});   // para a faixa "SOS em andamento"
     e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d), guarda]));
     return;
   }
@@ -2680,6 +2713,13 @@ self.addEventListener("push", e => {
   if (!(d.msg && d.msg.imp)) op.vibrate = VIB[tipo] || [200];
   // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
   e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op).then(() => d.msg ? marcarIcone() : null), registrarRecebeu(d)]));
+};
+self.addEventListener("push", aoPush);
+// teste das notificações: o painel manda um aviso de exemplo e ele aparece exatamente como os de verdade
+self.addEventListener("message", e => {
+  if (!e.data || e.data.tipo !== "teste_aviso") return;
+  const d = Object.assign({}, e.data.d, {teste: 1, ru: "", para: ""});
+  aoPush({data: {json: () => d, text: () => ""}, waitUntil: p => e.waitUntil(p)});
 });
 function registrarRecebeu(d) {
   return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
@@ -2706,6 +2746,12 @@ function idbGet(k) {
 function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
 self.addEventListener("notificationclick", e => {
   const dd = e.notification.data || {};
+  if (dd.teste) {   // aviso de teste: nenhum botão envia nada
+    e.notification.close();
+    if (e.action) e.waitUntil(self.registration.showNotification("🧪 Era só um teste", {body: "Nada foi enviado. Nos avisos de verdade, esse botão funciona.", icon: "icon-192.png", badge: "notif-badge.png", tag: "teste-ok"}));
+    else e.waitUntil(clients.openWindow("adm.html"));
+    return;
+  }
   const soMapa = !!(dd.sosUrl && e.action === "mapa");
   if (!soMapa) e.notification.close();   // SOS · "Ver no mapa": a notificação fica, para depois tocar em "Estou indo"
   if (dd.ru && dd.para)    // controle: o irmão tocou no aviso
@@ -3123,6 +3169,18 @@ def main():
         MEU_PUSH = {"pub": chave_push_publica(), "url": ACESSOS_URL} if ACESSOS_URL else None
     except Exception:
         MEU_PUSH = None
+    global PAG_MEU
+    try:   # mensalidade de cada irmão (Meu painel › Minha mensalidade): situação, link do boleto e vencimento
+        PAG_MEU = {"venc": vencimento(datetime.date.today().year, datetime.date.today().month).isoformat(), "st": {}, "lk": {}}
+        for r in pgto:
+            rot = texto(r[1])
+            m_ = next((m for m in membros if rot and rot.lower().endswith(m["n"].lower())), None)
+            if m_ and m_["n"] not in PAG_MEU["st"]:
+                PAG_MEU["st"][m_["n"]] = texto(r[2]) or "Em aberto"
+                if texto(r[9]).startswith("http"):
+                    PAG_MEU["lk"][m_["n"]] = texto(r[9])
+    except Exception as e:
+        PAG_MEU = {}; print(f"Aviso: mensalidade do Meu painel não montada ({type(e).__name__}: {e}).")
     try:
         montar_pessoais(membros, eventos, eventos_ins, gerado)
     except Exception as e:
