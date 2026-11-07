@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v22";
+const CACHE = "insanos-v23";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -17,10 +17,11 @@ function marcarIcone() {
     if (self.navigator.setAppBadge) return n ? self.navigator.setAppBadge(n) : self.navigator.clearAppBadge(); }).catch(() => {});
 }
 self.addEventListener("notificationclose", e => { e.waitUntil(marcarIcone()); });
-self.addEventListener("push", e => {
+const aoPush = e => {
   e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(cs => cs.forEach(c => c.postMessage({tipo: "verificar_versao"}))).catch(() => {}));
   let d = {};
   try { d = e.data.json(); } catch (_) { d = {title: "Insanos ADM", body: e.data ? e.data.text() : ""}; }
+  const teste = !!d.teste;   // aviso de teste (Gestão › Notificações › Testar): aparece igual, mas os botões não enviam nada
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "notif-badge.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
@@ -29,7 +30,7 @@ self.addEventListener("push", e => {
     if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
-  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
+  op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || ""; op.data.teste = teste ? 1 : 0;
   if (d.sos) {   // SOS: distância aproximada pela última localização guardada neste celular, e botões
     op.data.sosUrl = d.url || "adm.html"; op.requireInteraction = true; op.renotify = true;
     op.vibrate = [1000, 250, 1000, 250, 1000, 250, 1000, 250, 1000];   // alarme (onde o celular respeitar o padrão)
@@ -43,7 +44,7 @@ self.addEventListener("push", e => {
       const velha = Date.now() - l.ts > 12 * 3600e3;
       op.body += " · a ~" + (km < 1 ? Math.round(km * 1000) + " m" : km.toFixed(1).replace(".", ",") + " km") + " de você" + (velha ? " (localização antiga)" : "");
     }).catch(() => {}) : Promise.resolve();
-    const guarda = idbSet("sos_ativo", {d: S, url: op.data.sosUrl, ts: Date.now(), titulo: d.title || ""});   // para a faixa "SOS em andamento"
+    const guarda = teste ? Promise.resolve() : idbSet("sos_ativo", {d: S, url: op.data.sosUrl, ts: Date.now(), titulo: d.title || ""});   // para a faixa "SOS em andamento"
     e.waitUntil(Promise.all([comDist.then(() => self.registration.showNotification(d.title || "🆘 SOS", op)), registrarRecebeu(d), guarda]));
     return;
   }
@@ -54,6 +55,13 @@ self.addEventListener("push", e => {
   if (!(d.msg && d.msg.imp)) op.vibrate = VIB[tipo] || [200];
   // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
   e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op).then(() => d.msg ? marcarIcone() : null), registrarRecebeu(d)]));
+};
+self.addEventListener("push", aoPush);
+// teste das notificações: o painel manda um aviso de exemplo e ele aparece exatamente como os de verdade
+self.addEventListener("message", e => {
+  if (!e.data || e.data.tipo !== "teste_aviso") return;
+  const d = Object.assign({}, e.data.d, {teste: 1, ru: "", para: ""});
+  aoPush({data: {json: () => d, text: () => ""}, waitUntil: p => e.waitUntil(p)});
 });
 function registrarRecebeu(d) {
   return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
@@ -80,6 +88,12 @@ function idbGet(k) {
 function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
 self.addEventListener("notificationclick", e => {
   const dd = e.notification.data || {};
+  if (dd.teste) {   // aviso de teste: nenhum botão envia nada
+    e.notification.close();
+    if (e.action) e.waitUntil(self.registration.showNotification("🧪 Era só um teste", {body: "Nada foi enviado. Nos avisos de verdade, esse botão funciona.", icon: "icon-192.png", badge: "notif-badge.png", tag: "teste-ok"}));
+    else e.waitUntil(clients.openWindow("adm.html"));
+    return;
+  }
   const soMapa = !!(dd.sosUrl && e.action === "mapa");
   if (!soMapa) e.notification.close();   // SOS · "Ver no mapa": a notificação fica, para depois tocar em "Estou indo"
   if (dd.ru && dd.para)    // controle: o irmão tocou no aviso
