@@ -525,7 +525,9 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(entrada),"PBKDF2",false,["deriveKey"]);
     const kek=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(P.sal),iterations:P.it,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
     let chave=null;
-    for(const s of P.slots){try{chave=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct));break}catch(e){}}
+    const comoIrmao=(()=>{try{return sessionStorage.getItem("ver_irmao")==="1"}catch(_){return false}})();   // "👁️ Ver como irmão" (Gestão)
+    const tentaSlots=async()=>{for(const s of P.slots){try{chave=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct));break}catch(e){}}};
+    if(!comoIrmao)await tentaSlots();
     if(!chave){   // não é do comando: tenta o "Meu painel" do irmão
       for(const s of (P.pes||[])){try{const h=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));
         try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:(/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro")+((matchMedia("(display-mode: standalone)").matches||navigator.standalone)?" · app":" · navegador")});
@@ -533,7 +535,8 @@ document.getElementById("f").addEventListener("submit",async ev=>{
         try{sessionStorage.setItem("painel_email",d)}catch(_){}
         const abre=()=>{document.open();document.write(h.split("__CAV__").join(P.cav||""));document.close()};
         if(s.t==="v")abre();else bioPerguntar(d,abre);return}catch(e){}}
-      throw 0}
+      if(comoIrmao){try{sessionStorage.removeItem("ver_irmao")}catch(_){}await tentaSlots()}   // sem Meu painel: volta ao ADM
+      if(!chave)throw 0}
     const k=await crypto.subtle.importKey("raw",chave,"AES-GCM",false,["decrypt"]);
     const html=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(P.iv)},k,b64(P.ct)));
     registrar(true);
@@ -599,6 +602,7 @@ const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
 <h1 style="display:flex;align-items:center;gap:12px">${es(D.n)}${PIN?`<img src="pin-${PIN[0]}.png" alt="${PIN[1]}" title="${PIN[1]}" style="width:44px;height:auto">`:""}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}${PIN?" · "+PIN[1]:""}</p>
+<div id="comoIrmao" hidden style="margin:0 0 12px;padding:10px 12px;border-radius:12px;background:rgba(233,185,73,.12);border:1px solid rgba(233,185,73,.45);font-size:14px">👁️ Você está vendo <b>como irmão</b> · <a href="#" id="voltarCmd" style="color:#E9B949;font-weight:800">Voltar ao painel do comando</a></div>
 <button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
 <button class="msg-meu" onclick="abrirMensagens({modo:'irmao',comando:D.cmd||[]})">✉️ Mensagens · falar com o comando</button>
 ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
@@ -634,6 +638,12 @@ ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p 
       <li>Ative <b>Ignorar Não perturbe</b> (ou <b>Exceções do Não perturbe</b>), para o SOS tocar mesmo no silencioso.</li>
       <li>Em <b>Tela de bloqueio</b>, escolha <b>Mostrar todo o conteúdo</b>.</li>
     </ol><p class="nota" style="margin:6px 0 0">Os nomes mudam um pouco conforme a marca (Samsung, Motorola, Xiaomi…). No iPhone, o som e a vibração são os padrões do aparelho.</p></details>
+  <details style="margin-top:8px"><summary>💡 Fazer a tela piscar quando chegar um aviso</summary>
+    <ol class="nota" style="margin:8px 0 0;padding-left:18px;line-height:1.5">
+      <li><b>Android:</b> abra as <b>Configurações</b> › <b>Acessibilidade</b> › <b>Notificação com flash</b> (na Samsung: Acessibilidade › Configurações avançadas › Notificação com flash).</li>
+      <li>Ligue <b>Flash da tela</b> (a tela pisca) e, se quiser, <b>Flash da câmera</b> (a luz da câmera pisca).</li>
+      <li><b>iPhone:</b> Ajustes › Acessibilidade › Áudio e Visual › <b>Flash LED para Alertas</b>.</li>
+    </ol><p class="nota" style="margin:6px 0 0">Vale para todos os avisos do celular, não só os do app.</p></details>
   <p class="nota" style="margin:12px 0 8px">🆘 Nos alertas de SOS, mostrar a que distância você está do irmão (a sua localização fica só neste celular):</p>
   <div class="qbts"><button id="locAt">📍 Usar minha localização no SOS</button></div></div>
 <p class="nota" style="text-align:center">Atualizado em ${es(D.ger)} · Insanos Sempre, Sempre Insanos</p>
@@ -705,7 +715,10 @@ async function avSinc(){try{if(!D.push||!("serviceWorker" in navigator)||!("Push
   await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
   try{localStorage.setItem("push_sync",JSON.stringify({e:D.email,ep:s.endpoint,t:Date.now()}))}catch(_){}avTela()}catch(e){}}
 setTimeout(avSinc,2500);
-if(location.hash==="#mensagens")setTimeout(()=>{try{abrirMensagens({modo:"irmao",comando:D.cmd||[]})}catch(_){}},900);document.addEventListener("visibilitychange",()=>{if(!document.hidden)avSinc()});
+try{if(sessionStorage.getItem("ver_irmao")==="1"){const f=document.getElementById("comoIrmao");f.hidden=false;
+  document.getElementById("voltarCmd").onclick=e=>{e.preventDefault();try{sessionStorage.removeItem("ver_irmao")}catch(_){}location.href=location.pathname}}}catch(_){}
+if(location.hash==="#mensagens")setTimeout(()=>{try{abrirMensagens({modo:"irmao",comando:D.cmd||[]})}catch(_){}},900);
+else setTimeout(()=>{try{msgNaoLidas({modo:"irmao",comando:D.cmd||[]})}catch(_){}},2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)avSinc()});
 try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.getElementById("instalar").hidden=true}catch(e){}
 document.getElementById("tTipo").onclick=ev=>{const b=ev.target.closest("[data-t]");if(!b)return;TT=b.dataset.t;ABERTO=-1;document.querySelectorAll("#tTipo button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
 document.getElementById("tFil").onclick=ev=>{const b=ev.target.closest("[data-f]");if(!b)return;FF=b.dataset.f;ABERTO=-1;document.querySelectorAll("#tFil button").forEach(x=>x.classList.toggle("on",x===b));desenha()};
@@ -758,7 +771,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
     meses = sorted({e["d"][:7] for e in eventos + eventos_ins if e["d"].startswith(ano)})
     for i, m in enumerate(membros):
         email = EMAIL_APELIDO_INV.get(m["n"].lower(), "")
-        if "@" not in email or m["n"].lower() in autoriz:
+        if "@" not in email or (m["n"].lower() in autoriz and m["n"].lower() not in {a.lower() for a in ACESSOS_SOMENTE}):
             continue
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
@@ -883,6 +896,9 @@ MSG_MODULO = r"""<style>
 .msgm-it{padding:12px;border-radius:14px;background:rgba(236,231,220,.05);border:1px solid rgba(236,231,220,.1);margin-bottom:8px}
 .msgm-it .q{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:#BDB7AA}.msgm-it b{display:block;color:#ECE7DC;font-size:14.5px;margin-top:4px}
 .msgm-it p{margin:6px 0 0;font-size:14.5px;line-height:1.4;white-space:pre-wrap}.msgm-it .rsp{margin-top:8px;font-size:13px;color:#E9B949}
+.msgm-imp{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:12px;border-radius:12px;border:1px solid rgba(233,185,73,.55);background:rgba(233,185,73,.1);font-size:14px;line-height:1.35;color:#ECE7DC}
+.msgm-imp input{width:20px;height:20px;margin-top:2px;flex:0 0 auto}.msgm-imp b{color:#E9B949}
+.msgm-it.imp{border-color:rgba(233,185,73,.55)}
 .msgm-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.msgm-chips button{padding:7px 12px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:#ECE7DC;font:inherit;font-size:13px}
 </style>
 <script>
@@ -907,20 +923,30 @@ MSG_MODULO = r"""<style>
     const h=cx.querySelector("[data-h]");if(!h)return;
     if(!j.ok){h.innerHTML=`<p>⚠️ Não consegui carregar as mensagens (${es(j.erro||"")}).</p>`;return}
     if(!j.itens.length){h.innerHTML='<p style="color:#BDB7AA">Nenhuma mensagem nos últimos 90 dias.</p>';return}
-    h.innerHTML=j.itens.map(it=>{const jaResp=it.resp.some(r=>r.de==="Você");
-      return `<div class="msgm-it"><div class="q"><span>${it.minha?"Enviada":"Recebida"} · ${quando(it.q)}</span><span>${it.minha?(/^enviada/.test(it.sit)?"✅ "+es(it.sit):/^recusada/.test(it.sit)?"⚠️ "+es(it.sit):"⏳ enviando…"):""}</span></div>
-        <b>${it.minha?"Para: "+es(it.rot||it.dest):"De "+es(it.de)}</b><p>${es(it.tx)}</p>
+    h.innerHTML=j.itens.map(it=>{const jaResp=it.resp.some(r=>r.de==="Você"),imp=/^📌/.test(it.rot||"");
+      return `<div class="msgm-it${imp?" imp":""}"><div class="q"><span>${imp?"📌 Importante · ":""}${it.minha?"Enviada":"Recebida"} · ${quando(it.q)}</span><span>${it.minha?(/^enviada/.test(it.sit)?"✅ "+es(it.sit)+(it.n?` · 👁️ leram ${it.nl||0} de ${it.n}`:""):/^recusada/.test(it.sit)?"⚠️ "+es(it.sit):"⏳ enviando…"):""}</span></div>
+        <b>${it.minha?"Para: "+es(String(it.rot||it.dest).replace(/^📌\s*/,"")):"De "+es(it.de)}</b><p>${es(it.tx)}</p>
         ${it.resp.length?`<div class="rsp">↩️ ${it.resp.map(r=>es(r.de)+": "+es(r.tx)).join(" · ")}</div>`:""}
         ${!it.minha&&!jaResp?`<div class="msgm-chips">${RESP.map(r=>`<button data-r="${es(r)}" data-id="${es(it.id)}">${es(r)}</button>`).join("")}</div>`:""}</div>`}).join("");
     h.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{b.disabled=true;
       try{const r=await post({tipo:"msg_resp",email:q.email,s:q.s,id:b.dataset.id,resp:b.dataset.r});if(!r.ok)throw new Error(r.erro);
         b.parentNode.outerHTML=`<div class="rsp">↩️ Você: ${es(b.dataset.r)} (enviando…)</div>`}catch(e){b.disabled=false;alert("Não consegui responder agora ("+(e.message||e)+").")}})};
+  window.msgNaoLidas=async function(cfg){try{if(navigator.clearAppBadge)navigator.clearAppBadge()}catch(_){}
+    const q=quem();if(!window.SOS_URL||!q)return;let j;try{j=await post({tipo:"msg_hist",email:q.email,s:q.s})}catch(_){return}
+    const novas=(j&&j.ok?j.itens:[]).filter(it=>!it.minha&&!it.lido).sort((a,b)=>(/^📌/.test(b.rot||"")?1:0)-(/^📌/.test(a.rot||"")?1:0));
+    if(!novas.length||veu)return;
+    const cx=abre(`<h3>📨 Você tem ${novas.length} mensage${novas.length>1?"ns novas":"m nova"}</h3>${novas.slice(0,3).map(it=>{const imp=/^📌/.test(it.rot||"");
+      return `<div class="msgm-it${imp?" imp":""}"><div class="q"><span>${imp?"📌 Importante · ":""}${quando(it.q)}</span></div><b>De ${es(it.de)}</b><p>${es(it.tx)}</p></div>`}).join("")}
+      <button class="sosm-b verde" data-a>Abrir as mensagens</button><button class="sosm-b" data-f>Depois</button>`);
+    cx.parentNode.style.alignItems="center";cx.style.borderRadius="20px";
+    cx.querySelector("[data-f]").onclick=fecha;cx.querySelector("[data-a]").onclick=()=>abrirMensagens(cfg)};
   function escrever(cfg){const q=quem();let modo=cfg.modo==="adm"?"todos":"um";
     const opts=cfg.modo==="adm"?null:(cfg.comando||[]);
     const cx=abre(`<h3>✉️ ${cfg.modo==="adm"?"Nova mensagem":"Mensagem para o comando"}</h3>
       ${cfg.modo==="adm"?`<label class="msgm-lbl">Para</label><div class="msgm-tabs"><button data-m="todos">📣 Todos</button><button data-m="grupo">👥 Grupo</button><button data-m="um">👤 Um irmão</button></div>`:""}
       <div data-alvo></div>
       <label class="msgm-lbl">Mensagem</label><textarea class="msgm-txt" maxlength="300" placeholder="Escreva a mensagem"></textarea><div class="msgm-cont">0 / 300</div>
+      ${cfg.modo==="adm"?`<label class="msgm-imp"><input type="checkbox" data-imp><span><b>📌 Importante</b><br>Fica fixa na tela, vibra forte, com imagem, e avisa de novo quem não abrir em 30 min e em 2 h.</span></label>`:""}
       <button class="sosm-b verde" data-env>✉️ Enviar</button>
       <p style="font-size:12.5px;color:#BDB7AA;margin:8px 0 0">${cfg.modo==="adm"?"Chega em 1 a 3 minutos para quem tem o app com os avisos ativos.":"Você pode mandar até 5 mensagens por dia. As respostas aparecem em 📨 Mensagens."}</p>
       <button class="sosm-b" data-f>Cancelar</button>`);
@@ -932,7 +958,9 @@ MSG_MODULO = r"""<style>
       const s=alvo.querySelector("select");if(!s||!s.value)return null;
       if(modo==="grupo"){const g=(cfg.grupos||{})[s.value]||[];return {para:g,rot:"👥 "+s.value}}
       return {para:[s.value],rot:s.value}};
-    const conta=()=>{const d=destino();env.textContent=d&&d.para.length>1?`✉️ Enviar para ${d.para.length} irmãos`:"✉️ Enviar"};
+    const impEl=cx.querySelector("[data-imp]"),ehImp=()=>!!(impEl&&impEl.checked);
+    const conta=()=>{const d=destino(),pre=ehImp()?"📌 Enviar como importante":"✉️ Enviar";env.textContent=d&&d.para.length>1?`${pre} para ${d.para.length} irmãos`:pre};
+    if(impEl)impEl.onchange=conta;
     const desenha=()=>{cx.querySelectorAll("[data-m]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===modo));
       if(cfg.modo!=="adm")alvo.innerHTML=`<label class="msgm-lbl">Para quem</label><select class="msgm-sel"><option value="">Escolha…</option>${opts.map(o=>`<option value="${es(o.n)}">${es(o.n)}${o.c?" · "+es(o.c):""}</option>`).join("")}</select>`;
       else if(modo==="grupo")alvo.innerHTML=`<label class="msgm-lbl">Grupo</label><select class="msgm-sel"><option value="">Escolha…</option>${Object.entries(cfg.grupos||{}).filter(([,v])=>v.length).map(([k,v])=>`<option value="${es(k)}">${es(k)} (${v.length})</option>`).join("")}</select>`;
@@ -943,7 +971,7 @@ MSG_MODULO = r"""<style>
     env.onclick=async()=>{const d=destino(),t=tx.value.trim();if(!d||!d.para.length){alert("Escolha para quem enviar.");return}if(!t){alert("Escreva a mensagem.");return}
       if(d.para.length>1&&!confirm(`Enviar para ${d.para.length} irmãos?`))return;
       env.disabled=true;env.textContent="Enviando…";
-      try{const r=await post({tipo:"msg",email:q.email,s:q.s,para:d.para,rotulo:d.rot,texto:t});if(!r.ok)throw new Error(r.erro);
+      try{const r=await post({tipo:"msg",email:q.email,s:q.s,para:d.para,rotulo:(ehImp()?"📌 ":"")+d.rot,texto:t});if(!r.ok)throw new Error(r.erro);
         const c2=abre(`<h3>✅ Mensagem enviada</h3><p>Chega em 1 a 3 minutos para quem tem o app com os avisos ativos. As respostas aparecem em 📨 Mensagens.</p><button class="sosm-b" data-f>Ver mensagens</button>`);
         c2.querySelector("[data-f]").onclick=()=>abrirMensagens(cfg)}
       catch(e){env.disabled=false;conta();alert("Não consegui enviar agora ("+(e.message||e)+").")}}}
@@ -2597,7 +2625,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v21";
+const CACHE = "insanos-v22";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2609,6 +2637,12 @@ self.addEventListener("fetch", e => {
     return resp;
   }).catch(() => caches.match(r, {ignoreSearch: true})));
 });
+// número de mensagens não lidas no ícone do app (as notificações de mensagem que ainda estão na tela)
+function marcarIcone() {
+  return self.registration.getNotifications().then(ns => { const n = ns.filter(x => String(x.tag || "").startsWith("msg-") && !String(x.tag).startsWith("msg-r-")).length;
+    if (self.navigator.setAppBadge) return n ? self.navigator.setAppBadge(n) : self.navigator.clearAppBadge(); }).catch(() => {});
+}
+self.addEventListener("notificationclose", e => { e.waitUntil(marcarIcone()); });
 self.addEventListener("push", e => {
   e.waitUntil(clients.matchAll({type: "window", includeUncontrolled: true}).then(cs => cs.forEach(c => c.postMessage({tipo: "verificar_versao"}))).catch(() => {}));
   let d = {};
@@ -2617,7 +2651,8 @@ self.addEventListener("push", e => {
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
-  if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t})); }
+  if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t}));
+    if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || "";
@@ -2642,9 +2677,9 @@ self.addEventListener("push", e => {
   const VIB = {pag: [120, 90, 120], evento: [450], social: [450], pub: [450], insight: [150],
                cadastro: [200, 100, 200, 100, 200], niver: [100, 70, 100, 70, 100], aviso: [450, 120, 120]};
   const tipo = ((d.icon || "").match(/notif-([a-z]+)\\.png/) || [])[1] || (d.tag === "pagamento" ? "pag" : d.tag === "aniversario" ? "niver" : d.tag === "afastamento" ? "aviso" : "");
-  op.vibrate = VIB[tipo] || [200];
+  if (!(d.msg && d.msg.imp)) op.vibrate = VIB[tipo] || [200];
   // controle de entrega: registra na aba Acessos da planilha que o aviso chegou a este celular
-  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op), registrarRecebeu(d)]));
+  e.waitUntil(Promise.all([self.registration.showNotification(d.title || "Insanos ADM", op).then(() => d.msg ? marcarIcone() : null), registrarRecebeu(d)]));
 });
 function registrarRecebeu(d) {
   return (d.ru && d.para) ? fetch(d.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: d.para, ok: true,
@@ -2689,6 +2724,7 @@ self.addEventListener("notificationclick", e => {
     }
     e.waitUntil(clients.openWindow(dd.sosUrl + (e.action === "indo" ? "&indo=1" : ""))); return;
   }
+  if (dd.msg) e.waitUntil(new Promise(r => setTimeout(r, 300)).then(marcarIcone));
   if (dd.msg && e.action && dd.para) {   // mensagem: resposta rápida direto na notificação
     const m = dd.msg, txt = ((m.rs || []).find(x => x[0] === e.action) || [])[1] || "";
     e.waitUntil(fetch(m.ou, {method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain;charset=utf-8"},

@@ -2562,6 +2562,7 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
       const pl=$("plan18");if(pl&&!pl.hidden&&pl.getAttribute("href"))it.push({ico:ico("plan18"),t:"Planilha",d:"Abrir a planilha do Google",href:pl.getAttribute("href")});
       it.push({ico:"✉️",t:"Mensagens",d:"Mandar para todos, um grupo ou um irmão, e ver as respostas",fn:()=>abrirMensagens(msgCfgAdm())});
       it.push({ico:"🔔",t:"Notificações neste aparelho",d:(($("pushStatus")||{}).textContent||"Ativar ou desativar os avisos neste celular").slice(0,90),fn:pushFolha});
+      if(window.TEM_ACESSOS)it.push({ico:"👁️",t:"Ver como irmão",d:"Abre o seu Meu painel, do jeito que os irmãos veem",fn:()=>{try{sessionStorage.setItem("ver_irmao","1")}catch(_){}location.href=location.pathname}});
       if(window.TEM_ACESSOS)it.push({ico:'<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#E9B949" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#E9B949" stroke-width="2" stroke-linecap="round"/></svg>',t:"Acessos",d:"Quem entrou, avisos, ADM e visitantes",fn:()=>irPara("acessos")});
       folhaAtalhos("📊 Gestão e Notificações",it)}}}
 // notificações deste aparelho: a mesma ativação de antes (o bloco que ficava no Cadastro), agora pela Gestão
@@ -2625,6 +2626,7 @@ function msgCfgAdm(){const af=new Set((DADOS.afastados||[]).map(a=>typeof a==="s
   if(ins)grupos[`💬 Não respondeu o ${ins.e}`]=at.filter(m=>ins.p[M_FULL.findIndex(x=>x.n===m.n)]!==1).map(m=>m.n);
   return {modo:"adm",todos:at.map(m=>m.n),nomes:at.map(m=>({n:m.n,c:m.c})),grupos}}
 if(location.hash==="#mensagens")setTimeout(()=>{try{if(MODO==="adm"&&window.abrirMensagens)abrirMensagens(msgCfgAdm())}catch(_){}},1500);
+else setTimeout(()=>{try{if(MODO==="adm"&&window.msgNaoLidas)msgNaoLidas(msgCfgAdm())}catch(_){}},3000);   // mensagens novas ao abrir o app
 // o pin de quem entrou, no topo do ADM
 function pinTopo(){try{if(MODO!=="adm"||document.getElementById("pinTopo"))return;let em="";try{em=(sessionStorage.getItem("painel_email")||"").toLowerCase()}catch(_){}
   const ap=(DADOS.quem||{})[em],m=ap&&M_FULL.find(x=>x.n.toLowerCase()===String(ap).toLowerCase()),pn=pinDe(m);if(!pn)return;const p=pinProx(m);

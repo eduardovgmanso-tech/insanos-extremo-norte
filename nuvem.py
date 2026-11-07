@@ -875,9 +875,36 @@ def processar_mensagens(api, pid, g):
     comando -> qualquer irmão; irmão -> só o comando (até 5 por dia). Respostas rápidas voltam para quem mandou."""
     if "Mensagens" not in _ids(api, pid):
         return 0
-    v = _ler(api, pid, "'Mensagens'!A1:J3000")
-    linhas = [(i, list(r) + [""] * 10) for i, r in enumerate(v[1:], start=2)]
-    if not any(str(r[8]).strip() == "novo" for _, r in linhas):
+    v = _ler(api, pid, "'Mensagens'!A1:L3000")
+    linhas = [(i, list(r) + [""] * 12) for i, r in enumerate(v[1:], start=2)]
+    from zoneinfo import ZoneInfo
+    agora = datetime.datetime.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
+    def quando(x):
+        if isinstance(x, (int, float)):
+            return datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(x))
+        for f in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
+            try:
+                return datetime.datetime.strptime(str(x)[:19], f)
+            except ValueError:
+                pass
+        return None
+    imp = lambda r: str(r[5]).startswith("📌")            # mensagem importante (o comando marcou 📌 ao escrever)
+    respondeu = {}
+    for _, r in linhas:
+        if str(r[1]) == "Resposta":
+            respondeu.setdefault(str(r[2]), set()).add(str(r[3]).strip().lower())
+    def pendentes(r):                                      # receberam, mas não leram nem responderam
+        leram = {x.strip().lower() for x in str(r[10]).split(";") if x.strip()} | respondeu.get(str(r[2]), set())
+        return [x.strip().lower() for x in str(r[9]).split(";") if x.strip() and x.strip().lower() not in leram]
+    lembrar = []
+    for i, r in linhas:
+        if str(r[1]) == "Mensagem" and imp(r) and str(r[8]).startswith("enviada") and str(r[11]).strip() in ("", "1"):
+            t0 = quando(r[0])
+            if t0:
+                passou = (agora - t0).total_seconds() / 60
+                if (str(r[11]).strip() == "" and passou >= 30) or (str(r[11]).strip() == "1" and passou >= 120):
+                    lembrar.append((i, r))
+    if not lembrar and not any(str(r[8]).strip() == "novo" for _, r in linhas):
         return 0
     di = _ler(api, pid, "'Dados Integrantes'!A1:BZ300")
     cab = [str(x).strip().lower() for x in (di[0] if di else [])]
@@ -923,9 +950,11 @@ def processar_mensagens(api, pid, g):
                 if not eh_cmd and enviadas_hoje.get(de, 0) >= MSG_LIMITE_IRMAO:
                     gr.append((f"'Mensagens'!I{i}", f"recusada: limite de {MSG_LIMITE_IRMAO} mensagens por dia")); continue
                 emails = [por_ap[_sa(x)][0] for x in dest if _sa(x) in por_ap and "@" in por_ap[_sa(x)][0] and por_ap[_sa(x)][0] != de]
+                importante = eh_cmd and imp(r)
                 for em in emails:
-                    g.notificar(f"✉️ Mensagem de {ap_de}" + (f" ({cargo_de})" if cargo_de else ""), str(r[7]), f"msg-{r[2]}", icone="notif-social.png",
-                                so_para=em, extra={"msg": {"id": str(r[2]), "tk": _msg_token(r[2], em), "ou": ou, "rs": MSG_RESPOSTAS}})
+                    g.notificar(("📌 IMPORTANTE · " if importante else "✉️ ") + f"Mensagem de {ap_de}" + (f" ({cargo_de})" if cargo_de else ""), str(r[7]),
+                                f"msg-{r[2]}", icone="notif-social.png", so_para=em,
+                                extra={"msg": {"id": str(r[2]), "tk": _msg_token(r[2], em), "ou": ou, "rs": MSG_RESPOSTAS, "imp": 1 if importante else 0}})
                 gr.append((f"'Mensagens'!I{i}", f"enviada para {len(emails)} irmão(s)"))
                 gr.append((f"'Mensagens'!J{i}", "; ".join(emails)))
                 if not eh_cmd:
@@ -948,6 +977,19 @@ def processar_mensagens(api, pid, g):
                 n += 1
         except Exception as e:
             print(f"Aviso: mensagem não processada ({type(e).__name__}: {e}).")
+    # importantes: avisa de novo (30 min e 2 h depois) quem ainda não leu nem respondeu
+    for i, r in lembrar:
+        try:
+            ap_de, cargo_de = por_email.get(str(r[3]).strip().lower(), (str(r[4]), ""))
+            pend = pendentes(r)
+            for em in pend:
+                g.notificar(f"📌 Lembrete · Mensagem de {ap_de}" + (f" ({cargo_de})" if cargo_de else ""), str(r[7]), f"msg-{r[2]}",
+                            icone="notif-social.png", so_para=em,
+                            extra={"msg": {"id": str(r[2]), "tk": _msg_token(r[2], em), "ou": ou, "rs": MSG_RESPOSTAS, "imp": 1}})
+            gr.append((f"'Mensagens'!L{i}", "1" if str(r[11]).strip() == "" else "2"))
+            print(f"Mensagem importante {r[2]}: lembrete para {len(pend)} irmão(s) que ainda não leram.")
+        except Exception as e:
+            print(f"Aviso: lembrete não enviado ({type(e).__name__}: {e}).")
     _gravar(api, pid, gr)
     return n
 
