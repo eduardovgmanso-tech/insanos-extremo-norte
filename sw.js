@@ -1,8 +1,16 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v23";
+const CACHE = "insanos-v24";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
+  if (e.request.method === "POST" && new URL(e.request.url).pathname.endsWith("/compartilhar-fly")) {   // fly compartilhado pelo WhatsApp
+    e.respondWith((async () => {
+      try { const fd = await e.request.formData(), f = fd.get("fly");
+        if (f) { const c = await caches.open("fly-compartilhado"); await c.put("fly", new Response(f, {headers: {"Content-Type": f.type || "image/jpeg"}})); } } catch (_) {}
+      return Response.redirect(new URL("adm.html#fly-compartilhado", self.location.href).href, 303);   // endereço completo (alguns celulares exigem)
+    })());
+    return;
+  }
   const r = e.request;
   if (r.method !== "GET" || new URL(r.url).origin !== location.origin) return;
   if (/\.mp4$/i.test(new URL(r.url).pathname)) return;      // vídeo de fundo: direto da rede (guardar vídeo no app trava a reprodução)
