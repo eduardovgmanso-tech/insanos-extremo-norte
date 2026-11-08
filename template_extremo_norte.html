@@ -272,6 +272,12 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 @media (max-width:600px){.lanc-topo{grid-template-columns:1fr}.lanc-fim .btn{width:100%;justify-content:center}}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .q-velho{display:none!important}
+.seta-tela{position:fixed;top:50%;z-index:850;width:30px;height:140px;margin-top:-70px;padding:0;border:0;background:transparent;cursor:pointer;opacity:.55;-webkit-tap-highlight-color:transparent}
+.seta-tela.esq{left:0}.seta-tela.dir{right:0}.seta-tela[hidden]{display:none}
+.seta-tela svg{width:15px;height:96px;overflow:visible}.seta-tela.esq svg{margin-left:4px}.seta-tela.dir svg{margin-right:4px}
+.seta-tela polyline{fill:none;stroke:#BDB7AA;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+.seta-tela:active{opacity:.9}
+body:has(.fa-veu) .seta-tela,body:has(.sosm-veu) .seta-tela,body:has(.selm) .seta-tela{display:none}
 .filtros select,.filtros .multi-bt{font-size:14px!important}
 .filtros .ler-full{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.filtros .ler-full[hidden]{display:none}.filtros .ler-full .btn{flex:1 1 100%}
 .fbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fbar .lw-tipos{margin:0}
@@ -333,7 +339,7 @@ body.adm .wrap{margin-left:212px}
 .lateral button:focus-visible{outline:2px solid var(--osso);outline-offset:2px}
 body.adm[data-view="pag"] .v-painel,body.adm[data-view="lancar"] .v-painel{display:none!important}
 body.adm #pagView,body.adm #lancar{display:none}
-body.adm[data-view="pag"] .periodo,body.adm[data-view="lancar"] .periodo{display:none}
+body.adm[data-view="lancar"] .periodo{display:none}
 body.adm[data-view="pag"] header,body.adm[data-view="lancar"] header{min-height:70px}
 @media (min-width:901px){body.adm:not([data-view="painel"]) header{min-height:0}}
 body.adm[data-view="pag"] #pagView{display:block}
@@ -571,13 +577,26 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 #pagLista .pag-grupo.ok .pg-tit{color:var(--presente)}#pagLista .pag-grupo.comp .pg-tit{color:#E9B949}#pagLista .pag-grupo.ab .pg-tit{color:var(--falta)}
 #pagView .pag-resumo{display:flex!important;flex-direction:column!important;align-items:center!important;gap:14px!important;margin:10px 0 14px!important}
 #pagView .pag-cav{display:flex;flex-direction:column;align-items:center;text-align:center}
-#pagView .pag-cav canvas{width:min(230px,58vw)!important;height:auto!important}
-#pagView #pagCavPc{font-size:64px!important;line-height:1!important;margin-top:6px}
+/* a caveira da Pagamentos com o mesmo tamanho e a mesma posição da caveira da Presença (o desenho ocupa 224 dos 236 px da tela, a partir do 6º) */
+#pagView .pag-resumo{margin-top:0!important}
+#pagView .pag-cav canvas{height:316px!important;width:auto!important;max-width:100%;margin-top:-8px}
+#pagView #pagCavPc{font-size:64px!important;line-height:1!important;margin-top:0}
+@media (max-width:700px){#pagView .pag-cav canvas{height:263px!important;margin-top:-7px}}
 #pagView .pag-kpis{width:100%;flex:0 0 auto!important;align-content:start}
-#pagView .pag-bts{display:flex!important;flex-wrap:wrap;gap:8px;margin:6px 0 16px}
-#pagView .pag-bts .btn{width:auto!important;min-height:40px!important;margin:0!important;padding:9px 14px!important;border-radius:999px!important;
-  border:1px solid rgba(236,231,220,.25)!important;background:rgba(236,231,220,.06)!important;color:var(--osso)!important;font:inherit!important;font-weight:600!important;font-size:15px!important;line-height:1.2!important;box-shadow:none!important;border-radius:20px!important;padding:8px 16px!important}
-#pagView .pag-bts .btn[hidden]{display:none!important}
+#pagView #pagSub{display:none}#pagView .pag-cab:has(#pagSub){display:none}
+#pagBtsFora{display:none}body.adm[data-view="pag"] #pagBtsFora{display:block}
+#pagBtsFora .pag-bts{display:flex!important;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+body.adm #periodo{min-height:43px}   /* sempre o espaço de duas linhas: Presença e Pagamentos ficam na mesma altura */
+#pagBtsFora .pag-bts .btn{width:auto!important;min-height:40px!important;margin:0!important;padding:9px 14px!important;border-radius:999px!important;
+  border:1px solid rgba(236,231,220,.25)!important;background:rgba(236,231,220,.06)!important;color:var(--osso)!important;font:inherit!important;font-weight:600!important;font-size:15px!important;line-height:1.45!important;box-shadow:none!important;border-radius:20px!important;padding:8px 16px!important;display:block!important;text-align:center}
+#pagBtsFora .pag-bts .btn[hidden]{display:none!important}
+#pagBtsFora .pag-bts .btn{white-space:nowrap}
+#pagBtsFora .pag-bts{flex-wrap:nowrap!important}
+#pagBtsFora .pag-bts:has(#pagSalvar:not([hidden])){gap:6px}
+#pagBtsFora .pag-bts:has(#pagSalvar:not([hidden])) .btn{padding:8px 10px!important;font-size:14px!important}   /* com o Salvar, os quatro numa linha */
+#pagBtsFora .pag-bts:has(#pagSalvar:not([hidden])) .ico{display:none}
+@media (max-width:390px){#pagBtsFora .pag-bts .ico{display:none}#pagBtsFora .pag-bts .btn{padding:8px 12px!important}}
+@media (max-width:390px){#pagBtsFora .pag-bts:has(#pagSalvar:not([hidden])){flex-wrap:wrap!important}}   /* tela bem estreita com o Salvar: ele vai para a segunda linha */   /* tela estreita: só o texto */
 .pag-nomes details.pn{padding:0}.pag-nomes details.pn summary{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none}
 .pag-nomes details.pn summary::-webkit-details-marker{display:none}
 .pag-nomes details.pn summary b{margin:0!important;font-size:15px!important;display:inline!important}
@@ -902,7 +921,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       <h2>📇 Dados do integrante</h2>
       <p class="sub">Escolha o irmão: todos os dados dele saem prontos para copiar e mandar no WhatsApp.</p>
       <div class="lw-campos"><label class="inteiro">Integrante<select id="diQuem"></select></label>
-        <label class="inteiro chk"><input type="checkbox" id="diCpf"> Incluir o CPF (só se for necessário: é um dado pessoal sensível)</label></div>
+        </div>
       <pre class="lw-prev" id="diTexto" style="white-space:pre-wrap;margin-top:10px" hidden></pre>
       <div class="lw-bts" id="diBts" hidden><button type="button" class="btn" id="diCopiar">📋 Copiar</button><button type="button" class="btn zap" id="diZap">Abrir no WhatsApp</button></div>
     </div>
@@ -918,7 +937,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
           <button type="button" class="btn" id="fcPadrao">Voltar ao texto padrão</button>
           <button type="button" class="btn lw-limpar" id="fcLimpar">Limpar dados da ficha</button>
         </div>
-        <p class="nota inteiro" style="margin:0">A ficha pede dados pessoais (CPF, RG, endereço). Quando ele devolver, registre na planilha e evite repassar a mensagem em grupos.</p>
+        <p class="nota inteiro" style="margin:0">A ficha pede dados pessoais (RG, endereço). Quando ele devolver, registre na planilha e evite repassar a mensagem em grupos.</p>
       </div>
       <div class="lw-saida">
         <div class="lw-bts">
@@ -952,7 +971,6 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
         <label>Nascimento<input type="date" data-cad="nasc"></label>
         <label>Telefone (WhatsApp)<input type="tel" data-cad="tel" inputmode="tel"></label>
         <label>E-mail<input type="email" data-cad="email"><small class="nota" style="font-weight:400">Com e-mail, ele entra no painel pelo mesmo link e vê só os dados dele (Meu painel). O painel ADM completo é só para quem está na lista de acesso do comando.</small></label>
-        <label>CPF<input type="text" data-cad="cpf" inputmode="numeric"></label>
         <label>Colete<select data-cad="colete"><option value=""></option><option>COURO</option><option>JEANS</option></select></label>
         <label>Tamanho<select data-cad="tam"><option value=""></option><option>P</option><option>M</option><option>G</option><option>GG</option><option>G3</option><option>G4</option><option>G5</option><option>G6</option></select></label>
       </div>
@@ -1041,7 +1059,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     </div>
     <div class="cad-bloco">
       <h2>🎟️ Acesso de visitante</h2>
-      <p class="sub">Uma entrada só, com validade. O visitante vê o painel de presença <b>sem dados pessoais</b> (sem telefones, CPF, pagamentos e sem as telas do comando). Depois que ele entra, o acesso é apagado na atualização seguinte do painel.</p>
+      <p class="sub">Uma entrada só, com validade. O visitante vê o painel de presença <b>sem dados pessoais</b> (sem telefones, pagamentos e sem as telas do comando). Depois que ele entra, o acesso é apagado na atualização seguinte do painel.</p>
       <div class="lw-campos">
         <label>Nome do visitante<input type="text" id="vNome" placeholder="Ex.: João (Regional)"></label>
         <label>E-mail do visitante<input type="email" id="vEmail" placeholder="visitante@email.com"></label>
@@ -1057,9 +1075,11 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   
   
 
+  <div class="pag-bts-fora so-adm" id="pagBtsFora">
+    <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" title="Salvar as alterações" hidden><span class="ico">💾 </span>Salvar</button><button type="button" class="btn" id="pagRegional" title="Situação das mensalidades para o regional"><span class="ico">📊 </span>Reg.</button><button type="button" class="btn" id="pagVerificar" title="Verificar os pagamentos agora" hidden><span class="ico">🔄 </span>Ver. Agora</button><button type="button" class="btn" id="pagAvisarBoletos" title="Avisar quem não pagou" hidden><span class="ico">📲 </span>Pgto. Pend.</button></div>
+  </div>
   <section class="painel js so-adm" id="pagView">
     <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div></div>
-    <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagRegional">📊 Regional</button><button type="button" class="btn" id="pagVerificar" hidden>🔄 Verificar agora</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div>
     <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
       <div class="pag-kpis" id="pagKpis"></div></div>
     <div class="pag-nomes" id="pagNomes" hidden></div>
@@ -1476,11 +1496,12 @@ function encher(frac){
     const L=$("encheL");L.setAttribute("y1",y);L.setAttribute("y2",y);L.setAttribute("opacity",f>0.01&&f<0.99?.5:0)};
   if(reduz){pinta(alvo);nivel=alvo;return}
   const subir=window.__rodaSubir&&alvo>0;window.__rodaSubir=false;
-  if(subir){const txt=$("rodaPct").textContent,T1=650,T2=800;   // sobe até 100% e desce até a porcentagem real, com o número acompanhando
+  if(subir){const txt=$("rodaPct").textContent,T1=650,T2=800,corFim=[$("tintaCor").getAttribute("flood-color"),$("rodaPct").style.color];   // sobe até 100% e desce até a porcentagem real, com o número acompanhando
     const passo2=now=>{const k=now-t0;let f;
       if(k<T1){const a=k/T1,d0=Math.max(0,Math.min(1,de));f=d0+(1-d0)*(1-Math.pow(1-a,3))}else{const a=Math.min(1,(k-T1)/T2);f=1+(alvo-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
-      f=Math.max(0,Math.min(1,f));pinta(f);nivel=f;$("rodaPct").textContent=Math.round(f*100)+"%";
-      if(k<T1+T2)requestAnimationFrame(passo2);else{pinta(alvo);nivel=alvo;$("rodaPct").textContent=txt}};
+      f=Math.max(0,Math.min(1,f));pinta(f);nivel=f;const vv=Math.round(f*100),cc=corFaixa(vv);$("rodaPct").textContent=vv+"%";
+      $("tintaCor").setAttribute("flood-color",cc[0]);$("rodaPct").style.color=cc[1];
+      if(k<T1+T2)requestAnimationFrame(passo2);else{pinta(alvo);nivel=alvo;$("rodaPct").textContent=txt;$("tintaCor").setAttribute("flood-color",corFim[0]);$("rodaPct").style.color=corFim[1]}};
     requestAnimationFrame(passo2);return}
   const passo=now=>{const k=Math.min(1,(now-t0)/800),e=1-Math.pow(1-k,3),f=de+(alvo-de)*e;pinta(f);nivel=f;if(k<1)requestAnimationFrame(passo)};
   requestAnimationFrame(passo);
@@ -1626,7 +1647,7 @@ function _tinta(img,w,h,cor){const c=document.createElement("canvas");c.width=w;
   g.drawImage(img,0,0,w,h);g.globalCompositeOperation="multiply";g.fillStyle=cor;g.fillRect(0,0,w,h);
   g.globalCompositeOperation="destination-in";g.drawImage(img,0,0,w,h);return c}
 // caveira igual à do painel: apagada ao fundo, enchendo de baixo para cima com a cor da faixa; 90% ou mais = logo dourado
-async function desenharCaveira(g,cx,top,h,v){const ouro=v!=null&&v>=90,cor=corFaixa(v);
+async function desenharCaveira(g,cx,top,h,v,semLogo){const ouro=!semLogo&&v!=null&&v>=90,cor=corFaixa(v);
   if(ouro){const lg=await _img(LOGO);if(lg){const w=h*lg.width/lg.height;g.drawImage(_tinta(lg,w,h,"#E9B949"),cx-w/2,top,w,h)}return cor}
   const cv=await _img(CAVEIRA);if(!cv)return cor;const w=h*cv.width/cv.height,x=cx-w/2;
   g.save();g.globalAlpha=.18;g.drawImage(cv,x,top,w,h);g.restore();
@@ -1972,12 +1993,12 @@ function dbDados(ym){const c=dashCalc(ym),cargo=s=>String(s||"").replace(/\s*\([
   const g=M_FULL.map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o).map(({m,i})=>{const [pp,pn]=conta("pres",i),[ip,inn]=conta("ins",i);
     return [m.n,cargo(m.c),pp,pn,ip,inn,String(ENTRADA[m.n]||"").startsWith(ym)?1:0]}).filter(x=>x[3]||x[5]);
   return {v:1,d:DIV_NOME,r:DIV_REG,m:ym,ne:c.pres.n,ni:(EV_SETS.ins||[]).filter(e=>e.d.startsWith(ym)).length,g}}
-function diTexto(n,comCpf){const m=M_FULL.find(x=>x.n===n);if(!m)return "";const x=m.x||{},i=M_FULL.indexOf(m),ano=String(new Date().getFullYear());
+function diTexto(n){const m=M_FULL.find(x=>x.n===n);if(!m)return "";const x=m.x||{},i=M_FULL.indexOf(m),ano=String(new Date().getFullYear());
   const br=d=>d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";const tel=String(m.tel||"").replace(/^55/,"").replace(/^(\d{2})(\d{4,5})(\d{4})$/,"($1) $2-$3");
   const conta=k=>{let p=0,t=0;(EV_SETS[k]||[]).filter(e=>e.d.startsWith(ano)).forEach(e=>{const w=contaEnt(e.p[i],i,e.d);if(w===1){p++;t++}else if(w===0)t++});return t?`${p} de ${t} (${Math.round(p*100/t)}%)`:"–"};
   const af=(DADOS.afastados||[]).find(a=>a.n===m.n);
   const L=[`*📇 ${m.n}*`,"",x.nc?`*Nome completo:* ${x.nc}`:null,`*Nº do sistema:* ${m.num||"–"}`,`*Cargo/função:* ${m.c||"–"}`,`*Posição na lista:* ${String(m.lg||"").trim()||"–"}`,
-    m.nasc?`*Nascimento:* ${br(m.nasc)}${m.idade?` (${m.idade} anos)`:""}`:null,tel?`*Telefone:* ${tel}`:null,comCpf&&x.cpf?`*CPF:* ${x.cpf}`:null,
+    m.nasc?`*Nascimento:* ${br(m.nasc)}${m.idade?` (${m.idade} anos)`:""}`:null,tel?`*Telefone:* ${tel}`:null,
     x.col?`*Colete:* ${x.col}`:null,x.tamc?`*Camiseta:* ${x.tamc}`:null,m.ent?`*Entrada no MC:* ${fmtEnt(m.ent)} · ${pinDe(m)[1]}${pinProx(m)?` (${pinProx(m)[0]} em ${pinProx(m)[1]})`:" (maior pin)"}`:null,
     af?`*Situação:* afastado${af.desde?" desde "+br(af.desde):""}`:"*Situação:* ativo","",`*Presença em ${ano}:* ${conta("pres")}`,`*Insights em ${ano}:* ${conta("ins")}`,"",`_${DIV_NOME} ${DIV_REG}_`];
   return L.filter(l=>l!==null).join("\n").trim()}
@@ -2463,8 +2484,8 @@ function render(){
     <tbody>${mem.map(m=>`<tr><th data-nome="${esc(m.n)}">${esc(m.n)}<span class="nr">Nº ${esc(m.num)}</span>${anivIdade(m)?`<span class="nr aniv">${esc(anivIdade(m))}</span>`:""}</th>${evs.map(e=>{const v=e.p[m.i];
       return `<td title="${esc(m.n)} · ${fmtD(e.d)} · ${v===1?"presente":v===0?"ausente":v==="-"?"não conta":"sem registro"}"><span class="pt ${v===1?"s1":v===0?"s0":v==="-"?"nc":"sn"}"></span></td>`}).join("")}</tr>`).join("")}</tbody>`;
 
-  const ds=EV.map(e=>e.d).sort();if(!ds.length){$("periodo").innerHTML="<b>Nenhum evento registrado nesta aba</b>"}else
-  $("periodo").innerHTML=`<b>${EV.length} eventos registrados</b>${fmtDL(ds[0])} a ${fmtDL(ds[ds.length-1])} de ${ds[0].slice(0,4)}`;
+  const ds=EV.map(e=>e.d).sort();if(!ds.length){$("periodo").innerHTML="<b>Nenhum evento registrado nesta aba</b>";window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}else
+  {$("periodo").innerHTML=`<b>${EV.length} eventos registrados</b>${fmtDL(ds[0])} a ${fmtDL(ds[ds.length-1])} de ${ds[0].slice(0,4)}`;window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}
   $("rodape").textContent="Fonte: Insanos - Divisão Extremo Norte - SP3, atualizado em "+GERADO+".";
 }
 // lista de funções (várias): abre/fecha, marca/desmarca e limpa
@@ -2564,7 +2585,7 @@ function montarMenu(){
   if(MODO!=="adm")return;
   document.body.classList.add("adm");document.body.dataset.view="painel";
   const w=document.querySelector(".wrap");
-  [...w.children].forEach(el=>{if(!["HEADER","FOOTER"].includes(el.tagName)&&!["pagView","lancar","listasView","fichaView","kitView","honrView","lightbox","acessosView","dashView"].includes(el.id))el.classList.add("v-painel")});
+  [...w.children].forEach(el=>{if(!["HEADER","FOOTER"].includes(el.tagName)&&!["pagView","lancar","listasView","fichaView","kitView","honrView","pagBtsFora","lightbox","acessosView","dashView"].includes(el.id))el.classList.add("v-painel")});
   const abertos=Object.values((DADOS.pag||{}).status||{}).filter(s=>!/pago/i.test(s)).length;
   const nav=document.createElement("nav");nav.className="lateral";nav.setAttribute("aria-label","Menu");
   nav.innerHTML=`<div class="marca"><img alt="" src="${LOGO}"><div><b>Extremo Norte</b><small>Painel ADM</small></div></div>
@@ -2577,7 +2598,7 @@ function montarMenu(){
   nav.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(b){irPara(b.dataset.v);return}
     if(ev.target.closest("button[data-mais]"))folhaAtalhos("Mais",[{ico:"📇",t:"Cadastro",d:"Novo irmão, dados, cargo e situação",fn:()=>irPara("ficha")},{ico:"🎽",t:"Kit/colete",d:"Solicitação para o regional",fn:()=>irPara("kit")},{ico:"🏅",t:"Honrarias",d:"Pin Caveira e as próximas honrarias",fn:()=>irPara("honr")}])});
   montarQuadros();pinTopo();
-  montarPagamentos();montarListas();montarFicha();montarKit();montarAcessos();montarCadastro();montarDash();if(DADOS.nuvem){const c=document.querySelector('[data-cad="cpf"]');if(c&&c.closest("label"))c.closest("label").hidden=true}
+  montarPagamentos();montarListas();montarFicha();montarKit();montarAcessos();montarCadastro();montarDash()
 }
 // ---- topo do ADM: três quadrados (Clube, Gestão e SOS). Os atalhos de antes continuam, dentro das folhas.
 function folhaAtalhos(titulo,itens){let v=document.getElementById("folhaAt");if(v)v.remove();
@@ -2726,32 +2747,17 @@ function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel
     try{localStorage.setItem("filtros_abertos",fechar?"0":"1")}catch(_){}fResAtualiza()};
   const f=document.querySelector("section.filtros");if(f){f.addEventListener("change",()=>setTimeout(fResAtualiza,30));f.addEventListener("click",()=>setTimeout(fResAtualiza,60))}
   setTimeout(fResAtualiza,600)})();
-// ---- arrastar para o lado troca de tela (Presença ↔ Pagamentos ↔ Lançar ↔ Lista), no celular: a tela acompanha o dedo
-(function(){const ORDEM=["painel","pag","lancar","listas"];let g=null;
-  const W=()=>document.querySelector(".wrap")||document.body;
-  const bloqueia=el=>{for(let e=el;e&&e!==document.body;e=e.parentElement){
-      if(e.tagName==="TEXTAREA"||e.tagName==="CANVAS"||(e.tagName==="INPUT"&&e.type==="range"))return true;
-      if(e.matches&&e.matches(".selm,.selm-veu,.fa-veu,.sosm-veu,.lightbox,.multi-op,header .quadros3"))return true;
-      const cs=getComputedStyle(e);if(/(auto|scroll)/.test(cs.overflowX)&&e.scrollWidth>e.clientWidth+4)return true}
-    return !!document.querySelector(".fa-veu,.sosm-veu,.selm,#folhaAt")};
-  const mover=(x,op,ms,ease)=>{const w=W();w.style.transition=ms?`transform ${ms}ms ${ease||"cubic-bezier(.22,.8,.3,1)"},opacity ${ms}ms ease`:"none";
-    w.style.transform=x?`translate3d(${x}px,0,0)`:"";w.style.opacity=op==null?"":op};
-  document.addEventListener("touchstart",ev=>{g=null;if(MODO!=="adm"||ev.touches.length!==1)return;
-    const v=document.body.dataset.view||"painel";if(!ORDEM.includes(v)||bloqueia(ev.target))return;
-    const t0=ev.touches[0];g={x:t0.clientX,y:t0.clientY,t:Date.now(),v,dir:0,dx:0}},{passive:true});
-  document.addEventListener("touchmove",ev=>{if(!g)return;const t1=ev.touches[0],dx=t1.clientX-g.x,dy=t1.clientY-g.y;
-    if(!g.dir){if(Math.abs(dx)<10&&Math.abs(dy)<10)return;g.dir=Math.abs(dx)>1.4*Math.abs(dy)?1:-1}
-    if(g.dir<0){g=null;return}                                     // movimento vertical: é rolagem, não troca de tela
-    const i=ORDEM.indexOf(g.v),borda=(dx>0&&i===0)||(dx<0&&i===ORDEM.length-1);
-    g.dx=dx;mover(borda?dx*0.25:dx*0.85,1-Math.min(Math.abs(dx)/900,.25),0)},{passive:true});
-  document.addEventListener("touchend",()=>{if(!g)return;const {dx,t,v,dir}=g;g=null;if(dir!==1){mover(0,null,0);return}
-    const i=ORDEM.indexOf(v),vel=Math.abs(dx)/Math.max(1,Date.now()-t),j=dx<0?i+1:i-1,larg=innerWidth;
-    if((Math.abs(dx)<70&&vel<.5)||j<0||j>=ORDEM.length){mover(0,null,320,"cubic-bezier(.2,.75,.25,1)");return}   // curto ou na ponta: volta para o lugar
-    mover(dx<0?-larg*0.22:larg*0.22,0,250,"cubic-bezier(.4,0,.6,1)");          // sai devagar, desbotando
-    setTimeout(()=>{irPara(ORDEM[j]);window.scrollTo(0,0);mover(dx<0?larg*0.18:-larg*0.18,0,0);
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{mover(0,1,350,"cubic-bezier(.2,.75,.25,1)");setTimeout(()=>mover(0,null,0),370)}));   // entra suave
-      try{navigator.vibrate&&navigator.vibrate(6)}catch(_){}},250)},{passive:true});
-  document.addEventListener("touchcancel",()=>{if(g){g=null;mover(0,null,180)}},{passive:true});
+// ---- setas discretas nas bordas da tela: ‹ volta e › avança (Presença ↔ Pagamentos ↔ Lançar ↔ Lista), como tocar no menu de baixo
+(function(){const ORDEM=["painel","pag","lancar","listas"];
+  const seta=lado=>{const b=document.createElement("button");b.type="button";b.className="seta-tela "+lado;b.setAttribute("aria-label",lado==="esq"?"Tela anterior":"Próxima tela");
+    b.innerHTML=`<svg viewBox="0 0 22 100" aria-hidden="true"><polyline points="${lado==="esq"?"19,3 3,50 19,97":"3,3 19,50 3,97"}"/></svg>`;
+    b.onclick=()=>{const v=document.body.dataset.view||"painel",i=ORDEM.indexOf(v),j=lado==="esq"?i-1:i+1;if(i<0||j<0||j>=ORDEM.length)return;
+      irPara(ORDEM[j]);window.scrollTo(0,0);try{navigator.vibrate&&navigator.vibrate(5)}catch(_){}};
+    document.body.appendChild(b);return b};
+  const esq=seta("esq"),dir=seta("dir");
+  const mostra=()=>{const v=document.body.dataset.view||"painel",i=ORDEM.indexOf(v),ok=MODO==="adm"&&i>=0;
+    esq.hidden=!ok||i===0;dir.hidden=!ok||i===ORDEM.length-1};
+  mostra();new MutationObserver(mostra).observe(document.body,{attributes:true,attributeFilter:["data-view"]});
 })();
 let LANC_TIPO="evento",INS_CASA=null;
 function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
@@ -2763,9 +2769,12 @@ function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
   else{if(z.parentNode!==INS_CASA.parentNode)INS_CASA.parentNode.insertBefore(z,INS_CASA.nextSibling);
     z.hidden=!(document.body.dataset.view==="painel"&&ANAL==="ins"&&IZ_MODO==="preencher");$("lancDet").hidden=false;if(tp==="evento")$("lancDet").open=true}}
 const TELA_TIT={pag:"Pagamentos",lancar:"Lançar",ficha:"Cadastro",kit:"Kit / colete",honr:"Honrarias",acessos:"Acessos",listas:"Lista WhatsApp",dash:"Dashboard"};
+// o espaço do período no topo: na Presença, os eventos; na Pagamentos, a mensalidade (mesma altura nas duas telas)
+function periodoTela(){const el=$("periodo");if(!el)return;const v=document.body.dataset.view||"painel";
+  const h=v==="pag"?window.PAG_PERIODO:window.PERIODO_PRES;if(h!=null&&el.innerHTML!==h)el.innerHTML=h}
 window.__rodaSubir=true;window.__pagSubir=true;   // a primeira vez que cada caveira aparece, ela sobe até 100% e volta
 function irPara(v){
-  if(v==="painel")window.__rodaSubir=true;if(v==="pag")window.__pagSubir=true;
+  if(v==="painel")window.__rodaSubir=true;if(v==="pag")window.__pagSubir=true;setTimeout(periodoTela,0);
   document.body.dataset.view=v;
   {const h=document.querySelector("header h1");if(h&&h.firstChild&&TELA_TIT[v])h.firstChild.nodeValue=TELA_TIT[v];
    // se a tela já tem um título igual ao do topo, esconde o de dentro (não repete)
@@ -2774,7 +2783,7 @@ function irPara(v){
   if($("insZap")&&INS_CASA&&v!=="lancar")lancTipo(LANC_TIPO==="insight"?"insight":"evento");
   if(v==="painel"){aplicarAnalise();montarFiltros();render()}
   else{M=M_FULL;EV=EV_SETS.pres.map((e,i)=>({...e,i,p:evComEntrada(e)}));document.body.classList.remove("iz-preencher")}
-  // abriu a tela Pagamentos: o ponto verde da tela de CPF some neste aparelho
+  // abriu a tela Pagamentos: o ponto verde da tela de entrada some neste aparelho
   if(v==="acessos"){try{acBuscar()}catch(e){}}
   if(v==="dash"){try{dashMostrar()}catch(e){console.error(e)}}
   if(v==="lancar")lancTipo(LANC_TIPO);
@@ -2845,6 +2854,7 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const dv=P.venc?Math.round((new Date(+P.venc.slice(0,4),+P.venc.slice(5,7)-1,+P.venc.slice(8,10))-hoje)/864e5):null;
   $("pagSub").textContent=`Mensalidade de ${MESES[+(P.venc||"2000-01").slice(5,7)-1].toLowerCase()} · vencimento ${venc}${dv!=null?(dv>0?` · faltam ${dv} dias`:dv===0?" · vence hoje":` · venceu há ${-dv} dias`):""}`;
+  window.PAG_PERIODO=`<b>Mensalidade de ${MESES[+(P.venc||"2000-01").slice(5,7)-1].toLowerCase()}</b>vencimento ${venc}${dv!=null?(dv>0?` · faltam ${dv} dias`:dv===0?" · vence hoje":` · venceu há ${-dv} dias`):""}`;periodoTela();
   const hn=(P.agenda||[]).map(h=>+h.slice(0,2)),hs=hn.map(h=>h+"h");
   const seguidas=hn.length>2&&hn.every((h,i)=>!i||h===hn[i-1]+1);
   const lista=seguidas?`de hora em hora, das ${hs[0]} às ${hs[hs.length-1]}`:hs.length>1?hs.slice(0,-1).join(", ")+" e "+hs[hs.length-1]:hs.join("");
@@ -2871,8 +2881,9 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
       const passo=async now=>{const k=now-t0;let f;
         if(k<T1){const a=k/T1;f=1-Math.pow(1-a,3)}else{const a=Math.min(1,(k-T1)/T2);f=1+(pcPag/100-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
         f=Math.max(0,Math.min(1,f));
-        if(!ocupado){ocupado=true;g.clearRect(0,0,cv.width,cv.height);await desenharCaveira(g,100,6,224,Math.round(f*100));$("pagCavPc").textContent=Math.round(f*100)+"%";ocupado=false}
-        if(k<T1+T2)requestAnimationFrame(passo);else{g.clearRect(0,0,cv.width,cv.height);await desenharCaveira(g,100,6,224,pcPag);$("pagCavPc").textContent=pcPag+"%"}};
+        if(!ocupado){ocupado=true;g.clearRect(0,0,cv.width,cv.height);const vv=Math.round(f*100),cc=await desenharCaveira(g,100,6,224,vv,true);   // a cor acompanha a porcentagem
+          $("pagCavPc").textContent=vv+"%";$("pagCavPc").style.color=cc[1];ocupado=false}
+        if(k<T1+T2)requestAnimationFrame(passo);else{g.clearRect(0,0,cv.width,cv.height);const cf=await desenharCaveira(g,100,6,224,pcPag);$("pagCavPc").textContent=pcPag+"%";$("pagCavPc").style.color=cf[1]}};
       requestAnimationFrame(passo)}}catch(e){}})();
   const todosPagos=tot>0&&cont.pago===tot;
   if(todosPagos){const mes=MESES[+(P.venc||"2000-01").slice(5,7)-1].toLowerCase();
@@ -2930,7 +2941,7 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     const atual=pagStatus(n),novo=/aguard/i.test(atual)?"Em aberto":"Aguardando Compensação";
     const orig=/aguard/i.test(P.status[n]||"")?"Aguardando Compensação":"Em aberto";
     if(novo===orig)delete pagPend[n];else pagPend[n]=novo;montarPagamentos()};
-  const np=Object.keys(pagPend).length;$("pagSalvar").hidden=!np;$("pagSalvar").textContent=`Salvar alterações (${np})`;
+  const np=Object.keys(pagPend).length;$("pagSalvar").hidden=!np;$("pagSalvar").innerHTML=`<span class="ico">💾 </span>Salvar (${np})`;
   $("pagMsg").textContent=pagMsgLocal()||"(a aba Pagamentos está vazia)";
   $("pagZap").href="https://wa.me/?text="+encodeURIComponent(pagMsgLocal()||"");
   $("pagSalvar").onclick=async()=>{if(!Object.keys(pagPend).length)return;
@@ -3500,8 +3511,8 @@ function montarCadastro(){if(!$("cadCampos"))return;
   // dados do integrante
   if($("diQuem")){
     $("diQuem").innerHTML='<option value="">Escolha…</option>'+cadOrdem().map(m=>`<option value="${esc(m.n)}">${esc(m.n)} · ${esc(m.c||"")}</option>`).join("");
-    const diMostrar=()=>{const n=$("diQuem").value,tx=n?diTexto(n,$("diCpf").checked):"";$("diTexto").textContent=tx;$("diTexto").hidden=!tx;$("diBts").hidden=!tx};
-    $("diQuem").onchange=diMostrar;$("diCpf").onchange=diMostrar;
+    const diMostrar=()=>{const n=$("diQuem").value,tx=n?diTexto(n):"";$("diTexto").textContent=tx;$("diTexto").hidden=!tx;$("diBts").hidden=!tx};
+    $("diQuem").onchange=diMostrar;
     $("diCopiar").onclick=async()=>{try{await navigator.clipboard.writeText($("diTexto").textContent);$("diCopiar").textContent="✅ Copiado"}catch(e){alert("Não consegui copiar. Selecione o texto e copie.")}setTimeout(()=>$("diCopiar").textContent="📋 Copiar",1800)};
     $("diZap").onclick=()=>window.open("https://wa.me/?text="+encodeURIComponent($("diTexto").textContent),"_blank")}
   // mudar cargo
@@ -3538,7 +3549,7 @@ function montarCadastro(){if(!$("cadCampos"))return;
     $("cadColar").value=tx;$("cadLerFicha").click()};
   $("cadLerFicha").onclick=()=>{const tx=$("cadColar").value;if(!tx.trim())return;const ach={};
     tx.split("\n").forEach(l=>{const m=l.replace(/[*_]/g,"").match(/^\s*([^:]{2,40}):\s*(.+)$/);if(!m)return;const k=zNorm(m[1]),v=m[2].trim();if(!v)return;
-      if(/tarjeta/.test(k))ach.ap=v;else if(/completo/.test(k))ach.nome=v;else if(/^cpf/.test(k))ach.cpf=v;else if(/nasc/.test(k)){const d=v.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(d){let a=+d[3];if(a<100)a+=a>30?1900:2000;ach.nasc=`${a}-${d[2].padStart(2,"0")}-${d[1].padStart(2,"0")}`}}
+      if(/tarjeta/.test(k))ach.ap=v;else if(/completo/.test(k))ach.nome=v;else if(/nasc/.test(k)){const d=v.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(d){let a=+d[3];if(a<100)a+=a>30?1900:2000;ach.nasc=`${a}-${d[2].padStart(2,"0")}-${d[1].padStart(2,"0")}`}}
       else if(/whats|telefone|celular|fone/.test(k))ach.tel=v.replace(/\D/g,"");else if(/mail/.test(k))ach.email=v.toLowerCase();
       else if((/couro|jeans/.test(k)||/colete/.test(k))&&!/tamanho/.test(k)){const z=zNorm(v);if(/jeans|couro/.test(z))ach.colete=z.includes("jeans")?"JEANS":"COURO"}
       else if(/tamanho/.test(k)){const tm=v.toUpperCase().replace(/\s/g,"").match(/G[3-6]|GG|P|M|G/);if(tm)ach.tam=tm[0]}});
@@ -3550,7 +3561,7 @@ function montarCadastro(){if(!$("cadCampos"))return;
     if(M_FULL.some(m=>zNorm(m.n)===zNorm(d.ap))||(DADOS.afastados||[]).some(a=>zNorm(a.n)===zNorm(d.ap))){alert(`Já existe um integrante com o apelido "${d.ap}".`);return}
     if(!confirm(DADOS.nuvem?`Efetivar a entrada de ${d.ap}? O painel envia para a planilha do Google (Dados Integrantes, Presenca, Insights e PGTO).`:`Efetivar a entrada de ${d.ap}? O painel gera o arquivo, e o GerarPainel inclui ele na planilha (Dados Integrantes, Presenca, Insights, Staff e PGTO).`))return;
     const grau=d.grau.trim().toUpperCase(),dados={tipo:"integrante",acao:"novo",apelido:d.ap,apos:d.apos,
-      dados:{num:d.num,cargo:d.cargo,grau:(grau.length<=2?" ":"")+grau,tel:d.tel,nome:d.nome,nasc:d.nasc,cpf:d.cpf,colete:d.colete,tam:d.tam,email:d.email}};
+      dados:{num:d.num,cargo:d.cargo,grau:(grau.length<=2?" ":"")+grau,tel:d.tel,nome:d.nome,nasc:d.nasc,colete:d.colete,tam:d.tam,email:d.email}};
     if(await cadArquivo(dados,`integrante_novo_${cadSlug(d.ap)}_${Date.now()}.json`)){c.efetivado=new Date().toLocaleDateString("pt-BR");cadGuardar(l);desenharSel();
       $("cadAviso").innerHTML=DADOS.nuvem?`✅ Enviado para a planilha. Em uns 3 minutos ${esc(d.ap)} aparece no painel. O cadastro continua guardado aqui até você apagar.`
         :`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para incluir ${esc(d.ap)} na planilha. O cadastro continua guardado aqui até você apagar.`}};
@@ -3573,7 +3584,7 @@ function montarCadastro(){if(!$("cadCampos"))return;
     const txt={afastar:`Afastar ${ap} a partir de ${lwBR(d.desde||"")}? Ele sai das listas e dos pagamentos.`,excluir:`EXCLUIR ${ap} DEFINITIVAMENTE?\n\nTodos os dados dele serão apagados da planilha: linha na Dados Integrantes, colunas na Presenca, Insights e Staff (com o histórico de presenças) e linha na PGTO. A numeração dos irmãos abaixo dele sobe.\n\n${DADOS.nuvem?"Se precisar desfazer: na planilha do Google, Arquivo > Histórico de versões.":"O GerarPainel faz um backup da planilha antes (pasta Lancamentos\\backup)."}`,reativar:`Reativar ${ap}, voltando depois de ${d.apos}?`}[acao];
     if(!confirm(txt))return;
     if(await cadArquivo(d,`integrante_${acao}_${cadSlug(ap)}_${Date.now()}.json`))$("sitAviso").innerHTML=DADOS.nuvem?`✅ Enviado para a planilha. Em uns 3 minutos aparece no painel.`:`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para aplicar na planilha.`}}
-const FC_CAMPOS=["Nome Da Tarjeta Do Colete","Nome Completo","Cpf","Rg","Nascimento","Cep","Rua","Bairro","Cidade","Tel. com Whatssapp","Email",
+const FC_CAMPOS=["Nome Da Tarjeta Do Colete","Nome Completo","Rg","Nascimento","Cep","Rua","Bairro","Cidade","Tel. com Whatssapp","Email",
   "Tel. Emergência e Contato","Profissão","Camisa Tamanho","Couro Ou Jeans","Tamanho Do Colete","Possui Carro","Possui Moto","Padrinho","Indicação"];
 const FC_MSG_PADRAO=()=>`*💀🇧🇷 Seja muito bem-vindo{NOME} à família Insanos M.C.! 🇧🇷💀*
 
@@ -3614,15 +3625,14 @@ function montarFicha(){
 // ---- Solicitação kit/colete ----
 const KC_TAM=["P","M","G","GG","G3","G4","G5","G6"];
 const kc={tipo:"colete",f:{colete:{},camiseta:{}}};
-const kcCpf=d=>{d=String(d||"").replace(/\D/g,"");return d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"):d};
 const kcNasc=m=>m&&m.nasc?nascCompleto(m):"";
 const kcTipoCol=v=>/couro/i.test(v||"")?"Couro":/jeans/i.test(v||"")?"Jeans":"";
 const KC_CAMPOS={
- colete:[["integ","Nome do colete (integrante)","busca"],["num","N° Sistema"],["nc","Nome completo",0,1],["cpf","CPF"],["tipo","Tipo Colete","sel",0,["Jeans","Couro"]],
+ colete:[["integ","Nome do colete (integrante)","busca"],["num","N° Sistema"],["nc","Nome completo",0,1],["tipo","Tipo Colete","sel",0,["Jeans","Couro"]],
    ["tam","Tamanho do Colete","sel",0,KC_TAM],["pag","Pagamento"],["venc","Vencimento","data"],["nasc","Nascimento"],["obs","Obs Gerais","area",1]],
  camiseta:[["integ","Integrante","busca"],["num","N° Sistema"],["tam","Tamanho da camiseta","sel",0,KC_TAM],["data","Data a ser retirado","data"],["quem","Quem vai Retirar","busca2"]]};
 function kcPreencher(nome){const m=M.find(x=>x.n.toLowerCase()===String(nome||"").trim().toLowerCase());const F=kc.f[kc.tipo];if(!m)return false;
-  const x=m.x||{};F.integ=m.n;F.num=m.num||"";F.nasc=kcNasc(m);F.nc=x.nc||"";F.cpf=kcCpf(x.cpf);
+  const x=m.x||{};F.integ=m.n;F.num=m.num||"";F.nasc=kcNasc(m);F.nc=x.nc||"";
   if(kc.tipo==="colete"){F.tipo=kcTipoCol(x.col)||F.tipo||"";F.tam=x.tamc||F.tam||""}else{F.tam=F.tam||x.tamc||""}
   return true}
 function kcCampos(){const F=kc.f[kc.tipo];
@@ -3641,10 +3651,10 @@ function kcCampos(){const F=kc.f[kc.tipo];
   kcAviso()}
 function kcAviso(){const F=kc.f[kc.tipo],m=M.find(x=>x.n===F.integ);
   $("kcAviso").textContent=!F.integ?"Escolha o integrante para preencher os dados da planilha.":!m?"Integrante não encontrado na aba Dados Integrantes: preencha os campos à mão.":
-    (kc.tipo==="colete"&&(!F.nc||!F.cpf)?"Nome completo e/ou CPF não vieram preenchidos (no painel do link eles não são incluídos por segurança): digite ou gere pelo painel do computador.":"")}
+    (kc.tipo==="colete"&&(!F.nc)?"Nome completo não veio preenchido (no painel do link eles não são incluídos por segurança): digite ou gere pelo painel do computador.":"")}
 function kcTexto(){const F=kc.f[kc.tipo],reg=DIV_REG,div=DIV_NOME.toUpperCase();
   if(kc.tipo==="colete")return ["🌐 Pedido de atualização de link 🌐","",`Regional: ${reg}`,`Divisão: ${div}`,`*N° Sistema:* ${F.num||""}`,`*Nome colete:* ${F.integ||""}`,
-    `Nome completo: ${F.nc||""}`,`CPF: ${F.cpf||""}`,`Tipo Colete: ${F.tipo||""}`,`Tamanho do Colete: ${F.tam||""}`,`Pagamento: ${F.pag||""}`,`Vencimento: ${lwBR(F.venc)||""}`,
+    `Nome completo: ${F.nc||""}`,`Tipo Colete: ${F.tipo||""}`,`Tamanho do Colete: ${F.tam||""}`,`Pagamento: ${F.pag||""}`,`Vencimento: ${lwBR(F.venc)||""}`,
     `Nascimento: ${F.nasc||""}`,`Obs Gerais: ${F.obs||""}`].join("\n");
   return ["*🏴‍☠️Solicitação de kit camisetas🏴‍☠️*",`*N° Sistema:* ${F.num||""}`,`Integrante: ${F.integ||""}`,`Regional: ${reg}`,`Divisão: ${div}`,
     `Tamanho da camiseta: ${F.tam||""}`,`Data a ser retirado: ${lwBR(F.data)||""}`,`Quem vai Retirar: ${F.quem||""}`].join("\n")}

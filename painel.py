@@ -1927,7 +1927,7 @@ def importar_integrantes():
                     return c
             return None
         C = {"num": 1, "ap": 2, "cargo": 3, "lista": col("numero lista") or 4, "grau": col("grau") or 5,
-             "tel": col("telefone"), "nome": col("nome completo"), "nasc": col("nascimento"), "cpf": col("cpf"),
+             "tel": col("telefone"), "nome": col("nome completo"), "nasc": col("nascimento"),
              "colete": col("colete"), "tam": col("tamanho"), "email": col("email", "e-mail"),
              "sit": col("situa"), "desde": col("afastado")}
         if not C["sit"]:
@@ -2022,7 +2022,7 @@ def importar_integrantes():
                 pos = (r_ap - cabec_tab() + 1) if r_ap else None
                 r = (tab.ListRows.Add(pos) if pos else tab.ListRows.Add()).Range.Row
                 vals = {"num": dd.get("num"), "ap": ap, "cargo": dd.get("cargo"), "grau": dd.get("grau"), "tel": dd.get("tel"),
-                        "nome": dd.get("nome"), "cpf": dd.get("cpf"), "colete": dd.get("colete"), "tam": dd.get("tam"),
+                        "nome": dd.get("nome"), "colete": dd.get("colete"), "tam": dd.get("tam"),
                         "email": dd.get("email"), "sit": "Ativo"}
                 for k, v in vals.items():
                     if C.get(k) and v not in (None, ""):
@@ -3115,7 +3115,7 @@ def main():
     emails = {}
     # Dados Integrantes: apelido -> (número, cargo, ordem da hierarquia)
     info = {}
-    cpfs, extra_colete = {}, {}
+    extra_colete = {}
     for n_linha, r_full in enumerate(wb["Dados Integrantes"].iter_rows(min_row=2, max_col=60, values_only=True), start=2):
         r = r_full[:14]
         apelido = texto(r[1])
@@ -3139,7 +3139,6 @@ def main():
             info[apelido.lower()] = (num, texto(r[2]), r[3] if isinstance(r[3], (int, float)) else 999, tel,
                                      nasc if isinstance(nasc, datetime.date) else None,
                                      str(r[5]) if r[5] is not None else "")   # "Lista/grau" (ex.: "01. VI "), sem cortar espaços
-            cpfs[apelido.lower()] = "".join(ch for ch in texto(r[11]) if ch.isdigit())
             if col_ent is not None and col_ent < len(r_full):
                 ve = r_full[col_ent]
                 if isinstance(ve, datetime.datetime):
@@ -3159,7 +3158,7 @@ def main():
             if col_email is not None:
                 emails[apelido.lower()] = texto(r_full[col_email] if col_email < len(r_full) else "").lower()
             # dados para a Solicitação kit/colete (vão SÓ para o ADM do computador, nunca para o link)
-            extra_colete[apelido.lower()] = {"nc": texto(r[7]), "cpf": cpfs[apelido.lower()],
+            extra_colete[apelido.lower()] = {"nc": texto(r[7]), 
                                              "col": texto(r[12] if len(r) > 12 else "").upper(),
                                              "tamc": texto(r[13] if len(r) > 13 else "").upper()}
 
