@@ -273,12 +273,11 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .q-velho{display:none!important}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;background:rgba(20,19,18,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
-  box-shadow:0 2px 10px rgba(0,0,0,.35);opacity:.9;-webkit-tap-highlight-color:transparent}
+  display:flex;align-items:center;justify-content:center;background:transparent;opacity:.54;-webkit-tap-highlight-color:transparent}
 .seta-tela.esq{left:6px}.seta-tela.dir{right:6px}.seta-tela[hidden]{display:none}
-.seta-tela svg{width:22px;height:22px}
+.seta-tela svg{width:26px;height:26px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
 .seta-tela polyline{fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-.seta-tela:active{transform:scale(.92);opacity:1}
+.seta-tela:active{transform:scale(.92);opacity:.8}
 body:has(.fa-veu) .seta-tela,body:has(.sosm-veu) .seta-tela,body:has(.selm) .seta-tela{display:none}
 .filtros select,.filtros .multi-bt{font-size:14px!important}
 .filtros .ler-full{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.filtros .ler-full[hidden]{display:none}.filtros .ler-full .btn{flex:1 1 100%}
@@ -1497,7 +1496,7 @@ function encher(frac){
     $("encheR").setAttribute("y",y);$("encheR").setAttribute("height",h);
     const L=$("encheL");L.setAttribute("y1",y);L.setAttribute("y2",y);L.setAttribute("opacity",f>0.01&&f<0.99?.5:0)};
   if(reduz){pinta(alvo);nivel=alvo;return}
-  const subir=window.__rodaSubir&&alvo>0;window.__rodaSubir=false;
+  const subir=window.__rodaSubir&&alvo>0&&!window.__rodaFeito;window.__rodaSubir=false;if(subir)window.__rodaFeito=true;
   if(subir){const txt=$("rodaPct").textContent,T1=650,T2=800,corFim=[$("tintaCor").getAttribute("flood-color"),$("rodaPct").style.color];   // sobe até 100% e desce até a porcentagem real, com o número acompanhando
     const passo2=now=>{const k=now-t0;let f;
       if(k<T1){const a=k/T1,d0=Math.max(0,Math.min(1,de));f=d0+(1-d0)*(1-Math.pow(1-a,3))}else{const a=Math.min(1,(k-T1)/T2);f=1+(alvo-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
@@ -1654,7 +1653,8 @@ async function pagCavPrep(){if(window.__pcv)return window.__pcv;const cv=await _
 async function pagCavDesenhar(animar){const el=$("pagCav");if(!el)return;const pc=window.PAG_PC||0;
   if(!animar&&window.__pagAnimando)return;   // a animação em andamento termina sozinha no valor certo
   const reduz=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if(animar&&!reduz&&pc>0)window.__pagAnimando=true;   // trava já no começo (antes de preparar as imagens)
+  if(animar&&window.__pagFeito)animar=false;   // já animou nesta entrada no app: fica fixa
+  if(animar&&!reduz&&pc>0){window.__pagAnimando=true;window.__pagFeito=true}   // trava já no começo (antes de preparar as imagens)
   const s=Math.max(2,Math.min(4,Math.ceil((window.devicePixelRatio||1)*1.2)));if(el.width!==200*s){el.width=200*s;el.height=236*s}
   const g=el.getContext("2d"),P=await pagCavPrep();if(!P.cv)return;
   const h=224*s,w=h*P.cv.width/P.cv.height,x=100*s-w/2,top=6*s,tinta=c=>P.t[c+w]||(P.t[c+w]=_tinta(P.cv,w,h,c));
@@ -2797,8 +2797,9 @@ function periodoTela(){const el=$("periodo");if(!el)return;const v=document.body
   const h=v==="pag"?window.PAG_PERIODO:window.PERIODO_PRES;if(h!=null&&el.innerHTML!==h)el.innerHTML=h}
 window.__rodaSubir=true;window.__pagSubir=true;   // a primeira vez que cada caveira aparece, ela sobe até 100% e volta
 function irPara(v){
-  if(v==="painel"){if(window.__rodaAlvo!=null){window.__rodaSubir=true;encher(window.__rodaAlvo)}else window.__rodaSubir=true}
-  if(v==="pag"){if(window.PAG_PC!=null)pagCavDesenhar(true);else window.__pagSubir=true}
+  // as caveiras animam uma vez só depois de entrar no app; depois ficam fixas
+  if(v==="painel"&&!window.__rodaFeito){if(window.__rodaAlvo!=null){window.__rodaSubir=true;encher(window.__rodaAlvo)}else window.__rodaSubir=true}
+  if(v==="pag"&&!window.__pagFeito){if(window.PAG_PC!=null)pagCavDesenhar(true);else window.__pagSubir=true}
   setTimeout(periodoTela,0);
   document.body.dataset.view=v;
   {const h=document.querySelector("header h1");if(h&&h.firstChild&&TELA_TIT[v])h.firstChild.nodeValue=TELA_TIT[v];
