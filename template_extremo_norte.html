@@ -66,7 +66,7 @@ button.limpar:hover{background:rgba(236,231,220,.08)}
 @media (prefers-reduced-motion:no-preference){.selo-ouro{animation:brilho 2.8s ease-in-out infinite}}
 @keyframes brilho{0%,100%{box-shadow:0 0 0 1px rgba(255,236,170,.5) inset,0 6px 18px rgba(233,185,73,.2)}50%{box-shadow:0 0 0 1px rgba(255,236,170,.7) inset,0 6px 26px rgba(233,185,73,.45)}}
 .roda-pct{text-align:center;color:var(--osso2);font-size:13px;margin-top:2px}
-.roda-pct b{display:block;font-family:var(--titulo);font-weight:800;font-size:46px;line-height:1;color:var(--osso)}
+.roda-pct b{display:block;font-family:var(--titulo);font-weight:800;font-size:64px;line-height:1;color:var(--osso);margin-top:6px}
 .roda-legenda{text-align:center;color:var(--osso2);font-size:13px;margin-top:6px}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--linha)}
 .kpi{padding:18px 20px;border-bottom:1px solid var(--linha)}
@@ -75,6 +75,7 @@ button.limpar:hover{background:rgba(236,231,220,.08)}
 .kpi .v{font-family:var(--titulo);font-weight:800;font-size:46px;line-height:1}
 .kpi .l{color:var(--osso2);font-size:13px;margin-top:4px}
 .kpi.ok .v{color:var(--presente)} .kpi.falta .v{color:#D25A57}
+.kpis.pag-kpis{border-top:0;margin-top:10px}
 
 .grade{display:grid;grid-template-columns:1fr;gap:22px;margin-bottom:22px;align-items:start}
 .painel{background:var(--painel);backdrop-filter:var(--vidro);-webkit-backdrop-filter:var(--vidro);border:1px solid rgba(236,231,220,.18);border-radius:14px;padding:20px}
@@ -566,6 +567,20 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .ac-p{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--linha)}.ac-p>div{display:flex;flex-direction:column}.ac-p .nota{font-size:12.5px}
 #pagAvisarBoletos[hidden],#pagVerificar[hidden]{display:none!important}
 .pag-nomes{margin:12px 0 14px;display:grid;gap:8px}
+#pagView .pag-resumo{display:flex!important;flex-direction:column!important;align-items:center!important;gap:14px!important;margin:10px 0 14px!important}
+#pagView .pag-cav{display:flex;flex-direction:column;align-items:center;text-align:center}
+#pagView .pag-cav canvas{width:min(230px,58vw)!important;height:auto!important}
+#pagView #pagCavPc{font-size:64px!important;line-height:1!important;margin-top:6px}
+#pagView .pag-kpis{width:100%;flex:0 0 auto!important;align-content:start}
+#pagView .pag-bts{display:grid!important;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:8px;margin:0 0 12px}
+#pagView .pag-bts .btn{width:100%;min-height:48px;margin:0;justify-content:center;text-align:center;font-size:14.5px;padding:10px 8px}
+#pagView .pag-bts .btn[hidden]{display:none!important}
+.pag-nomes details.pn{padding:0}.pag-nomes details.pn summary{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none}
+.pag-nomes details.pn summary::-webkit-details-marker{display:none}
+.pag-nomes details.pn summary b{margin:0!important;font-size:15px!important;display:inline!important}
+.pag-nomes .pn-n{margin-left:auto;min-width:28px;padding:2px 8px;border-radius:999px;background:rgba(236,231,220,.1);font-weight:800;text-align:center}
+.pag-nomes .pn-s{font-style:normal;font-size:20px;color:var(--osso2);transition:transform .2s}.pag-nomes details[open] .pn-s{transform:rotate(90deg)}
+.pag-nomes details.pn p{margin:0;padding:0 14px 12px;font-size:14.5px;line-height:1.45}
 .pag-nomes .pn{margin:0;padding:10px 12px;border-radius:12px;font-size:14.5px;line-height:1.45;background:rgba(236,231,220,.05);border-left:4px solid var(--osso2)}
 .pag-nomes .pn b{display:block;font-size:13px;letter-spacing:.3px;margin-bottom:2px}
 .pag-nomes .pn.ok{border-left-color:var(--presente)}.pag-nomes .pn.ok b{color:var(--presente)}
@@ -1040,13 +1055,13 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   
 
   <section class="painel js so-adm" id="pagView">
-    <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div>
-      <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagRegional">📊 Regional</button><button type="button" class="btn" id="pagVerificar" hidden>🔄 Verificar agora</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div></div>
-    <div class="pag-nomes" id="pagNomes"></div>
+    <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div></div>
     <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
       <div class="pag-kpis" id="pagKpis"></div></div>
+    <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagRegional">📊 Regional</button><button type="button" class="btn" id="pagVerificar" hidden>🔄 Verificar agora</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div>
+    <div class="pag-nomes" id="pagNomes"></div>
     <div class="pag-lista" id="pagLista"></div>
-    <div class="lw-bts" style="margin:10px 0 4px"><button type="button" class="btn zap" id="pagSalvar2" hidden>Salvar alterações</button></div>
+    <div class="lw-bts" style="display:none"><button type="button" class="btn zap" id="pagSalvar2" hidden>Salvar alterações</button></div>
     <div class="lw-bts pag-fim">
       <button type="button" class="btn zap" id="pagCopiar">Copiar mensagem para o comando</button>
       <a class="btn" id="pagZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
@@ -2351,7 +2366,8 @@ function render(){
     MODO==="individual"
       ?(()=>{const r=st.data?null:(DADOS.rank||{})[st.mes||"todos"];return ["",r&&r.pos?r.pos+"º":"–",r&&r.pos?`posição entre ${r.total} integrantes`:"posição na divisão"]})()
       :["",mem.length,mem.length===1?"integrante no filtro":"integrantes no filtro"]
-  ].map(([c,v,l])=>`<div class="kpi ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  ].map(([c,v,l])=>`<div><span>${String(l).charAt(0).toUpperCase()+String(l).slice(1)}</span><b style="color:${c==="ok"?"var(--presente)":c==="falta"?"#D25A57":"inherit"}">${v}</b></div>`).join("");
+  $("kpis").className="kpis pag-kpis";   // mesmo visual dos números da tela Pagamentos
 
   // coluna genérica (integrantes, eventos e tops)
   const MARCA={"1":["m1","presente"],"0":["m0","ausente"],"-":["mn","não conta"],"null":["mn","sem registro"]};
@@ -2682,6 +2698,24 @@ function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel
     try{localStorage.setItem("filtros_abertos",fechar?"0":"1")}catch(_){}fResAtualiza()};
   const f=document.querySelector("section.filtros");if(f){f.addEventListener("change",()=>setTimeout(fResAtualiza,30));f.addEventListener("click",()=>setTimeout(fResAtualiza,60))}
   setTimeout(fResAtualiza,600)})();
+// ---- arrastar para o lado troca de tela (Presença ↔ Pagamentos ↔ Lançar ↔ Lista), no celular
+(function(){const ORDEM=["painel","pag","lancar","listas"];let ini=null;
+  const bloqueia=el=>{for(let e=el;e&&e!==document.body;e=e.parentElement){
+      if(e.tagName==="TEXTAREA"||e.tagName==="CANVAS"||(e.tagName==="INPUT"&&e.type==="range"))return true;
+      if(e.matches&&e.matches(".selm,.selm-veu,.fa-veu,.sosm-veu,.lightbox,.multi-op,header .quadros3"))return true;
+      const cs=getComputedStyle(e);if(/(auto|scroll)/.test(cs.overflowX)&&e.scrollWidth>e.clientWidth+4)return true}
+    return !!document.querySelector(".fa-veu,.sosm-veu,.selm,#folhaAt")};
+  document.addEventListener("touchstart",ev=>{ini=null;if(MODO!=="adm"||ev.touches.length!==1)return;
+    const v=document.body.dataset.view||"painel";if(!ORDEM.includes(v)||bloqueia(ev.target))return;
+    const t0=ev.touches[0];ini={x:t0.clientX,y:t0.clientY,t:Date.now(),v}},{passive:true});
+  document.addEventListener("touchend",ev=>{if(!ini)return;const t1=ev.changedTouches[0],dx=t1.clientX-ini.x,dy=t1.clientY-ini.y,dt=Date.now()-ini.t,v=ini.v;ini=null;
+    if(Math.abs(dx)<70||Math.abs(dx)<2*Math.abs(dy)||dt>700)return;
+    const i=ORDEM.indexOf(v),j=dx<0?i+1:i-1;const w=document.querySelector(".wrap")||document.body;
+    if(j<0||j>=ORDEM.length){try{w.animate([{transform:"translateX(0)"},{transform:`translateX(${dx<0?-18:18}px)`},{transform:"translateX(0)"}],{duration:260,easing:"ease-out"})}catch(_){}return}
+    irPara(ORDEM[j]);window.scrollTo(0,0);
+    try{w.animate([{transform:`translateX(${dx<0?60:-60}px)`,opacity:.35},{transform:"translateX(0)",opacity:1}],{duration:230,easing:"cubic-bezier(.2,.8,.3,1)"})}catch(_){}
+    try{navigator.vibrate&&navigator.vibrate(6)}catch(_){}},{passive:true});
+})();
 let LANC_TIPO="evento",INS_CASA=null;
 function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
   if(!INS_CASA){INS_CASA=document.createComment("lugar da lista do insight");z.parentNode.insertBefore(INS_CASA,z)}
@@ -2765,9 +2799,9 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
   const cls=n=>pagAdesao(n)||(pagTravado(n)&&!(n in pagPend))?"pago":/aguard/i.test(pagStatus(n))?"aguard":"aberto";window.PAG_CLS=cls;
   const cont={pago:0,aguard:0,aberto:0};ord.forEach(m=>cont[cls(m.n)]++);window.PAG_CONT=cont;
   {const nomes=k=>ord.filter(m=>cls(m.n)===k).map(m=>esc(m.n)).join(", ")||"ninguém";   // resumo para o comando ler de cara
-   $("pagNomes").innerHTML=`<p class="pn ok"><b>✅ Pagos (${cont.pago})</b> ${nomes("pago")}</p>
-     <p class="pn comp"><b>⏰ Em compensação (${cont.aguard})</b> ${nomes("aguard")}</p>
-     <p class="pn ab"><b>⏳ Não pagos (${cont.aberto})</b> ${nomes("aberto")}</p>`}
+   const ab=new Set([...document.querySelectorAll("#pagNomes details[open]")].map(d=>d.dataset.k));
+   $("pagNomes").innerHTML=[["ok","pago","✅ Pagos"],["comp","aguard","⏰ Em compensação"],["ab","aberto","⏳ Não pagos"]].map(([c,k,t])=>
+     `<details class="pn ${c}" data-k="${k}"${ab.has(k)?" open":""}><summary><b>${t}</b><span class="pn-n">${cont[k]}</span><i class="pn-s">›</i></summary><p>${nomes(k)}</p></details>`).join("")}
   const tot=ord.length,venc=P.venc?P.venc.slice(8,10)+"/"+P.venc.slice(5,7)+"/"+P.venc.slice(0,4):"–";
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const dv=P.venc?Math.round((new Date(+P.venc.slice(0,4),+P.venc.slice(5,7)-1,+P.venc.slice(8,10))-hoje)/864e5):null;
