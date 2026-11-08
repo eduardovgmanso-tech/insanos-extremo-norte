@@ -272,11 +272,13 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 @media (max-width:600px){.lanc-topo{grid-template-columns:1fr}.lanc-fim .btn{width:100%;justify-content:center}}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .q-velho{display:none!important}
-.seta-tela{position:fixed;top:50%;z-index:850;width:30px;height:140px;margin-top:-70px;padding:0;border:0;background:transparent;cursor:pointer;opacity:.55;-webkit-tap-highlight-color:transparent}
-.seta-tela.esq{left:0}.seta-tela.dir{right:0}.seta-tela[hidden]{display:none}
-.seta-tela svg{width:15px;height:96px;overflow:visible}.seta-tela.esq svg{margin-left:4px}.seta-tela.dir svg{margin-right:4px}
-.seta-tela polyline{fill:none;stroke:#BDB7AA;stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
-.seta-tela:active{opacity:.9}
+.seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;background:rgba(20,19,18,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  box-shadow:0 2px 10px rgba(0,0,0,.35);opacity:.9;-webkit-tap-highlight-color:transparent}
+.seta-tela.esq{left:6px}.seta-tela.dir{right:6px}.seta-tela[hidden]{display:none}
+.seta-tela svg{width:22px;height:22px}
+.seta-tela polyline{fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.seta-tela:active{transform:scale(.92);opacity:1}
 body:has(.fa-veu) .seta-tela,body:has(.sosm-veu) .seta-tela,body:has(.selm) .seta-tela{display:none}
 .filtros select,.filtros .multi-bt{font-size:14px!important}
 .filtros .ler-full{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.filtros .ler-full[hidden]{display:none}.filtros .ler-full .btn{flex:1 1 100%}
@@ -1489,7 +1491,7 @@ function montarRoda(){montarLogo();
     <line id="encheL" x1="0" x2="${CAV_W}" y1="${CAV_H}" y2="${CAV_H}" stroke="var(--osso)" stroke-width="1.5" stroke-dasharray="6 6" opacity="0"/>`);
 }
 function encher(frac){
-  const alvo=Math.max(0,Math.min(1,frac)),de=nivel,t0=performance.now();
+  const alvo=Math.max(0,Math.min(1,frac)),de=nivel,t0=performance.now();window.__rodaAlvo=alvo;
   const reduz=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
   const pinta=f=>{const h=CAV_H*f,y=CAV_H-h;
     $("encheR").setAttribute("y",y);$("encheR").setAttribute("height",h);
@@ -1647,6 +1649,27 @@ function _tinta(img,w,h,cor){const c=document.createElement("canvas");c.width=w;
   g.drawImage(img,0,0,w,h);g.globalCompositeOperation="multiply";g.fillStyle=cor;g.fillRect(0,0,w,h);
   g.globalCompositeOperation="destination-in";g.drawImage(img,0,0,w,h);return c}
 // caveira igual à do painel: apagada ao fundo, enchendo de baixo para cima com a cor da faixa; 90% ou mais = logo dourado
+// ---- caveira da tela Pagamentos: desenhada em alta resolução, com as imagens coloridas preparadas uma vez só (animação lisa)
+async function pagCavPrep(){if(window.__pcv)return window.__pcv;const cv=await _img(CAVEIRA),lg=await _img(LOGO);return(window.__pcv={cv,lg,t:{}})}
+async function pagCavDesenhar(animar){const el=$("pagCav");if(!el)return;const pc=window.PAG_PC||0;
+  if(!animar&&window.__pagAnimando)return;   // a animação em andamento termina sozinha no valor certo
+  const reduz=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(animar&&!reduz&&pc>0)window.__pagAnimando=true;   // trava já no começo (antes de preparar as imagens)
+  const s=Math.max(2,Math.min(4,Math.ceil((window.devicePixelRatio||1)*1.2)));if(el.width!==200*s){el.width=200*s;el.height=236*s}
+  const g=el.getContext("2d"),P=await pagCavPrep();if(!P.cv)return;
+  const h=224*s,w=h*P.cv.width/P.cv.height,x=100*s-w/2,top=6*s,tinta=c=>P.t[c+w]||(P.t[c+w]=_tinta(P.cv,w,h,c));
+  const quadro=(v,fim)=>{const cor=corFaixa(v);g.clearRect(0,0,el.width,el.height);
+    if(fim&&v>=90&&P.lg){const lw=h*P.lg.width/P.lg.height;g.drawImage(_tinta(P.lg,lw,h,"#E9B949"),100*s-lw/2,top,lw,h)}   // 90% ou mais: o logo dourado
+    else{g.save();g.globalAlpha=.18;g.drawImage(P.cv,x,top,w,h);g.restore();
+      if(v>0){const tc=tinta(cor[0]),fh=h*v/100;g.drawImage(tc,0,h-fh,w,fh,x,top+h-fh,w,fh)}}
+    $("pagCavPc").textContent=v+"%";$("pagCavPc").style.color=cor[1]};
+  if(!animar||reduz||pc<=0){window.__pagAnimando=false;quadro(pc,true);return}
+  ["#F2A3A3","#F3DE8A","#9BE3AE","#E9B949"].forEach(tinta);   // prepara as quatro cores antes de começar
+  const t0=performance.now(),T1=650,T2=800,id=(window.__pagAnim=(window.__pagAnim||0)+1);window.__pagAnimando=true;
+  const passo=now=>{if(id!==window.__pagAnim)return;const k=now-t0,pc=window.PAG_PC||0;let f;
+    if(k<T1){const a=k/T1;f=1-Math.pow(1-a,3)}else{const a=Math.min(1,(k-T1)/T2);f=1+(pc/100-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
+    quadro(Math.round(Math.max(0,Math.min(1,f))*100),false);if(k<T1+T2)requestAnimationFrame(passo);else{window.__pagAnimando=false;quadro(window.PAG_PC||0,true)}};
+  quadro(0,false);requestAnimationFrame(passo)}
 async function desenharCaveira(g,cx,top,h,v,semLogo){const ouro=!semLogo&&v!=null&&v>=90,cor=corFaixa(v);
   if(ouro){const lg=await _img(LOGO);if(lg){const w=h*lg.width/lg.height;g.drawImage(_tinta(lg,w,h,"#E9B949"),cx-w/2,top,w,h)}return cor}
   const cv=await _img(CAVEIRA);if(!cv)return cor;const w=h*cv.width/cv.height,x=cx-w/2;
@@ -2750,7 +2773,7 @@ function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel
 // ---- setas discretas nas bordas da tela: ‹ volta e › avança (Presença ↔ Pagamentos ↔ Lançar ↔ Lista), como tocar no menu de baixo
 (function(){const ORDEM=["painel","pag","lancar","listas"];
   const seta=lado=>{const b=document.createElement("button");b.type="button";b.className="seta-tela "+lado;b.setAttribute("aria-label",lado==="esq"?"Tela anterior":"Próxima tela");
-    b.innerHTML=`<svg viewBox="0 0 22 100" aria-hidden="true"><polyline points="${lado==="esq"?"19,3 3,50 19,97":"3,3 19,50 3,97"}"/></svg>`;
+    b.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="${lado==="esq"?"14.5,6.5 9,12 14.5,17.5":"9.5,6.5 15,12 9.5,17.5"}"/></svg>`;
     b.onclick=()=>{const v=document.body.dataset.view||"painel",i=ORDEM.indexOf(v),j=lado==="esq"?i-1:i+1;if(i<0||j<0||j>=ORDEM.length)return;
       irPara(ORDEM[j]);window.scrollTo(0,0);try{navigator.vibrate&&navigator.vibrate(5)}catch(_){}};
     document.body.appendChild(b);return b};
@@ -2774,7 +2797,9 @@ function periodoTela(){const el=$("periodo");if(!el)return;const v=document.body
   const h=v==="pag"?window.PAG_PERIODO:window.PERIODO_PRES;if(h!=null&&el.innerHTML!==h)el.innerHTML=h}
 window.__rodaSubir=true;window.__pagSubir=true;   // a primeira vez que cada caveira aparece, ela sobe até 100% e volta
 function irPara(v){
-  if(v==="painel")window.__rodaSubir=true;if(v==="pag")window.__pagSubir=true;setTimeout(periodoTela,0);
+  if(v==="painel"){if(window.__rodaAlvo!=null){window.__rodaSubir=true;encher(window.__rodaAlvo)}else window.__rodaSubir=true}
+  if(v==="pag"){if(window.PAG_PC!=null)pagCavDesenhar(true);else window.__pagSubir=true}
+  setTimeout(periodoTela,0);
   document.body.dataset.view=v;
   {const h=document.querySelector("header h1");if(h&&h.firstChild&&TELA_TIT[v])h.firstChild.nodeValue=TELA_TIT[v];
    // se a tela já tem um título igual ao do topo, esconde o de dentro (não repete)
@@ -2870,21 +2895,10 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     <div><span>Em compensação</span><b style="color:#D9B26A">${cont.aguard}</b></div>
     <div><span>Sem pagamento</span><b style="color:#D25A57">${cont.aberto}</b></div>
     <div><span>% pagos</span><b>${tot?Math.round(cont.pago*100/tot):0}%</b></div>`;
-  // caveira pequena com a % de pagos
+  // caveira com a % de pagos (alta resolução; sobe até 100% e volta ao entrar na tela)
   const pcPag=tot?Math.round(cont.pago*100/tot):0;
-  (async()=>{try{const cv=$("pagCav"),g=cv.getContext("2d"),vaiSubir=window.__pagSubir&&pcPag>0&&document.body.dataset.view==="pag";
-    g.clearRect(0,0,cv.width,cv.height);const cor=await desenharCaveira(g,100,6,224,vaiSubir?0:pcPag);   // se vai animar, começa vazia
-    $("pagCavPc").textContent=(vaiSubir?0:pcPag)+"%";$("pagCavPc").style.color=cor[1];if(vaiSubir){const c2=document.createElement("canvas");c2.width=cv.width;c2.height=cv.height;$("pagCavPc").style.color=(await desenharCaveira(c2.getContext("2d"),100,6,224,pcPag))[1]}$("pagCavTxt").textContent=`pagos · ${cont.pago} de ${tot}`;
-    const reduz=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if(window.__pagSubir&&!reduz&&pcPag>0&&document.body.dataset.view==="pag"){window.__pagSubir=false;   // sobe até 100% e volta até a porcentagem real
-      const t0=performance.now(),T1=650,T2=800;let ocupado=false;
-      const passo=async now=>{const k=now-t0;let f;
-        if(k<T1){const a=k/T1;f=1-Math.pow(1-a,3)}else{const a=Math.min(1,(k-T1)/T2);f=1+(pcPag/100-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
-        f=Math.max(0,Math.min(1,f));
-        if(!ocupado){ocupado=true;g.clearRect(0,0,cv.width,cv.height);const vv=Math.round(f*100),cc=await desenharCaveira(g,100,6,224,vv,true);   // a cor acompanha a porcentagem
-          $("pagCavPc").textContent=vv+"%";$("pagCavPc").style.color=cc[1];ocupado=false}
-        if(k<T1+T2)requestAnimationFrame(passo);else{g.clearRect(0,0,cv.width,cv.height);const cf=await desenharCaveira(g,100,6,224,pcPag);$("pagCavPc").textContent=pcPag+"%";$("pagCavPc").style.color=cf[1]}};
-      requestAnimationFrame(passo)}}catch(e){}})();
+  window.PAG_PC=pcPag;$("pagCavTxt").textContent=`pagos · ${cont.pago} de ${tot}`;
+  {const anima=window.__pagSubir&&pcPag>0&&document.body.dataset.view==="pag";if(anima)window.__pagSubir=false;pagCavDesenhar(anima)}
   const todosPagos=tot>0&&cont.pago===tot;
   if(todosPagos){const mes=MESES[+(P.venc||"2000-01").slice(5,7)-1].toLowerCase();
     $("pagAgenda").className="pag-agenda on todos";
