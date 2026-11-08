@@ -574,8 +574,9 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 #pagView .pag-cav canvas{width:min(230px,58vw)!important;height:auto!important}
 #pagView #pagCavPc{font-size:64px!important;line-height:1!important;margin-top:6px}
 #pagView .pag-kpis{width:100%;flex:0 0 auto!important;align-content:start}
-#pagView .pag-bts{display:grid!important;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:8px;margin:0 0 12px}
-#pagView .pag-bts .btn{width:100%;min-height:48px;margin:0;justify-content:center;text-align:center;font-size:14.5px;padding:10px 8px}
+#pagView .pag-bts{display:flex!important;flex-wrap:wrap;gap:8px;margin:6px 0 16px}
+#pagView .pag-bts .btn{width:auto!important;min-height:40px!important;margin:0!important;padding:9px 14px!important;border-radius:999px!important;
+  border:1px solid rgba(236,231,220,.25)!important;background:rgba(236,231,220,.06)!important;color:var(--osso)!important;font:inherit!important;font-weight:600!important;font-size:15px!important;line-height:1.2!important;box-shadow:none!important;border-radius:20px!important;padding:8px 16px!important}
 #pagView .pag-bts .btn[hidden]{display:none!important}
 .pag-nomes details.pn{padding:0}.pag-nomes details.pn summary{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none}
 .pag-nomes details.pn summary::-webkit-details-marker{display:none}
@@ -1474,6 +1475,13 @@ function encher(frac){
     $("encheR").setAttribute("y",y);$("encheR").setAttribute("height",h);
     const L=$("encheL");L.setAttribute("y1",y);L.setAttribute("y2",y);L.setAttribute("opacity",f>0.01&&f<0.99?.5:0)};
   if(reduz){pinta(alvo);nivel=alvo;return}
+  const subir=window.__rodaSubir&&alvo>0;window.__rodaSubir=false;
+  if(subir){const txt=$("rodaPct").textContent,T1=650,T2=800;   // sobe até 100% e desce até a porcentagem real, com o número acompanhando
+    const passo2=now=>{const k=now-t0;let f;
+      if(k<T1){const a=k/T1,d0=Math.max(0,Math.min(1,de));f=d0+(1-d0)*(1-Math.pow(1-a,3))}else{const a=Math.min(1,(k-T1)/T2);f=1+(alvo-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
+      f=Math.max(0,Math.min(1,f));pinta(f);nivel=f;$("rodaPct").textContent=Math.round(f*100)+"%";
+      if(k<T1+T2)requestAnimationFrame(passo2);else{pinta(alvo);nivel=alvo;$("rodaPct").textContent=txt}};
+    requestAnimationFrame(passo2);return}
   const passo=now=>{const k=Math.min(1,(now-t0)/800),e=1-Math.pow(1-k,3),f=de+(alvo-de)*e;pinta(f);nivel=f;if(k<1)requestAnimationFrame(passo)};
   requestAnimationFrame(passo);
 }
@@ -2738,11 +2746,11 @@ function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel
     g.dx=dx;mover(borda?dx*0.25:dx*0.85,1-Math.min(Math.abs(dx)/900,.25),0)},{passive:true});
   document.addEventListener("touchend",()=>{if(!g)return;const {dx,t,v,dir}=g;g=null;if(dir!==1){mover(0,null,0);return}
     const i=ORDEM.indexOf(v),vel=Math.abs(dx)/Math.max(1,Date.now()-t),j=dx<0?i+1:i-1,larg=innerWidth;
-    if((Math.abs(dx)<70&&vel<.5)||j<0||j>=ORDEM.length){mover(0,null,200);return}   // curto ou na ponta: volta para o lugar
-    mover(dx<0?-larg*0.35:larg*0.35,0,130,"ease-in");
-    setTimeout(()=>{irPara(ORDEM[j]);window.scrollTo(0,0);mover(dx<0?larg*0.3:-larg*0.3,0,0);
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{mover(0,1,240);setTimeout(()=>mover(0,null,0),260)}));
-      try{navigator.vibrate&&navigator.vibrate(6)}catch(_){}},130)},{passive:true});
+    if((Math.abs(dx)<70&&vel<.5)||j<0||j>=ORDEM.length){mover(0,null,320,"cubic-bezier(.2,.75,.25,1)");return}   // curto ou na ponta: volta para o lugar
+    mover(dx<0?-larg*0.22:larg*0.22,0,250,"cubic-bezier(.4,0,.6,1)");          // sai devagar, desbotando
+    setTimeout(()=>{irPara(ORDEM[j]);window.scrollTo(0,0);mover(dx<0?larg*0.18:-larg*0.18,0,0);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{mover(0,1,350,"cubic-bezier(.2,.75,.25,1)");setTimeout(()=>mover(0,null,0),370)}));   // entra suave
+      try{navigator.vibrate&&navigator.vibrate(6)}catch(_){}},250)},{passive:true});
   document.addEventListener("touchcancel",()=>{if(g){g=null;mover(0,null,180)}},{passive:true});
 })();
 let LANC_TIPO="evento",INS_CASA=null;
@@ -2755,7 +2763,9 @@ function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
   else{if(z.parentNode!==INS_CASA.parentNode)INS_CASA.parentNode.insertBefore(z,INS_CASA.nextSibling);
     z.hidden=!(document.body.dataset.view==="painel"&&ANAL==="ins"&&IZ_MODO==="preencher");$("lancDet").hidden=false;if(tp==="evento")$("lancDet").open=true}}
 const TELA_TIT={pag:"Pagamentos",lancar:"Lançar",ficha:"Cadastro",kit:"Kit / colete",honr:"Honrarias",acessos:"Acessos",listas:"Lista WhatsApp",dash:"Dashboard"};
+window.__rodaSubir=true;window.__pagSubir=true;   // a primeira vez que cada caveira aparece, ela sobe até 100% e volta
 function irPara(v){
+  if(v==="painel")window.__rodaSubir=true;if(v==="pag")window.__pagSubir=true;
   document.body.dataset.view=v;
   {const h=document.querySelector("header h1");if(h&&h.firstChild&&TELA_TIT[v])h.firstChild.nodeValue=TELA_TIT[v];
    // se a tela já tem um título igual ao do topo, esconde o de dentro (não repete)
@@ -2852,8 +2862,18 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     <div><span>% pagos</span><b>${tot?Math.round(cont.pago*100/tot):0}%</b></div>`;
   // caveira pequena com a % de pagos
   const pcPag=tot?Math.round(cont.pago*100/tot):0;
-  (async()=>{try{const cv=$("pagCav"),g=cv.getContext("2d");g.clearRect(0,0,cv.width,cv.height);const cor=await desenharCaveira(g,100,6,224,pcPag);
-    $("pagCavPc").textContent=pcPag+"%";$("pagCavPc").style.color=cor[1];$("pagCavTxt").textContent=`pagos · ${cont.pago} de ${tot}`}catch(e){}})();
+  (async()=>{try{const cv=$("pagCav"),g=cv.getContext("2d"),vaiSubir=window.__pagSubir&&pcPag>0&&document.body.dataset.view==="pag";
+    g.clearRect(0,0,cv.width,cv.height);const cor=await desenharCaveira(g,100,6,224,vaiSubir?0:pcPag);   // se vai animar, começa vazia
+    $("pagCavPc").textContent=(vaiSubir?0:pcPag)+"%";$("pagCavPc").style.color=cor[1];if(vaiSubir){const c2=document.createElement("canvas");c2.width=cv.width;c2.height=cv.height;$("pagCavPc").style.color=(await desenharCaveira(c2.getContext("2d"),100,6,224,pcPag))[1]}$("pagCavTxt").textContent=`pagos · ${cont.pago} de ${tot}`;
+    const reduz=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(window.__pagSubir&&!reduz&&pcPag>0&&document.body.dataset.view==="pag"){window.__pagSubir=false;   // sobe até 100% e volta até a porcentagem real
+      const t0=performance.now(),T1=650,T2=800;let ocupado=false;
+      const passo=async now=>{const k=now-t0;let f;
+        if(k<T1){const a=k/T1;f=1-Math.pow(1-a,3)}else{const a=Math.min(1,(k-T1)/T2);f=1+(pcPag/100-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
+        f=Math.max(0,Math.min(1,f));
+        if(!ocupado){ocupado=true;g.clearRect(0,0,cv.width,cv.height);await desenharCaveira(g,100,6,224,Math.round(f*100));$("pagCavPc").textContent=Math.round(f*100)+"%";ocupado=false}
+        if(k<T1+T2)requestAnimationFrame(passo);else{g.clearRect(0,0,cv.width,cv.height);await desenharCaveira(g,100,6,224,pcPag);$("pagCavPc").textContent=pcPag+"%"}};
+      requestAnimationFrame(passo)}}catch(e){}})();
   const todosPagos=tot>0&&cont.pago===tot;
   if(todosPagos){const mes=MESES[+(P.venc||"2000-01").slice(5,7)-1].toLowerCase();
     $("pagAgenda").className="pag-agenda on todos";
@@ -3152,6 +3172,7 @@ async function flyCompartilhado(){if(location.hash!=="#fly-compartilhado"||MODO!
   try{const c=await caches.open("fly-compartilhado"),r=await c.match("fly");if(!r)return;const b=await r.blob();await c.delete("fly");
     irPara("listas");setTimeout(()=>lwLerFly(new File([b],"fly."+((b.type||"image/jpeg").split("/")[1]||"jpg"),{type:b.type||"image/jpeg"})),500)}catch(_){}}
 setTimeout(flyCompartilhado,1200);
+setTimeout(()=>{try{if(MODO==="adm"&&window.reinstAviso)reinstAviso(DADOS.reinst)}catch(_){}},2200);   // aviso de reinstalar, quando uma atualização pedir
 function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;const F=lw.f[lw.tipo]||{},assin=F.assin;
   lw.f[lw.tipo]=Object.fromEntries(T.campos.map(([k,,d])=>[k,d]));if(assin!==undefined)lw.f[lw.tipo].assin=assin;
   lwFlyCampos=new Set();lwGuardar();lwCampos();lwAtualiza();$("lwFlyLido").textContent="";$("lwFlyLimpar").hidden=true;avisoRapido("🗑️ Leitura e campos apagados.")}

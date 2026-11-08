@@ -574,6 +574,9 @@ CAVEIRA_URL = ""       # imagem da caveira (vem do template): usada no "Meu pain
 MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu painel
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
+# Quando uma atualização exige reinstalar o app (mudança no manifesto, como o Compartilhar), suba o "v" e escreva o motivo.
+# "quem": "adm" (só o comando) ou "todos" (comando e irmãos). O aviso aparece só no Android, no app instalado, até a pessoa marcar "Já reinstalei".
+AVISO_REINSTALAR = {"v": 1, "quem": "adm", "motivo": "receber os flys pelo Compartilhar do WhatsApp"}
 PESSOAIS = []          # [(email, html)] trancados no mesmo cofre do painel, cada um com o e-mail do irmão
 MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Meu painel · Insanos</title><meta name="theme-color" content="#0d0c0b">
@@ -781,6 +784,7 @@ async function avSinc(){try{if(!D.push||!("serviceWorker" in navigator)||!("Push
   await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
   try{localStorage.setItem("push_sync",JSON.stringify({e:D.email,ep:s.endpoint,t:Date.now()}))}catch(_){}avTela()}catch(e){}}
 setTimeout(avSinc,2500);
+setTimeout(()=>{try{reinstAviso(D.reinst)}catch(_){}},1800);
 // ---- carteirinha (abre com o QR de identificação) e conquistas (sequências e marcas, sem expor faltas)
 function carregarQRLib(){return new Promise(ok=>{if(window.qrcode)return ok();const sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";sc.onload=()=>ok();sc.onerror=()=>ok();document.head.appendChild(sc)})}
 function cartAbrir(){const ent=D.ent?D.ent.slice(8,10)+"/"+D.ent.slice(5,7)+"/"+D.ent.slice(0,4):"";
@@ -883,7 +887,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
-        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""),
+        dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""), "reinst": AVISO_REINSTALAR if AVISO_REINSTALAR.get("quem") == "todos" else None,
                  "sede": str(DIV.get("sede_endereco", "")), "sede_n": str(DIV.get("sede_local", "")),
                  "mens": ({"st": PAG_MEU.get("st", {}).get(m["n"], ""), "lk": PAG_MEU.get("lk", {}).get(m["n"], ""), "venc": PAG_MEU.get("venc", ""),
                            "adm": next((x["n"] for x in membros if str(x.get("c", "")).strip().lower().startswith("adm")), "")} if PAG_MEU else None),
@@ -900,7 +904,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                           if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
                           max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
         PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
-                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO)))
+                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO + REINST_MODULO)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
 
 TUTORIAL_APP = r"""<style>
@@ -1113,6 +1117,33 @@ PTR_MODULO = r"""<style>
       try{if(em)sessionStorage.setItem("reentrar",em)}catch(_){}setTimeout(()=>location.reload(),350)}
     else el.style.transform="translate(-50%,-60px)"},{passive:true});
 })();
+</script>"""
+
+REINST_MODULO = r"""<style>
+#reinst{position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));z-index:9500;padding:12px 14px;border-radius:16px;background:rgba(40,34,24,.94);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid rgba(233,185,73,.6);color:#ECE7DC;box-shadow:0 12px 30px rgba(0,0,0,.45);font-size:14px;line-height:1.4}
+#reinst b{color:#E9B949}#reinst .bts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+#reinst button{padding:8px 12px;border-radius:999px;border:1px solid rgba(236,231,220,.3);background:rgba(236,231,220,.06);color:#ECE7DC;font:inherit;font-weight:700;font-size:13px}
+#reinst button.ok{background:#E9B949;border-color:#E9B949;color:#141210}
+#reinst ol{margin:8px 0 0;padding-left:20px}
+</style>
+<script>
+// aviso de reinstalar o app (quando uma atualização muda o que o Android lê só na instalação)
+window.reinstAviso=function(R){try{
+  if(!R||!R.v||!/Android/.test(navigator.userAgent)||!(matchMedia("(display-mode: standalone)").matches))return;
+  if(+(localStorage.getItem("reinst_v")||0)>=R.v)return;
+  const ate=+(localStorage.getItem("reinst_depois")||0);if(ate>Date.now())return;
+  if(document.getElementById("reinst"))return;
+  const el=document.createElement("div");el.id="reinst";el.setAttribute("role","status");
+  el.innerHTML=`<b style="display:block;font-size:15px;margin-bottom:4px">📲 Atualização importante do app</b>Houve uma atualização de <b>segurança e de funcionalidades</b>. Por favor, <b>desinstale e instale o app de novo</b> (leva 1 minuto).<div class="pass" hidden><ol>
+    <li>Na tela inicial, <b>toque e segure</b> o ícone do app › <b>Desinstalar</b> (pode deixar "excluir os dados" desmarcado).</li>
+    <li>Abra o <b>Chrome</b> no endereço do app, toque em <b>⋮</b> › <b>Instalar app</b>.</li><li>Abra o app pelo ícone novo e entre normalmente.</li></ol></div>
+    <div class="bts"><button data-a="como">Como fazer</button><button data-a="ok" class="ok">Já reinstalei</button><button data-a="dep">Depois</button></div>`;
+  document.body.appendChild(el);
+  el.onclick=e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a;
+    if(a==="como"){const p=el.querySelector(".pass");p.hidden=!p.hidden;b.textContent=p.hidden?"Como fazer":"Esconder"}
+    else if(a==="ok"){try{localStorage.setItem("reinst_v",String(R.v))}catch(_){}el.remove()}
+    else{try{localStorage.setItem("reinst_depois",String(Date.now()+864e5))}catch(_){}el.remove()}}}catch(_){}};
 </script>"""
 
 SELECT_MODULO = r"""<style>
@@ -3298,7 +3329,7 @@ def main():
         pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
         pagina = pagina.replace("</body>", snip_versao(False) + "</body>", 1).replace("__VERSAO__", VERSAO_ATUAL)
         if dados.get("modo") == "adm":       # SOS dentro do painel ADM (quadrado do topo)
-            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO + "</body>", 1)
+            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO + REINST_MODULO + "</body>", 1)
         if dados.get("modo") == "geral" and caminho == SAIDA:
             global GERAL_RAW
             GERAL_RAW = pagina
@@ -3462,7 +3493,7 @@ def main():
     FLY = {}      # "Gerar fly" removido: o fly oficial é feito no site do clube
     gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
-    dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")),
+    dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
                  "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
