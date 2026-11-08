@@ -271,6 +271,22 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 @media (max-width:600px){.lanc-topo{grid-template-columns:1fr}.lanc-fim .btn{width:100%;justify-content:center}}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .q-velho{display:none!important}
+.filtros select,.filtros .multi-bt{font-size:14px!important}
+.filtros .ler-full{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.filtros .ler-full[hidden]{display:none}.filtros .ler-full .btn{flex:1 1 100%}
+.fbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fbar .lw-tipos{margin:0}
+.fbtn{display:none;margin-left:auto;padding:9px 14px;border-radius:999px;border:1px solid rgba(236,231,220,.3);background:rgba(236,231,220,.06);color:var(--osso);font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.fbtn b{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:#E9B949;color:#141210;font-size:11px;line-height:18px;text-align:center;margin-left:6px}
+.fres{display:flex;align-items:center;gap:8px;margin:8px 0 0;padding:8px 12px;border-radius:12px;background:rgba(233,185,73,.1);border:1px solid rgba(233,185,73,.35);font-size:13.5px}
+.fres[hidden]{display:none}.fres button{margin-left:auto;border:0;background:transparent;color:#E9B949;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}
+@media (max-width:700px){
+  .fbtn{display:inline-block}
+  body.fil-fechado section.filtros{display:none!important}
+  header h1{font-size:26px!important;line-height:1.05!important}
+  header{margin-bottom:10px!important}
+  .q3{width:70px!important;height:66px!important;border-radius:12px!important;font-size:11.5px!important;gap:2px!important}.q3 img{width:28px!important}.q3 svg{width:26px!important}
+  .q3.sos b{font-size:20px!important}.q3.sos span{font-size:9.5px!important}.q3 .q3-2l{font-size:10px!important}
+  .pin-chip{margin-top:6px!important;padding:4px 12px 4px 4px!important}.pin-chip img{width:26px!important}.pin-chip b{font-size:12.5px!important}.pin-chip span{font-size:11px!important}
+}
 @media (min-width:901px){body.adm header{min-height:0!important;padding-right:0;margin-bottom:18px}}   /* com os três quadrados, o topo não precisa reservar espaço */
 .quadros3{display:flex;gap:8px}
 .q3{width:84px;height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:14px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.06);color:var(--osso);font-weight:700;font-size:13px;cursor:pointer;padding:6px}
@@ -707,11 +723,11 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
 
   __NOSCRIPT__
   <section class="anal js" id="analBar" aria-label="Escolha da análise">
-    <div class="lw-tipos" role="tablist" id="analSel"></div>
+    <div class="fbar"><div class="lw-tipos" role="tablist" id="analSel"></div><button type="button" class="fbtn" id="fBtn" aria-expanded="false">🔎 Filtros</button></div>
+    <div class="fres" id="fRes" hidden></div>
     <div class="lw-tipos iz-modos" role="tablist" id="izModos" hidden>
       <button type="button" role="tab" data-izm="analise" aria-selected="true">📊 Análise</button>
     </div>
-    <div class="ez-ler so-adm" id="ezLerBox" hidden><button type="button" class="btn" id="ezLerImg">📷 Ler imagem (card com QR)</button><input type="file" id="ezLerArq" accept="image/*" hidden><span class="nota" id="ezLidoGeral"></span></div>
     <label class="lw-check anal-cmd" id="analCmd" hidden><span><input type="checkbox" id="semCmd"> <b id="analCmdTxt">Sem o comando</b></span></label>
   </section>
   <section class="painel js so-adm" id="insZap" hidden>
@@ -738,6 +754,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <details class="pag-prev"><summary>Ver a mensagem que será enviada</summary><pre id="izPrev" class="iz-prev"></pre></details>
   </section>
   <section class="filtros js" aria-label="Filtros">
+    <div class="ez-ler so-adm ler-full" id="ezLerBox" hidden><button type="button" class="btn" id="ezLerImg">📷 Ler imagem (card com QR)</button><input type="file" id="ezLerArq" accept="image/*" hidden><span class="nota" id="ezLidoGeral"></span></div>
     <label class="so-geral">Integrante<select id="fNome"></select></label>
     <label class="so-geral">Cargo / função<div class="multi" id="fCargoM"><button type="button" class="multi-bt" id="fCargoBt">Todos os cargos</button><div class="multi-op" id="fCargoOp" hidden></div></div><select id="fCargo" hidden></select></label>
     <label>Mês<select id="fMes"></select></label>
@@ -2652,6 +2669,19 @@ function pinTopo(){try{if(MODO!=="adm"||document.getElementById("pinTopo"))retur
   const c=document.createElement("div");c.id="pinTopo";c.className="pin-chip";
   c.innerHTML=`<img src="pin-${pn[0]}.png" alt=""><div><b>${esc(m.n)} · ${pn[1]}</b><span>Insanos M.C. desde ${fmtEnt(m.ent)}${p?` · 🎁 ${p[0]} em ${p[1]}`:""}</span></div>`;
   const h=document.querySelector("header .sub")||document.querySelector("header p")||document.querySelector("header h1");if(h)h.after(c)}catch(_){}}
+// ---- filtros no celular: recolhidos por padrão; o botão 🔎 Filtros abre/fecha e mostra quantos estão ativos
+function filAberto(){try{return localStorage.getItem("filtros_abertos")==="1"}catch(_){return false}}
+function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel=id=>{const s=$(id);return s&&s.value?(s.options[s.selectedIndex]||{}).textContent:""};
+  const partes=[sel("fNome"),(($("fCargoBt")||{}).textContent||"").trim(),sel("fMes"),sel("fData")].filter(x=>x&&!/^Todos? (os|as) /i.test(x)&&!/^Todas as /i.test(x));
+  const ab=!document.body.classList.contains("fil-fechado");
+  b.innerHTML="🔎 Filtros"+(partes.length?` <b>${partes.length}</b>`:"")+(ab?" ▴":"");b.setAttribute("aria-expanded",ab);
+  r.hidden=ab||!partes.length;if(!r.hidden)r.innerHTML=`🔎 <span>${partes.map(esc).join(" · ")}</span><button type="button" id="fResLimpar">✕ Limpar</button>`;
+  const l=$("fResLimpar");if(l)l.onclick=()=>{const x=$("limpar");if(x)x.click();setTimeout(fResAtualiza,50)}}
+(function(){if(!filAberto())document.body.classList.add("fil-fechado");
+  const b=$("fBtn");if(b)b.onclick=()=>{const fechar=!document.body.classList.contains("fil-fechado");document.body.classList.toggle("fil-fechado",fechar);
+    try{localStorage.setItem("filtros_abertos",fechar?"0":"1")}catch(_){}fResAtualiza()};
+  const f=document.querySelector("section.filtros");if(f){f.addEventListener("change",()=>setTimeout(fResAtualiza,30));f.addEventListener("click",()=>setTimeout(fResAtualiza,60))}
+  setTimeout(fResAtualiza,600)})();
 let LANC_TIPO="evento",INS_CASA=null;
 function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
   if(!INS_CASA){INS_CASA=document.createComment("lugar da lista do insight");z.parentNode.insertBefore(INS_CASA,z)}

@@ -1052,15 +1052,16 @@ SELECT_MODULO = r"""<style>
     else{m.style.bottom=(vh-r.top+6)+"px";m.style.maxHeight=Math.max(160,cima-6)+"px";m.style.setProperty("--oy","100%")}
     m.style.setProperty("--ox",Math.max(10,Math.min(r.left+r.width/2-left,40))+"px");
     const atual=m.querySelector('[aria-selected="true"]');if(atual)atual.scrollIntoView({block:"nearest"});
-    veu.addEventListener("click",fecha);
+    const t0=Date.now();veu.addEventListener("click",()=>{if(Date.now()-t0>350)fecha()});   // o fim do toque que abriu não fecha
     m.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(!b||b.disabled)return;
       if(sel.value!==b.dataset.v){sel.value=b.dataset.v;sel.dispatchEvent(new Event("input",{bubbles:true}));sel.dispatchEvent(new Event("change",{bubbles:true}))}
       try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}fecha()});
     aberto={veu,m}}
   const alvo=ev=>{const s=ev.target&&ev.target.closest&&ev.target.closest("select");return s&&!s.multiple&&!s.disabled&&s.size<=1?s:null};
-  document.addEventListener("pointerdown",ev=>{const s=alvo(ev);if(!s)return;ev.preventDefault();s.blur();abre(s)},true);
+  // o começo do toque só impede a janela padrão; o menu abre no fim do toque (clique), para o mesmo toque não fechá-lo
+  document.addEventListener("pointerdown",ev=>{if(alvo(ev))ev.preventDefault()},true);
   document.addEventListener("mousedown",ev=>{if(alvo(ev))ev.preventDefault()},true);
-  document.addEventListener("click",ev=>{if(alvo(ev))ev.preventDefault()},true);
+  document.addEventListener("click",ev=>{const s=alvo(ev);if(!s)return;ev.preventDefault();s.blur();abre(s)},true);
   document.addEventListener("keydown",ev=>{if(ev.key==="Escape")fecha()});
   addEventListener("resize",fecha);addEventListener("popstate",fecha);
 })();
