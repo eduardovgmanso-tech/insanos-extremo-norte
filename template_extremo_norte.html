@@ -566,7 +566,9 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 .dlido td,.dlido th{padding:8px 6px;text-align:left}.dlido td:not(:first-child),.dlido th:not(:first-child){text-align:center;white-space:nowrap}
 .ac-p{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--linha)}.ac-p>div{display:flex;flex-direction:column}.ac-p .nota{font-size:12.5px}
 #pagAvisarBoletos[hidden],#pagVerificar[hidden]{display:none!important}
-.pag-nomes{margin:12px 0 14px;display:grid;gap:8px}
+.pag-nomes{margin:12px 0 14px;display:grid;gap:8px}.pag-nomes[hidden]{display:none!important}
+#pagLista .pag-grupo{border-left:4px solid var(--osso2)}#pagLista .pag-grupo.ok{border-left-color:var(--presente)}#pagLista .pag-grupo.comp{border-left-color:#E9B949}#pagLista .pag-grupo.ab{border-left-color:var(--falta)}
+#pagLista .pag-grupo.ok .pg-tit{color:var(--presente)}#pagLista .pag-grupo.comp .pg-tit{color:#E9B949}#pagLista .pag-grupo.ab .pg-tit{color:var(--falta)}
 #pagView .pag-resumo{display:flex!important;flex-direction:column!important;align-items:center!important;gap:14px!important;margin:10px 0 14px!important}
 #pagView .pag-cav{display:flex;flex-direction:column;align-items:center;text-align:center}
 #pagView .pag-cav canvas{width:min(230px,58vw)!important;height:auto!important}
@@ -861,7 +863,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <div class="pag-cab"><div><h2 style="margin:0">Lista Whatsapp</h2><p class="sub" style="margin:4px 0 0">Monte a lista, marque quem vai e copie para o grupo do WhatsApp.</p></div></div>
     <div class="lw-tipos" role="tablist" id="lwTipos"></div>
     <div class="iz-zap lw-fly-ler">
-      <div class="lw-fly-bts"><button type="button" class="btn zap" id="lwFotoFly">📷 Tirar foto</button><button type="button" class="btn" id="lwLerFly">🖼️ Galeria</button></div>
+      <div class="lw-fly-bts"><button type="button" class="btn zap" id="lwFotoFly">📲 Ler do WhatsApp</button><button type="button" class="btn" id="lwLerFly">🖼️ Galeria</button></div>
       <input type="file" id="lwFlyArq" accept="image/*" hidden><input type="file" id="lwFlyCam" accept="image/*" capture="environment" hidden>
       <p class="nota" style="margin:6px 0 0">Confira os campos.</p>
       <p class="nota" id="lwFlyLido" style="margin:6px 0 0"></p>
@@ -1056,10 +1058,10 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
 
   <section class="painel js so-adm" id="pagView">
     <div class="pag-cab"><div><h2 style="margin:0">Pagamentos</h2><p class="sub" id="pagSub" style="margin:4px 0 0"></p></div></div>
+    <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagRegional">📊 Regional</button><button type="button" class="btn" id="pagVerificar" hidden>🔄 Verificar agora</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div>
     <div class="pag-resumo"><div class="pag-cav"><canvas id="pagCav" width="200" height="236"></canvas><b id="pagCavPc"></b><span id="pagCavTxt"></span></div>
       <div class="pag-kpis" id="pagKpis"></div></div>
-    <div class="pag-bts"><button type="button" class="btn" id="pagSalvar" hidden>Salvar alterações</button><button type="button" class="btn" id="pagRegional">📊 Regional</button><button type="button" class="btn" id="pagVerificar" hidden>🔄 Verificar agora</button><button type="button" class="btn" id="pagAvisarBoletos" hidden>📲 Avisar quem não pagou</button></div>
-    <div class="pag-nomes" id="pagNomes"></div>
+    <div class="pag-nomes" id="pagNomes" hidden></div>
     <div class="pag-lista" id="pagLista"></div>
     <div class="lw-bts" style="display:none"><button type="button" class="btn zap" id="pagSalvar2" hidden>Salvar alterações</button></div>
     <div class="lw-bts pag-fim">
@@ -2684,7 +2686,25 @@ function pinTopo(){try{if(MODO!=="adm"||document.getElementById("pinTopo"))retur
   const ap=(DADOS.quem||{})[em],m=ap&&M_FULL.find(x=>x.n.toLowerCase()===String(ap).toLowerCase()),pn=pinDe(m);if(!pn)return;const p=pinProx(m);
   const c=document.createElement("div");c.id="pinTopo";c.className="pin-chip";
   c.innerHTML=`<img src="pin-${pn[0]}.png" alt=""><div><b>${esc(m.n)} · ${pn[1]}</b><span>Insanos M.C. desde ${fmtEnt(m.ent)}${p?` · 🎁 ${p[0]} em ${p[1]}`:""}</span></div>`;
-  const h=document.querySelector("header .sub")||document.querySelector("header p")||document.querySelector("header h1");if(h)h.after(c)}catch(_){}}
+  const h=document.querySelector("header .sub")||document.querySelector("header p")||document.querySelector("header h1");if(h)h.after(c);
+  c.style.cursor="pointer";c.title="Abrir a minha carteirinha";c.insertAdjacentHTML("beforeend",'<span style="margin-left:6px;font-size:16px">🪪</span>');c.onclick=()=>cartAdm(m,pn)}catch(_){}}
+// carteirinha do comando (tocando no pin do topo): a mesma do Meu painel, com o QR de identificação
+async function cartAdm(m,pn){const ent=fmtEnt(m.ent),v=document.createElement("div");v.className="fa-veu";v.style.alignItems="center";
+  v.innerHTML=`<div style="width:min(380px,92vw);border-radius:22px;padding:18px;background:linear-gradient(150deg,#262019,#0f0d0b 70%);border:2px solid #E9B949;color:var(--osso)">
+    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(233,185,73,.35);padding-bottom:10px;margin-bottom:12px"><img src="${LOGO}" alt="" style="width:40px"><div><b style="letter-spacing:.06em">INSANOS M.C.</b><span style="display:block;font-size:12px;color:var(--osso2)">Divisão ${esc(DIV_NOME)} · ${esc(DIV_REG)}</span></div></div>
+    <div style="display:flex;gap:14px;align-items:center"><img src="pin-${pn[0]}.png" alt="" style="width:74px"><div><h3 style="margin:0;font-size:28px">${esc(m.n)}</h3><div style="color:#E9B949;font-weight:700;margin-top:4px">${esc(m.c||"")}</div><div style="font-size:12.5px;color:var(--osso2);margin-top:4px">Insanos M.C. desde ${ent} · ${pn[1]}</div></div></div>
+    ${(()=>{const i=M_FULL.findIndex(x=>x.n===m.n),hoje=new Date().toISOString().slice(0,10),ano=hoje.slice(0,4);let s=0,n=0;
+      (EV_SETS.pres||[]).forEach(e=>{if(e.d>hoje||!e.d.startsWith(ano))return;const v=e.p[i];if(v===1||v==="S"){s++;n++}else if(v===0)n++});
+      if(!n)return"";const pc=Math.round(s*100/n);
+      return `<div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(236,231,220,.05)">
+        <div style="position:relative;width:46px;flex:0 0 46px"><img src="${CAVEIRA}" alt="" style="display:block;width:100%;filter:grayscale(1) brightness(.45)"><img src="${CAVEIRA}" alt="" style="position:absolute;inset:0;width:100%;filter:sepia(1) saturate(3.2) hue-rotate(2deg) brightness(1.05);clip-path:inset(${100-pc}% 0 0 0)"></div>
+        <div><b style="font-size:28px;line-height:1;color:#E9B949">${pc}%</b><span style="display:block;font-size:12px;color:var(--osso2)">de presença nos eventos em ${ano} · ${s} de ${n}</span></div></div>`})()}
+    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(233,185,73,.35)"><canvas width="220" height="220" style="width:110px;height:110px;background:#fff;border-radius:10px;padding:6px;box-sizing:border-box"></canvas><p style="margin:0;font-size:12px;color:var(--osso2)">Código de identificação do irmão.</p></div>
+    <button type="button" class="fa-fechar" style="margin-top:14px">Fechar</button></div>`;
+  document.body.appendChild(v);v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
+  try{await carregarQR();const q=qrcode(0,"M");q.addData(unescape(encodeURIComponent(`INSANOS M.C. · Divisão ${DIV_NOME} ${DIV_REG}\n${m.n} · ${m.c||""}\nInsanos desde ${ent}\n${pn[1]}`)),"Byte");q.make();
+    const cv=v.querySelector("canvas"),g=cv.getContext("2d"),n=q.getModuleCount(),k=cv.width/n;g.fillStyle="#fff";g.fillRect(0,0,cv.width,cv.height);g.fillStyle="#000";
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(Math.floor(c*k),Math.floor(r*k),Math.ceil(k),Math.ceil(k))}catch(_){}}
 // ---- filtros no celular: recolhidos por padrão; o botão 🔎 Filtros abre/fecha e mostra quantos estão ativos
 function filAberto(){try{return localStorage.getItem("filtros_abertos")==="1"}catch(_){return false}}
 function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel=id=>{const s=$(id);return s&&s.value?(s.options[s.selectedIndex]||{}).textContent:""};
@@ -2698,23 +2718,32 @@ function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel
     try{localStorage.setItem("filtros_abertos",fechar?"0":"1")}catch(_){}fResAtualiza()};
   const f=document.querySelector("section.filtros");if(f){f.addEventListener("change",()=>setTimeout(fResAtualiza,30));f.addEventListener("click",()=>setTimeout(fResAtualiza,60))}
   setTimeout(fResAtualiza,600)})();
-// ---- arrastar para o lado troca de tela (Presença ↔ Pagamentos ↔ Lançar ↔ Lista), no celular
-(function(){const ORDEM=["painel","pag","lancar","listas"];let ini=null;
+// ---- arrastar para o lado troca de tela (Presença ↔ Pagamentos ↔ Lançar ↔ Lista), no celular: a tela acompanha o dedo
+(function(){const ORDEM=["painel","pag","lancar","listas"];let g=null;
+  const W=()=>document.querySelector(".wrap")||document.body;
   const bloqueia=el=>{for(let e=el;e&&e!==document.body;e=e.parentElement){
       if(e.tagName==="TEXTAREA"||e.tagName==="CANVAS"||(e.tagName==="INPUT"&&e.type==="range"))return true;
       if(e.matches&&e.matches(".selm,.selm-veu,.fa-veu,.sosm-veu,.lightbox,.multi-op,header .quadros3"))return true;
       const cs=getComputedStyle(e);if(/(auto|scroll)/.test(cs.overflowX)&&e.scrollWidth>e.clientWidth+4)return true}
     return !!document.querySelector(".fa-veu,.sosm-veu,.selm,#folhaAt")};
-  document.addEventListener("touchstart",ev=>{ini=null;if(MODO!=="adm"||ev.touches.length!==1)return;
+  const mover=(x,op,ms,ease)=>{const w=W();w.style.transition=ms?`transform ${ms}ms ${ease||"cubic-bezier(.22,.8,.3,1)"},opacity ${ms}ms ease`:"none";
+    w.style.transform=x?`translate3d(${x}px,0,0)`:"";w.style.opacity=op==null?"":op};
+  document.addEventListener("touchstart",ev=>{g=null;if(MODO!=="adm"||ev.touches.length!==1)return;
     const v=document.body.dataset.view||"painel";if(!ORDEM.includes(v)||bloqueia(ev.target))return;
-    const t0=ev.touches[0];ini={x:t0.clientX,y:t0.clientY,t:Date.now(),v}},{passive:true});
-  document.addEventListener("touchend",ev=>{if(!ini)return;const t1=ev.changedTouches[0],dx=t1.clientX-ini.x,dy=t1.clientY-ini.y,dt=Date.now()-ini.t,v=ini.v;ini=null;
-    if(Math.abs(dx)<70||Math.abs(dx)<2*Math.abs(dy)||dt>700)return;
-    const i=ORDEM.indexOf(v),j=dx<0?i+1:i-1;const w=document.querySelector(".wrap")||document.body;
-    if(j<0||j>=ORDEM.length){try{w.animate([{transform:"translateX(0)"},{transform:`translateX(${dx<0?-18:18}px)`},{transform:"translateX(0)"}],{duration:260,easing:"ease-out"})}catch(_){}return}
-    irPara(ORDEM[j]);window.scrollTo(0,0);
-    try{w.animate([{transform:`translateX(${dx<0?60:-60}px)`,opacity:.35},{transform:"translateX(0)",opacity:1}],{duration:230,easing:"cubic-bezier(.2,.8,.3,1)"})}catch(_){}
-    try{navigator.vibrate&&navigator.vibrate(6)}catch(_){}},{passive:true});
+    const t0=ev.touches[0];g={x:t0.clientX,y:t0.clientY,t:Date.now(),v,dir:0,dx:0}},{passive:true});
+  document.addEventListener("touchmove",ev=>{if(!g)return;const t1=ev.touches[0],dx=t1.clientX-g.x,dy=t1.clientY-g.y;
+    if(!g.dir){if(Math.abs(dx)<10&&Math.abs(dy)<10)return;g.dir=Math.abs(dx)>1.4*Math.abs(dy)?1:-1}
+    if(g.dir<0){g=null;return}                                     // movimento vertical: é rolagem, não troca de tela
+    const i=ORDEM.indexOf(g.v),borda=(dx>0&&i===0)||(dx<0&&i===ORDEM.length-1);
+    g.dx=dx;mover(borda?dx*0.25:dx*0.85,1-Math.min(Math.abs(dx)/900,.25),0)},{passive:true});
+  document.addEventListener("touchend",()=>{if(!g)return;const {dx,t,v,dir}=g;g=null;if(dir!==1){mover(0,null,0);return}
+    const i=ORDEM.indexOf(v),vel=Math.abs(dx)/Math.max(1,Date.now()-t),j=dx<0?i+1:i-1,larg=innerWidth;
+    if((Math.abs(dx)<70&&vel<.5)||j<0||j>=ORDEM.length){mover(0,null,200);return}   // curto ou na ponta: volta para o lugar
+    mover(dx<0?-larg*0.35:larg*0.35,0,130,"ease-in");
+    setTimeout(()=>{irPara(ORDEM[j]);window.scrollTo(0,0);mover(dx<0?larg*0.3:-larg*0.3,0,0);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{mover(0,1,240);setTimeout(()=>mover(0,null,0),260)}));
+      try{navigator.vibrate&&navigator.vibrate(6)}catch(_){}},130)},{passive:true});
+  document.addEventListener("touchcancel",()=>{if(g){g=null;mover(0,null,180)}},{passive:true});
 })();
 let LANC_TIPO="evento",INS_CASA=null;
 function lancTipo(tp){LANC_TIPO=tp;const z=$("insZap");if(!z)return;
@@ -2859,13 +2888,13 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     return html.replace('<div class="pag-l','<div class="pag-l pag-novo').replace('<div class="nome">',`<div class="nome"><span class="tag-novo">🆕 pagou ${quando(pe[m.n])}</span>`)};
   // dois grupos que abrem e fecham (começam fechados): pagos + em compensação, e em aberto
   const compL=faltaL.filter(m=>cls(m.n)==="aguard"),abertoL=faltaL.filter(m=>cls(m.n)==="aberto");
-  const novos=pagosL.filter(m=>novoPag(m.n)).length,AB=window.PAG_ABERTO||(window.PAG_ABERTO={ok:false,ab:false});
+  const novos=pagosL.filter(m=>novoPag(m.n)).length,AB=window.PAG_ABERTO||(window.PAG_ABERTO={ok:false,comp:false,ab:false});
   const grupo=(id,cl,tit,n,extra,corpo)=>`<details class="pag-grupo ${cl}" data-g="${id}"${AB[id]?" open":""}><summary><span class="pg-tit">${tit}</span><span class="pg-n">${n}</span>${extra}<span class="pg-seta">▾</span></summary><div class="pag-lista-int">${corpo}</div></details>`;
-  $("pagLista").innerHTML=
-    grupo("ok","ok","✅ Pagos e em compensação",pagosL.length+compL.length,
-      (compL.length?`<span class="pg-tag">⏰ ${compL.length} em compensação</span>`:"")+(novos?`<span class="pg-tag novo">🆕 ${novos} novo${novos>1?"s":""}</span>`:""),
-      (compL.length||pagosL.length)?compL.map(cartao).join("")+pagosL.map(m=>marcarNovo(cartao(m),m)).join(""):`<p class="pag-vazio">Ninguém pagou ainda.</p>`)+
-    grupo("ab","ab","⏳ Em aberto",abertoL.length,"",abertoL.length?abertoL.map(cartao).join(""):`<p class="pag-vazio">Todos pagaram. 🎉</p>`);
+  $("pagLista").innerHTML=   // três blocos que abrem e fecham: tocando, aparecem os irmãos com o boleto e o ⏰ de cada um
+    grupo("ok","ok","✅ Pagos",pagosL.length,(novos?`<span class="pg-tag novo">🆕 ${novos} novo${novos>1?"s":""}</span>`:""),
+      pagosL.length?pagosL.map(m=>marcarNovo(cartao(m),m)).join(""):`<p class="pag-vazio">Ninguém pagou ainda.</p>`)+
+    grupo("comp","comp","⏰ Em compensação",compL.length,"",compL.length?compL.map(cartao).join(""):`<p class="pag-vazio">Ninguém em compensação.</p>`)+
+    grupo("ab","ab","⏳ Não pagos",abertoL.length,"",abertoL.length?abertoL.map(cartao).join(""):`<p class="pag-vazio">Todos pagaram. 🎉</p>`);
   $("pagLista").querySelectorAll(".pag-grupo").forEach(d=>d.addEventListener("toggle",()=>{AB[d.dataset.g]=d.open}));
   const podeEnv=ord.filter(m=>cls(m.n)!=="pago"&&P.boleto[m.n]&&(P.boleto_mes||{})[m.n]!==false&&fcTelefone(m.tel));
   const pagos=ord.filter(m=>cls(m.n)==="pago");
@@ -3012,7 +3041,7 @@ function montarListas(){
   if($("lwLerFly")){$("lwLerFly").onclick=()=>{$("lwFlyArq").value="";$("lwFlyArq").click()};$("lwFlyArq").onchange=()=>{const f=$("lwFlyArq").files[0];if(f)lwLerFly(f)}}
   if($("lwFlyLimpar"))$("lwFlyLimpar").onclick=()=>{if(confirm("Apagar a leitura e todos os campos desta lista?"))lwFlyLimpar()};
   // câmera direto (no celular abre a câmera traseira; no computador, abre a escolha de arquivo)
-  if($("lwFotoFly")){$("lwFotoFly").onclick=()=>{$("lwFlyCam").value="";$("lwFlyCam").click()};$("lwFlyCam").onchange=()=>{const f=$("lwFlyCam").files[0];if(f)lwLerFly(f,true)}}
+  if($("lwFotoFly"))$("lwFotoFly").onclick=flyWhatsFolha;
   $("lwTipos").innerHTML=Object.entries(LW_TIPOS).map(([k,x])=>`<button type="button" role="tab" data-lwt="${k}" aria-selected="${k===lw.tipo}">${x.nome}</button>`).join("");
   lw.marca=lwMarcasCarregar(lw.tipo);lw.just=lwJustCarregar(lw.tipo);
   $("lwTipos").onclick=ev=>{const b=ev.target.closest("[data-lwt]");if(!b)return;lw.tipo=b.dataset.lwt;lw.marca=lwMarcasCarregar(lw.tipo);lw.just=lwJustCarregar(lw.tipo);
@@ -3099,6 +3128,30 @@ function flyTitulo(s){const peq=["da","de","do","das","dos","e"];return String(s
 function avisoRapido(txt,erro){let a=document.getElementById("avisoRapido");if(!a){a=document.createElement("div");a.id="avisoRapido";a.className="aviso-rapido";a.setAttribute("role","status");document.body.appendChild(a)}
   a.textContent=txt;a.classList.toggle("erro",!!erro);a.classList.add("on");clearTimeout(avisoRapido.t);avisoRapido.t=setTimeout(()=>a.classList.remove("on"),txt.length>90?7000:3800)}
 // apaga a leitura e todos os campos da lista (mantém só a assinatura)
+// ---- ler o fly direto do WhatsApp: no Android, Compartilhar › Insanos ADM; no iPhone, Copiar e colar aqui
+function flyWhatsFolha(){const iph=/iPhone|iPad|iPod/.test(navigator.userAgent);let v=document.getElementById("folhaAt");if(v)v.remove();
+  v=document.createElement("div");v.id="folhaAt";v.className="fa-veu";
+  v.innerHTML=`<div class="fa-cx" role="dialog" aria-modal="true" aria-label="Ler o fly do WhatsApp"><h3>📲 Ler o fly do WhatsApp</h3>
+    ${iph?`<ol style="margin:0 0 12px;padding-left:20px;line-height:1.55;font-size:14.5px"><li>No WhatsApp, abra o fly e toque em <b>Compartilhar</b> (o ícone com a seta).</li><li>Toque em <b>Copiar</b>.</li><li>Volte aqui e toque em <b>📋 Colar imagem do fly</b>.</li></ol>`
+      :`<ol style="margin:0 0 12px;padding-left:20px;line-height:1.55;font-size:14.5px"><li>No WhatsApp, <b>toque e segure</b> a imagem do fly.</li><li>Toque em <b>Compartilhar</b> (o ícone de três pontinhos ligados).</li><li>Escolha <b>Insanos ADM</b>: o app abre aqui na Lista e lê o fly sozinho.</li></ol>
+      <p class="nota" style="margin:-4px 0 12px">Se o Insanos ADM não aparecer na lista, remova o ícone do app e instale de novo pelo Chrome (o Android só libera isso na instalação). Ou use o <b>Colar</b>: no WhatsApp, abra o fly, toque em ⋮ › Compartilhar › Copiar.</p>`}
+    <button type="button" class="fa-it" id="flyColar"><span class="fa-ico">📋</span><span><b>Colar imagem do fly</b><small>Depois de copiar a imagem no WhatsApp</small></span></button>
+    <button type="button" class="fa-it" id="flyZap"><span class="fa-ico">💬</span><span><b>Abrir o WhatsApp</b><small>Para achar o fly no grupo</small></span></button>
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+  document.body.appendChild(v);v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
+  document.getElementById("flyZap").onclick=()=>{location.href="whatsapp://"};
+  document.getElementById("flyColar").onclick=async()=>{try{
+      if(!navigator.clipboard||!navigator.clipboard.read)throw new Error("Este navegador não deixa colar imagens. Use o Compartilhar ou a Galeria.");
+      const itens=await navigator.clipboard.read();for(const it of itens){const tp=it.types.find(x=>x.startsWith("image/"));
+        if(tp){const b=await it.getType(tp);v.remove();lwLerFly(new File([b],"fly."+(tp.split("/")[1]||"png"),{type:tp}));return}}
+      throw new Error("Não achei uma imagem copiada. No WhatsApp, abra o fly e use Compartilhar › Copiar.")}
+    catch(e){alert(e&&e.message?e.message:"Não consegui colar a imagem.")}}}
+// fly que chegou pelo Compartilhar do Android: abre a Lista e lê sozinho
+async function flyCompartilhado(){if(location.hash!=="#fly-compartilhado"||MODO!=="adm"||!("caches" in window))return;
+  try{history.replaceState(null,"",location.pathname)}catch(_){}
+  try{const c=await caches.open("fly-compartilhado"),r=await c.match("fly");if(!r)return;const b=await r.blob();await c.delete("fly");
+    irPara("listas");setTimeout(()=>lwLerFly(new File([b],"fly."+((b.type||"image/jpeg").split("/")[1]||"jpg"),{type:b.type||"image/jpeg"})),500)}catch(_){}}
+setTimeout(flyCompartilhado,1200);
 function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;const F=lw.f[lw.tipo]||{},assin=F.assin;
   lw.f[lw.tipo]=Object.fromEntries(T.campos.map(([k,,d])=>[k,d]));if(assin!==undefined)lw.f[lw.tipo].assin=assin;
   lwFlyCampos=new Set();lwGuardar();lwCampos();lwAtualiza();$("lwFlyLido").textContent="";$("lwFlyLimpar").hidden=true;avisoRapido("🗑️ Leitura e campos apagados.")}

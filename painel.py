@@ -351,6 +351,11 @@ function entrar(){document.body.classList.add("fotos-on");document.body.classLis
     <div style="display:flex;gap:8px"><button id="bioSim" type="button" style="flex:1;padding:11px;border-radius:10px;border:0;background:#E9B949;color:#141210;font-weight:800">Ativar</button>
     <button id="bioNao" type="button" style="flex:1;padding:11px;border-radius:10px;border:1px solid rgba(236,231,220,.3);background:transparent;color:#ECE7DC;font-weight:700">Agora não</button></div></div>
   <div id="erro" role="alert"></div>
+  <style>#carrega{position:fixed;inset:0;z-index:99999;background:rgba(13,11,9,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#BDB7AA;font-size:15px}
+  #carrega .cl-cav{position:relative;width:150px}#carrega .cl-cav img{display:block;width:100%;height:auto;filter:grayscale(1) brightness(.45)}
+  #carrega .cl-cav img.ouro{position:absolute;inset:0;filter:sepia(1) saturate(3.2) hue-rotate(2deg) brightness(1.05);animation:clEnche 1.6s cubic-bezier(.45,.05,.3,1) infinite}
+  @keyframes clEnche{0%{clip-path:inset(100% 0 0 0)}70%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 0 0 0);opacity:.0}}
+  @media (prefers-reduced-motion:reduce){#carrega .cl-cav img.ouro{animation:none;clip-path:inset(40% 0 0 0)}}</style>
   <a id="solic" class="solic" hidden target="_blank" rel="noopener">📩 Solicitar acesso</a>
   <button type="button" class="tut-abrir" id="tutLink" onclick="tutAbrir()">📲 Como instalar o app</button>
   <style>.avs{display:block;text-align:left;margin-top:6px}.av{border-top:1px solid rgba(236,231,220,.14);padding:8px 2px}.av summary{cursor:pointer;list-style:none;font-size:13px;color:#d9d2c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -381,6 +386,8 @@ function mostraEmail(){["cpf","b"].forEach(id=>{const x=document.getElementById(
   document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");const l=document.getElementById("emailLink");if(l)l.style.display="none";
   const c=document.getElementById("cpf");if(c)setTimeout(()=>c.focus(),50)}
 document.getElementById("emailLink").onclick=ev=>{ev.preventDefault();mostraEmail()};
+(function(){let re="";try{re=sessionStorage.getItem("reentrar")||"";sessionStorage.removeItem("reentrar")}catch(_){}
+  if(re&&re.includes("@")){cpf.value=re;setTimeout(()=>{try{document.getElementById("f").requestSubmit()}catch(_){}},250)}})();
 const bioB64=x=>btoa(String.fromCharCode(...new Uint8Array(x))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const bioDe64=x=>Uint8Array.from(atob(x.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-x.length%4)%4)),c=>c.charCodeAt(0));
 async function bioEntrar(auto){erro.textContent="";try{
@@ -505,8 +512,15 @@ document.getElementById("sosCopiar").onclick=async()=>{try{await navigator.clipb
     if(navigator.share){try{await navigator.share({text:tx})}catch(_){}}
     if(rota)location.href=rota};
 })();
+// a caveira enchendo de dourado enquanto o painel abre (some se aparecer erro ou o pedido do código)
+function carrega(mostra){let c=document.getElementById("carrega");
+  if(!mostra){if(c)c.remove();return}
+  if(c||!P.cav)return;c=document.createElement("div");c.id="carrega";
+  c.innerHTML=`<div class="cl-cav"><img src="${P.cav}" alt=""><img class="ouro" src="${P.cav}" alt=""></div><p>Abrindo o painel…</p>`;document.body.appendChild(c)}
+new MutationObserver(()=>{if(erro.textContent.trim())carrega(false)}).observe(erro,{childList:true,characterData:true,subtree:true});
+(function(){const ob=document.getElementById("otpBox");if(ob)new MutationObserver(()=>{if(!ob.hidden)carrega(false)}).observe(ob,{attributes:true})})();
 document.getElementById("f").addEventListener("submit",async ev=>{
-  ev.preventDefault();erro.textContent="";
+  ev.preventDefault();erro.textContent="";carrega(true);
   solic.hidden=true;
   const d=cpf.value.trim().toLowerCase();
   const registrar=ok=>{try{const u="__ACESSOS_URL__";if(!u)return;
@@ -589,6 +603,30 @@ details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary
 .ev .q{border:1px solid rgba(240,182,180,.5);background:transparent;color:#F2A3A3;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
 .qbox{background:rgba(236,231,220,.05);border-radius:12px;padding:10px;margin:4px 0 10px}.qbox pre{white-space:pre-wrap;font-family:inherit;font-size:13px;margin:0 0 8px}
 .qbts{display:flex;gap:8px}.qbts button{flex:1;padding:9px;border-radius:999px;border:1px solid var(--linha);background:transparent;color:var(--osso);font-weight:700}.qbts .qz{background:#1f8f4e;border-color:#1f8f4e;color:#fff}
+.mens-d summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}.mens-d summary::-webkit-details-marker{display:none}
+.mens-d summary b{display:block;font-size:17px}.mens-d summary small{display:block;font-size:13.5px;color:#E9B949;font-weight:700;margin-top:2px}
+.mens-d summary i{margin-left:auto;font-style:normal;font-size:22px;color:#BDB7AA;transition:transform .2s}.mens-d[open] summary i{transform:rotate(90deg)}
+.mens-d[open] summary{margin-bottom:12px}
+.cart .pres{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(236,231,220,.05)}
+.cart .pres .cv{position:relative;width:46px;flex:0 0 46px}.cart .pres .cv img{display:block;width:100%;height:auto;filter:grayscale(1) brightness(.45)}
+.cart .pres .cv img.o{position:absolute;inset:0;filter:sepia(1) saturate(3.2) hue-rotate(2deg) brightness(1.05)}
+.cart .pres b{font-size:28px;line-height:1;color:#E9B949}.cart .pres span{display:block;font-size:12px;color:#BDB7AA}
+.qbts a.qz{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;color:#fff}
+.cart-bts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-2px 0 12px}
+.cart-bts button{padding:11px 8px;border-radius:14px;border:1px solid rgba(233,185,73,.4);background:rgba(233,185,73,.07);color:#ECE7DC;font-weight:700;font-size:14px}
+#conqN{display:inline-block;min-width:18px;padding:0 6px;border-radius:9px;background:#E9B949;color:#141210;font-size:11px;line-height:18px}
+#conqBox{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}#conqBox[hidden]{display:none}
+.cq{padding:12px;border-radius:14px;background:rgba(236,231,220,.05);border:1px solid rgba(236,231,220,.1)}.cq b{display:block;font-size:22px;line-height:1.1}
+.cq strong{display:block;font-size:13.5px;margin-top:4px}.cq span{display:block;font-size:12px;color:#BDB7AA;margin-top:2px}.cq.off{opacity:.45;filter:grayscale(1)}
+.cart-veu{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:16px}
+.cart{width:min(380px,100%);border-radius:22px;padding:18px;background:linear-gradient(150deg,#262019,#0f0d0b 70%);border:2px solid #E9B949;box-shadow:0 20px 60px rgba(0,0,0,.6);color:#ECE7DC;position:relative}
+.cart .topo{display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(233,185,73,.35);padding-bottom:10px;margin-bottom:12px}
+.cart .topo img{width:40px;height:auto}.cart .topo b{font-size:16px;letter-spacing:.06em}.cart .topo span{display:block;font-size:12px;color:#BDB7AA}
+.cart .meio{display:flex;gap:14px;align-items:center}.cart .meio .pin{width:74px;height:auto;flex:0 0 74px}
+.cart h3{margin:0;font-size:28px;line-height:1.05}.cart .c{font-size:14px;color:#E9B949;font-weight:700;margin-top:4px}.cart .d{font-size:12.5px;color:#BDB7AA;margin-top:4px}
+.cart .qr{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(233,185,73,.35)}
+.cart .qr canvas{width:110px;height:110px;background:#fff;border-radius:10px;padding:6px;box-sizing:border-box}.cart .qr p{margin:0;font-size:12px;color:#BDB7AA;line-height:1.4}
+.cart .fechar{display:block;width:100%;margin-top:14px;padding:11px;border-radius:12px;border:1px solid rgba(236,231,220,.3);background:transparent;color:#ECE7DC;font-weight:700;font-size:15px}
 .msg-meu{display:block;width:100%;margin:-4px 0 14px;padding:13px;border-radius:16px;border:1px solid rgba(233,185,73,.45);background:rgba(233,185,73,.08);color:#ECE7DC;font-weight:800;font-size:16px}
 .sos-meu{display:block;width:100%;margin:0 0 14px;padding:15px;border-radius:16px;border:0;background:#c62828;color:#fff;font-weight:900;font-size:17px;letter-spacing:.3px;box-shadow:0 0 0 3px rgba(198,40,40,.22)}
 .nota{color:var(--osso2);font-size:12.5px}.sair{display:block;margin:18px auto 0;background:transparent;border:1px solid var(--linha);color:var(--osso);border-radius:999px;padding:10px 22px;font-weight:700}
@@ -604,12 +642,11 @@ const MESES_N=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Ag
 // Minha mensalidade: a situação do mês, o boleto a um toque e, se precisar, o pedido do boleto ao ADM
 function mensQuadro(){const M=D.mens,st=String(M.st||""),mes=M.venc?MESES_N[+M.venc.slice(5,7)-1]:"",venc=M.venc?M.venc.slice(8,10)+"/"+M.venc.slice(5,7):"";
   const pago=/pag|ades/i.test(st)&&!/aberto/i.test(st),comp=/aguard|compens/i.test(st);
-  if(pago)return `<div class="card" id="mensal"><h2>💵 Minha mensalidade</h2><p style="margin:0;font-weight:700;color:#4CAF6A">✅ ${mes} paga. Valeu, irmão!</p></div>`;
-  return `<div class="card" id="mensal"><h2>💵 Minha mensalidade</h2>
-    <p style="margin:0 0 10px;font-weight:700">${comp?`⏰ ${mes} em compensação`:`⏳ ${mes} em aberto${venc?" · vence em "+venc:""}`}</p>
+  if(pago)return `<div class="card" id="mensal"><h2 style="margin:0">💵 Minha mensalidade</h2><p style="margin:6px 0 0;font-weight:700;color:#4CAF6A">✅ ${mes} paga. Valeu, irmão!</p></div>`;
+  return `<details class="card mens-d" id="mensal"><summary><span><b>💵 Minha mensalidade</b><small>${comp?`⏰ ${mes} em compensação`:`⏳ ${mes} em aberto${venc?" · vence "+venc:""}`}</small></span><i>›</i></summary>
     <div class="qbts">${M.lk?`<a class="qz" href="${es(M.lk)}" target="_blank" rel="noopener" style="text-decoration:none">📄 Abrir meu boleto</a>`:""}
     ${M.adm?`<button id="mensPedir">🙋 Pedir o boleto ao ${es(M.adm)}</button>`:""}</div>
-    <p class="nota" id="mensTx" style="margin:8px 0 0">${M.lk?"O boleto também chega pelos avisos do app.":"O boleto deste mês ainda não está no painel. Se precisar, peça ao comando."}</p></div>`}
+    <p class="nota" id="mensTx" style="margin:8px 0 0">${M.lk?"O boleto também chega pelos avisos do app.":"O boleto deste mês ainda não está no painel. Se precisar, peça ao comando."}</p></details>`}
 const cav=(v,r,sub)=>`<div class="cv"><span class="cav" style="--cav:url('${CAV}');--c:${cor(v)[0]};--p:${v||0}%"></span><b style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</b><span>${r}</span><small>${sub}</small></div>`;
 const bar=(r,v)=>`<div class="br"><span>${r}</span><div class="tr"><i style="width:${v||0}%;background:${cor(v)[1]}"></i></div><em style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</em></div>`;
 const vp=pc(D.pres),vi=pc(D.ins);
@@ -617,6 +654,8 @@ const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
 <h1 style="display:flex;align-items:center;gap:12px">${es(D.n)}${PIN?`<img src="pin-${PIN[0]}.png" alt="${PIN[1]}" title="${PIN[1]}" style="width:44px;height:auto">`:""}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}${PIN?" · "+PIN[1]:""}</p>
 <div id="comoIrmao" hidden style="margin:0 0 12px;padding:10px 12px;border-radius:12px;background:rgba(233,185,73,.12);border:1px solid rgba(233,185,73,.45);font-size:14px">👁️ Você está vendo <b>como irmão</b> · <a href="#" id="voltarCmd" style="color:#E9B949;font-weight:800">Voltar ao painel do comando</a></div>
+<div class="cart-bts"><button id="cartBt">🪪 Minha carteirinha</button><button id="conqBt" aria-expanded="false">🏆 Minhas conquistas <span id="conqN"></span></button></div>
+<div id="conqBox" hidden></div>
 <button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
 <button class="msg-meu" onclick="abrirMensagens({modo:'irmao',comando:D.cmd||[]})">✉️ Mensagens · falar com o comando</button>
 ${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
@@ -688,11 +727,20 @@ function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>(!FF||e[2]!==1)&&(!PE
   if(feito)ok();
   b.onclick=async()=>{try{await fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|resp|"+D.insp.d+"|"+D.insp.tk+"|"+D.insp.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})});
     try{localStorage.setItem("insr_"+D.email,D.insp.d+"|"+D.insp.e)}catch(_){}ok()}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}}})();
+function agendaAdd(e){const d1=e.d.replace(/-/g,""),dt=new Date(e.d+"T12:00:00");dt.setDate(dt.getDate()+1);
+  const d2=`${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,"0")}${String(dt.getDate()).padStart(2,"0")}`;
+  const tit=`Insanos · ${e.e}`,loc=[D.sede_n,D.sede].filter(Boolean).join(" · "),det=`Divisão ${D.div} ${D.reg}. Confirme sua presença no app.`;
+  if(/iPhone|iPad|iPod/.test(navigator.userAgent)){   // iPhone: arquivo de agenda (abre direto no Calendário)
+    const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Insanos//Painel//PT","BEGIN:VEVENT",`UID:${d1}-${encodeURIComponent(e.e)}@insanos`,`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,"").slice(0,15)}Z`,
+      `DTSTART;VALUE=DATE:${d1}`,`DTEND;VALUE=DATE:${d2}`,`SUMMARY:${tit}`,`LOCATION:${loc}`,`DESCRIPTION:${det}`,"END:VEVENT","END:VCALENDAR"].join("\r\n");
+    const a=document.createElement("a");a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(ics);a.download="evento-insanos.ics";document.body.appendChild(a);a.click();a.remove();return}
+  window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(tit)}&dates=${d1}/${d2}&location=${encodeURIComponent(loc)}&details=${encodeURIComponent(det)}`,"_blank")}
 function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;let loc={};try{loc=JSON.parse(localStorage.getItem("rsvp_"+D.email)||"{}")}catch(_){}
   el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
     const txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"Ainda não respondeu";
     return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b><small class="nota" style="width:100%;padding-left:54px">${txt}</small>
-      <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button></div></div>`}).join("");
+      <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button><button data-ag="${k}">📅 Agenda</button></div></div>`}).join("");
+  el.querySelectorAll("[data-ag]").forEach(b=>b.onclick=()=>agendaAdd(D.prox[+b.dataset.ag]));
   el.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const e=D.prox[+b.dataset.k],r=b.dataset.r;
     try{await fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})});
       loc[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(loc))}catch(_){}proxDesenha();
@@ -733,6 +781,35 @@ async function avSinc(){try{if(!D.push||!("serviceWorker" in navigator)||!("Push
   await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
   try{localStorage.setItem("push_sync",JSON.stringify({e:D.email,ep:s.endpoint,t:Date.now()}))}catch(_){}avTela()}catch(e){}}
 setTimeout(avSinc,2500);
+// ---- carteirinha (abre com o QR de identificação) e conquistas (sequências e marcas, sem expor faltas)
+function carregarQRLib(){return new Promise(ok=>{if(window.qrcode)return ok();const sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";sc.onload=()=>ok();sc.onerror=()=>ok();document.head.appendChild(sc)})}
+function cartAbrir(){const ent=D.ent?D.ent.slice(8,10)+"/"+D.ent.slice(5,7)+"/"+D.ent.slice(0,4):"";
+  const v=document.createElement("div");v.className="cart-veu";v.innerHTML=`<div class="cart"><div class="topo"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
+    <div class="meio">${PIN?`<img class="pin" src="pin-${PIN[0]}.png" alt="${PIN[1]}">`:""}<div><h3>${es(D.n)}</h3><div class="c">${es(D.c||"")}</div>
+      <div class="d">${ent?"Insanos M.C. desde "+ent:""}${PIN?" · "+PIN[1]:""}</div></div></div>
+    ${vp!=null?`<div class="pres"><div class="cv"><img src="${CAV}" alt=""><img class="o" src="${CAV}" alt="" style="clip-path:inset(${100-vp}% 0 0 0)"></div><div><b>${vp}%</b><span>de presença nos eventos em ${D.ano}${D.pres&&D.pres[1]?` · ${D.pres[0]} de ${D.pres[1]}`:""}</span></div></div>`:""}
+    <div class="qr"><canvas width="220" height="220"></canvas><p>Código de identificação do irmão. Quem ler vê o nome, o cargo, a divisão e desde quando é Insanos.</p></div>
+    <button class="fechar">Fechar</button></div>`;document.body.appendChild(v);
+  v.onclick=e=>{if(e.target===v||e.target.classList.contains("fechar"))v.remove()};
+  carregarQRLib().then(()=>{if(!window.qrcode)return;const txt=`INSANOS M.C. · Divisão ${D.div} ${D.reg}\n${D.n} · ${D.c||""}${ent?"\nInsanos desde "+ent:""}${PIN?"\n"+PIN[1]:""}`;
+    const q=qrcode(0,"M");q.addData(unescape(encodeURIComponent(txt)),"Byte");q.make();const cv=v.querySelector("canvas"),g=cv.getContext("2d"),n=q.getModuleCount(),m=cv.width/n;
+    g.fillStyle="#fff";g.fillRect(0,0,cv.width,cv.height);g.fillStyle="#000";for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(Math.floor(c*m),Math.floor(r*m),Math.ceil(m),Math.ceil(m))})}
+function conquistas(){const ev=[...(D.ev||[])].sort((a,b)=>a[0]<b[0]?1:-1),cron=[...ev].reverse();
+  let atual=0;for(const e of ev){if(e[2]===1)atual++;else break}
+  let maior=0,c=0;for(const e of cron){if(e[2]===1){c++;maior=Math.max(maior,c)}else c=0}
+  const mesPerf=(D.meses||[]).filter(m=>m.p&&m.p[1]>=2&&m.p[0]===m.p[1]).length,insPerf=(D.meses||[]).filter(m=>m.i&&m.i[1]>=1&&m.i[0]===m.i[1]).length;
+  const pa=D.pres&&D.pres[1]?Math.round(D.pres[0]*100/D.pres[1]):0;
+  return [["🔥",atual>=3,`${atual} seguido${atual===1?"":"s"}`,"Sequência atual de presenças",atual>=3?"Continue assim!":"A partir de 3 seguidos"],
+    ["🏅",maior>=5,`${maior} seguidos`,"Maior sequência no ano",maior>=5?"Conquistada":"Faça 5 seguidos"],
+    ["📅",mesPerf>0,mesPerf?`${mesPerf} mês${mesPerf>1?"es":""}`:"0","Mês perfeito (100% de presença)","Todos os eventos de um mês"],
+    ["💬",insPerf>0,insPerf?`${insPerf} mês${insPerf>1?"es":""}`:"0","Insights em dia (100% no mês)","Responder todos os insights de um mês"],
+    ["⭐",pa>=75,`${pa}%`,"Frequência de ouro no ano","75% ou mais de presença"],
+    ["💀",!!PIN,PIN?PIN[1]:"—","Pin Caveira",PIN&&PIN[0]!=="ouro"?"Próximo pin no começo do ano em que completar 3, 6 ou 9 anos":"Maior pin"]]}
+(function(){const cb=document.getElementById("cartBt");if(cb)cb.onclick=cartAbrir;
+  const L=conquistas(),box=document.getElementById("conqBox"),bt=document.getElementById("conqBt");if(!box||!bt)return;
+  document.getElementById("conqN").textContent=L.filter(x=>x[1]).length;
+  box.innerHTML=L.map(([i,ok,v,t,d])=>`<div class="cq${ok?"":" off"}"><b>${i} ${es(v)}</b><strong>${es(t)}</strong><span>${es(d)}</span></div>`).join("");
+  bt.onclick=()=>{box.hidden=!box.hidden;bt.setAttribute("aria-expanded",!box.hidden)}})();
 (function(){const b=document.getElementById("mensPedir");if(!b)return;const chave="bol_pedido_"+D.email,hoje=new Date().toISOString().slice(0,10);
   const feito=()=>{b.disabled=true;b.textContent="✅ Pedido enviado hoje";document.getElementById("mensTx").textContent=`O ${D.mens.adm} recebe o seu pedido em 1 a 3 minutos. A resposta aparece em ✉️ Mensagens.`};
   try{if(localStorage.getItem(chave)===hoje)feito()}catch(_){}
@@ -807,6 +884,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
         dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""),
+                 "sede": str(DIV.get("sede_endereco", "")), "sede_n": str(DIV.get("sede_local", "")),
                  "mens": ({"st": PAG_MEU.get("st", {}).get(m["n"], ""), "lk": PAG_MEU.get("lk", {}).get(m["n"], ""), "venc": PAG_MEU.get("venc", ""),
                            "adm": next((x["n"] for x in membros if str(x.get("c", "")).strip().lower().startswith("adm")), "")} if PAG_MEU else None),
                  "cmd": [{"n": x["n"], "c": x.get("c", "")} for x in membros if x["n"].lower() in {a.lower() for a in AUTORIZADOS + ADM_EXTRA} and x["n"] != m["n"]], "g": grupos[i], "div": DIV["nome"], "reg": DIV["regional"], "ano": ano, "ger": gerado,
@@ -822,7 +900,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                           if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
                           max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
         PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
-                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO)))
+                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
 
 TUTORIAL_APP = r"""<style>
@@ -1010,6 +1088,30 @@ MSG_MODULO = r"""<style>
         const c2=abre(`<h3>✅ Mensagem enviada</h3><p>Chega em 1 a 3 minutos para quem tem o app com os avisos ativos. As respostas aparecem em 📨 Mensagens.</p><button class="sosm-b" data-f>Ver mensagens</button>`);
         c2.querySelector("[data-f]").onclick=()=>abrirMensagens(cfg)}
       catch(e){env.disabled=false;conta();alert("Não consegui enviar agora ("+(e.message||e)+").")}}}
+})();
+</script>"""
+
+PTR_MODULO = r"""<style>
+#ptr{position:fixed;left:50%;top:0;z-index:9000;transform:translate(-50%,-60px);display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;
+  background:rgba(40,37,34,.85);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);color:#ECE7DC;font-size:14px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.35);pointer-events:none}
+#ptr i{font-style:normal;display:inline-block;transition:transform .2s}#ptr.pronto i{transform:rotate(180deg)}#ptr.vai i{animation:ptrGira .8s linear infinite}
+@keyframes ptrGira{to{transform:rotate(360deg)}}
+</style>
+<script>
+// puxar a tela para baixo (no topo) atualiza o painel; a entrada é feita de novo sozinha, nesta sessão
+(function(){if(!("ontouchstart" in window))return;let g=null;const el=document.createElement("div");el.id="ptr";el.innerHTML="<i>↓</i><span>Puxe para atualizar</span>";
+  document.addEventListener("DOMContentLoaded",()=>document.body.appendChild(el));if(document.body)document.body.appendChild(el);
+  const aberto=()=>!!document.querySelector(".fa-veu,.sosm-veu,.selm,#folhaAt");
+  document.addEventListener("touchstart",ev=>{g=null;if(ev.touches.length!==1||window.scrollY>2||aberto())return;g={y:ev.touches[0].clientY,x:ev.touches[0].clientX,dy:0}},{passive:true});
+  document.addEventListener("touchmove",ev=>{if(!g)return;const t=ev.touches[0],dy=t.clientY-g.y,dx=t.clientX-g.x;
+    if(dy<=0||Math.abs(dx)>dy||window.scrollY>2){if(dy<0||Math.abs(dx)>Math.abs(dy))g=null;el.style.transform="translate(-50%,-60px)";return}
+    g.dy=dy;const p=Math.min(dy*0.45,90);el.style.transition="none";el.style.transform=`translate(-50%,${p-50}px)`;
+    el.classList.toggle("pronto",dy>140);el.querySelector("span").textContent=dy>140?"Solte para atualizar":"Puxe para atualizar"},{passive:true});
+  document.addEventListener("touchend",()=>{if(!g)return;const dy=g.dy;g=null;el.style.transition="transform .2s ease";
+    if(dy>140){el.classList.remove("pronto");el.classList.add("vai");el.querySelector("i").textContent="↻";el.querySelector("span").textContent="Atualizando…";el.style.transform="translate(-50%,16px)";
+      let em="";try{em=sessionStorage.getItem("painel_email")||""}catch(_){}if(!em&&typeof D!=="undefined"&&D&&D.email)em=D.email;
+      try{if(em)sessionStorage.setItem("reentrar",em)}catch(_){}setTimeout(()=>location.reload(),350)}
+    else el.style.transform="translate(-50%,-60px)"},{passive:true});
 })();
 </script>"""
 
@@ -1292,7 +1394,7 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
             g_["t"] = item[2]
         pes.append(g_)
     secrets.SystemRandom().shuffle(pes)
-    pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots, "pes": pes, "cav": CAVEIRA_URL if pes else "", "otp": OTP_URL if otp_ativo() else ""}
+    pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots, "pes": pes, "cav": CAVEIRA_URL, "otp": OTP_URL if otp_ativo() else ""}
     return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
@@ -2706,6 +2808,9 @@ def arquivos_app():
         return json.dumps({"id": inicio, "name": nome, "short_name": curto, "start_url": inicio, "scope": "./",
                            "display": "standalone", "orientation": "portrait", "background_color": "#000000", "theme_color": "#0b0b0b",
                            "lang": "pt-BR", "icons": [{"src": f"icon-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any maskable"} for t in (192, 512)],
+                           # compartilhar: no WhatsApp, Compartilhar › Insanos ADM manda a imagem do fly direto para a tela Lista (Android)
+                           "share_target": {"action": "compartilhar-fly", "method": "POST", "enctype": "multipart/form-data",
+                                            "params": {"title": "title", "text": "text", "files": [{"name": "fly", "accept": ["image/*"]}]}},
                            # atalhos: segurando o ícone do app (Android) aparecem estas opções
                            "shortcuts": [
                                {"name": "🆘 SOS · Preciso de ajuda", "short_name": "SOS", "description": "Pedir ajuda aos irmãos",
@@ -2714,10 +2819,18 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v23";
+const CACHE = "insanos-v24";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
+  if (e.request.method === "POST" && new URL(e.request.url).pathname.endsWith("/compartilhar-fly")) {   // fly compartilhado pelo WhatsApp
+    e.respondWith((async () => {
+      try { const fd = await e.request.formData(), f = fd.get("fly");
+        if (f) { const c = await caches.open("fly-compartilhado"); await c.put("fly", new Response(f, {headers: {"Content-Type": f.type || "image/jpeg"}})); } } catch (_) {}
+      return Response.redirect(new URL("adm.html#fly-compartilhado", self.location.href).href, 303);   // endereço completo (alguns celulares exigem)
+    })());
+    return;
+  }
   const r = e.request;
   if (r.method !== "GET" || new URL(r.url).origin !== location.origin) return;
   if (/\\.mp4$/i.test(new URL(r.url).pathname)) return;      // vídeo de fundo: direto da rede (guardar vídeo no app trava a reprodução)
@@ -3185,7 +3298,7 @@ def main():
         pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
         pagina = pagina.replace("</body>", snip_versao(False) + "</body>", 1).replace("__VERSAO__", VERSAO_ATUAL)
         if dados.get("modo") == "adm":       # SOS dentro do painel ADM (quadrado do topo)
-            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + "</body>", 1)
+            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO + "</body>", 1)
         if dados.get("modo") == "geral" and caminho == SAIDA:
             global GERAL_RAW
             GERAL_RAW = pagina
