@@ -513,7 +513,9 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     const ua=navigator.userAgent,ap=(/iPhone|iPad/.test(ua)?"iPhone":/Android/.test(ua)?"Celular Android":/Windows/.test(ua)?"Computador Windows":/Mac/.test(ua)?"Mac":"Outro")
       +((matchMedia("(display-mode: standalone)").matches||navigator.standalone)?" · app":" · navegador");
     const corpo=JSON.stringify({email:d.includes("@")?d:"(senha coletiva)",ok,painel:/ADM/.test(document.title)?"ADM":"Geral",aparelho:ap});
-    if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([corpo],{type:"text/plain"}));else fetch(u,{method:"POST",mode:"no-cors",body:corpo})}catch(_){}};
+    // fetch com keepalive: continua mesmo quando a página troca para o painel (o iPhone descarta o sendBeacon nessa hora)
+    try{fetch(u,{method:"POST",mode:"no-cors",keepalive:true,headers:{"Content-Type":"text/plain;charset=utf-8"},body:corpo}).catch(()=>{try{navigator.sendBeacon&&navigator.sendBeacon(u,new Blob([corpo],{type:"text/plain"}))}catch(_){}})}
+    catch(_){if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([corpo],{type:"text/plain"}))}}catch(_){}};
   if(!d){erro.textContent="Digite o seu e-mail.";return}
   if(!window.crypto||!crypto.subtle){erro.textContent="Este visualizador não permite abrir o painel. Abra o arquivo no Chrome, Edge ou Safari.";return}
   let entrada=d;
@@ -531,7 +533,8 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     if(!chave){   // não é do comando: tenta o "Meu painel" do irmão
       for(const s of (P.pes||[])){try{const h=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));
         try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:(/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro")+((matchMedia("(display-mode: standalone)").matches||navigator.standalone)?" · app":" · navegador")});
-          if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}}catch(_){}
+          try{fetch(u,{method:"POST",mode:"no-cors",keepalive:true,headers:{"Content-Type":"text/plain;charset=utf-8"},body:c}).catch(()=>{try{navigator.sendBeacon&&navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}catch(_){}})}
+          catch(_){if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}}}catch(_){}
         try{sessionStorage.setItem("painel_email",d)}catch(_){}
         const abre=()=>{document.open();document.write(h.split("__CAV__").join(P.cav||""));document.close()};
         if(s.t==="v")abre();else bioPerguntar(d,abre);return}catch(e){}}
@@ -819,7 +822,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                           if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
                           max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
         PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
-                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO)))
+                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO)))
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
 
 TUTORIAL_APP = r"""<style>
@@ -1007,6 +1010,59 @@ MSG_MODULO = r"""<style>
         const c2=abre(`<h3>✅ Mensagem enviada</h3><p>Chega em 1 a 3 minutos para quem tem o app com os avisos ativos. As respostas aparecem em 📨 Mensagens.</p><button class="sosm-b" data-f>Ver mensagens</button>`);
         c2.querySelector("[data-f]").onclick=()=>abrirMensagens(cfg)}
       catch(e){env.disabled=false;conta();alert("Não consegui enviar agora ("+(e.message||e)+").")}}}
+})();
+</script>"""
+
+SELECT_MODULO = r"""<style>
+.selm-veu{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.08)}
+.selm{position:fixed;z-index:10001;min-width:180px;max-width:calc(100vw - 16px);max-height:min(60vh,420px);overflow:auto;-webkit-overflow-scrolling:touch;
+  border-radius:16px;background:rgba(58,54,50,.62);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);
+  box-shadow:0 18px 50px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.12);color:#F2EEE6;font-family:inherit;
+  transform-origin:var(--ox,20px) var(--oy,0px);animation:selmIn .2s cubic-bezier(.2,.9,.3,1.2) both}
+.selm.fora{animation:selmOut .14s ease-in both}
+@keyframes selmIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+@keyframes selmOut{to{opacity:0;transform:scale(.92)}}
+.selm button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 18px 12px 14px;border:0;background:transparent;color:inherit;font:inherit;font-size:16px;font-weight:600;cursor:pointer}
+.selm button+button{box-shadow:inset 0 1px 0 rgba(255,255,255,.09)}
+.selm button i{width:16px;flex:0 0 16px;font-style:normal;font-weight:800}
+.selm button:active{background:rgba(255,255,255,.12)}
+.selm button[disabled]{opacity:.4}
+.selm .grp{padding:10px 16px 4px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:rgba(242,238,230,.6);font-weight:700}
+@media (prefers-reduced-motion:reduce){.selm,.selm.fora{animation:none}}
+</style>
+<script>
+// listas de escolha no Android: em vez da janela padrão do navegador, um menu de vidro fosco que sai do próprio campo
+// (como o do iPhone, que continua com o menu do sistema). No computador, também fica o menu do sistema.
+(function(){
+  const ua=navigator.userAgent;if(/iPhone|iPad|iPod/.test(ua)||!/Android/.test(ua))return;
+  let aberto=null;
+  const fecha=()=>{if(!aberto)return;const {veu,m}=aberto;aberto=null;m.classList.add("fora");setTimeout(()=>{veu.remove();m.remove()},140)};
+  function abre(sel){
+    if(aberto)fecha();
+    const r=sel.getBoundingClientRect(),veu=document.createElement("div"),m=document.createElement("div");
+    veu.className="selm-veu";m.className="selm";m.setAttribute("role","listbox");
+    let html="";[...sel.children].forEach(el=>{
+      const item=o=>`<button type="button" role="option" data-v="${String(o.value).replace(/"/g,"&quot;")}"${o.disabled?" disabled":""} aria-selected="${o.selected}"><i>${o.selected?"✓":""}</i><span>${o.textContent.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</span></button>`;
+      if(el.tagName==="OPTGROUP"){html+=`<div class="grp">${el.label}</div>`+[...el.children].map(item).join("")}else if(el.tagName==="OPTION")html+=item(el)});
+    m.innerHTML=html;document.body.appendChild(veu);document.body.appendChild(m);
+    const W=Math.max(r.width,190),H=m.offsetHeight,vw=innerWidth,vh=innerHeight,emb=vh-r.bottom-10,cima=r.top-10;
+    const left=Math.min(Math.max(8,r.left),vw-Math.min(W,vw-16)-8);
+    m.style.minWidth=Math.min(W,vw-16)+"px";m.style.left=left+"px";
+    if(emb>=H||emb>=cima){m.style.top=(r.bottom+6)+"px";m.style.maxHeight=Math.max(160,emb-6)+"px";m.style.setProperty("--oy","0px")}
+    else{m.style.bottom=(vh-r.top+6)+"px";m.style.maxHeight=Math.max(160,cima-6)+"px";m.style.setProperty("--oy","100%")}
+    m.style.setProperty("--ox",Math.max(10,Math.min(r.left+r.width/2-left,40))+"px");
+    const atual=m.querySelector('[aria-selected="true"]');if(atual)atual.scrollIntoView({block:"nearest"});
+    veu.addEventListener("click",fecha);
+    m.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(!b||b.disabled)return;
+      if(sel.value!==b.dataset.v){sel.value=b.dataset.v;sel.dispatchEvent(new Event("input",{bubbles:true}));sel.dispatchEvent(new Event("change",{bubbles:true}))}
+      try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}fecha()});
+    aberto={veu,m}}
+  const alvo=ev=>{const s=ev.target&&ev.target.closest&&ev.target.closest("select");return s&&!s.multiple&&!s.disabled&&s.size<=1?s:null};
+  document.addEventListener("pointerdown",ev=>{const s=alvo(ev);if(!s)return;ev.preventDefault();s.blur();abre(s)},true);
+  document.addEventListener("mousedown",ev=>{if(alvo(ev))ev.preventDefault()},true);
+  document.addEventListener("click",ev=>{if(alvo(ev))ev.preventDefault()},true);
+  document.addEventListener("keydown",ev=>{if(ev.key==="Escape")fecha()});
+  addEventListener("resize",fecha);addEventListener("popstate",fecha);
 })();
 </script>"""
 
@@ -3128,7 +3184,7 @@ def main():
         pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
         pagina = pagina.replace("</body>", snip_versao(False) + "</body>", 1).replace("__VERSAO__", VERSAO_ATUAL)
         if dados.get("modo") == "adm":       # SOS dentro do painel ADM (quadrado do topo)
-            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + "</body>", 1)
+            pagina = pagina.replace("</body>", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + "</body>", 1)
         if dados.get("modo") == "geral" and caminho == SAIDA:
             global GERAL_RAW
             GERAL_RAW = pagina
