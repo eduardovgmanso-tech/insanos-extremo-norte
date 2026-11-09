@@ -3,7 +3,7 @@ name: Painel Insanos (nuvem)
 on:
   workflow_dispatch:        # botão "Run workflow"
   repository_dispatch:      # a planilha avisa quando chega um lançamento
-    types: [lancamento]
+    types: [lancamento, rsvp]
   schedule:                 # de meia em meia hora, das 7h às 19h (Brasília = UTC-3); o programa decide o que fazer
     - cron: "7,37 10-22 * * *"
 
