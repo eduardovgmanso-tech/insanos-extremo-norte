@@ -238,7 +238,7 @@ def data_iso(v, ano_padrao):
 
 LOGIN = r"""<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>__TITULO__</title>
 <link rel="manifest" href="__MANIFEST__">
 <meta name="theme-color" content="#0b0b0b">
@@ -250,7 +250,7 @@ LOGIN = r"""<!DOCTYPE html>
 :root{--osso:#ECE7DC;--osso2:#BDB7AA;--sangue:#A3302F;box-sizing:border-box}
 *,*::before,*::after{box-sizing:inherit}
 html,body{height:100%;margin:0}
-body{background:#000;color:var(--osso);font-family:"Barlow","Segoe UI",Roboto,Arial,sans-serif;display:grid;place-items:center;padding:20px}
+html{touch-action:manipulation}body{background:#000;color:var(--osso);font-family:"Barlow","Segoe UI",Roboto,Arial,sans-serif;display:grid;place-items:center;padding:20px}
 body::before{content:"";position:fixed;inset:0;z-index:-1;background:url("data:image/jpeg;base64,__IMG__") right center/cover no-repeat;opacity:.25}
 form{width:min(290px,100%);background:rgba(236,231,220,.10);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(236,231,220,.18);border-radius:12px;padding:20px}
 h1{font-family:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;font-weight:900;font-size:29px;line-height:.95;margin:0 0 5px}
