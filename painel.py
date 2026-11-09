@@ -728,7 +728,7 @@ function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>(!FF||e[2]!==1)&&(!PE
 (function(){const b=document.getElementById("insBt");if(!b)return;let feito=false;try{feito=localStorage.getItem("insr_"+D.email)===D.insp.d+"|"+D.insp.e}catch(_){}
   const ok=()=>{b.textContent="✅ Marcado como respondido";b.disabled=true;document.getElementById("insTx").textContent="Valeu! A sua resposta entra na lista em até 30 minutos."};
   if(feito)ok();
-  b.onclick=async()=>{try{await fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|resp|"+D.insp.d+"|"+D.insp.tk+"|"+D.insp.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})});
+  b.onclick=async()=>{try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|resp|"+D.insp.d+"|"+D.insp.tk+"|"+D.insp.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
     try{localStorage.setItem("insr_"+D.email,D.insp.d+"|"+D.insp.e)}catch(_){}ok()}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}}})();
 function agendaAdd(e){const d1=e.d.replace(/-/g,""),dt=new Date(e.d+"T12:00:00");dt.setDate(dt.getDate()+1);
   const d2=`${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,"0")}${String(dt.getDate()).padStart(2,"0")}`;
@@ -745,7 +745,7 @@ function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;l
       <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button><button data-ag="${k}">📅 Agenda</button></div></div>`}).join("");
   el.querySelectorAll("[data-ag]").forEach(b=>b.onclick=()=>agendaAdd(D.prox[+b.dataset.ag]));
   el.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const e=D.prox[+b.dataset.k],r=b.dataset.r;
-    try{await fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})});
+    try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
       loc[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(loc))}catch(_){}proxDesenha();
       alert(r==="vou"?"✅ Presença confirmada! Valeu, irmão. 🤝":"👍 Resposta registrada. Valeu por avisar!")}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}})}
 proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("eventos");if(x)x.scrollIntoView({behavior:"smooth"})}
@@ -784,6 +784,8 @@ async function avSinc(){try{if(!D.push||!("serviceWorker" in navigator)||!("Push
   await fetch(D.push.url,{method:"POST",mode:"no-cors",body:JSON.stringify({tipo:"push",email:D.email,sub:JSON.stringify(s)})});
   try{localStorage.setItem("push_sync",JSON.stringify({e:D.email,ep:s.endpoint,t:Date.now()}))}catch(_){}avTela()}catch(e){}}
 setTimeout(avSinc,2500);
+// depois de um Vou / Não vou / Já respondi aqui no Meu painel: acorda o painel na hora (a lista atualiza em 1 a 3 minutos)
+function acordarDepois(p){return Promise.resolve(p).then(r=>{try{if(window.SOS_URL)fetch(window.SOS_URL,{method:"POST",body:JSON.stringify({tipo:"rsvp_acordar",email:D.email})}).catch(()=>{})}catch(_){}return r})}
 setTimeout(()=>{try{reinstAviso(D.reinst)}catch(_){}},1800);
 // ---- carteirinha (abre com o QR de identificação) e conquistas (sequências e marcas, sem expor faltas)
 function carregarQRLib(){return new Promise(ok=>{if(window.qrcode)return ok();const sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";sc.onload=()=>ok();sc.onerror=()=>ok();document.head.appendChild(sc)})}
@@ -2567,7 +2569,8 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
             info = json.loads(sub) if isinstance(sub, str) else sub
             extra = {"para": em, "ru": ACESSOS_URL} if ACESSOS_URL and "@" in em else {}
             if rsvp and extra:   # botões ✅ Vou / ❌ Não vou: a resposta leva a assinatura daquele irmão
-                extra["rsvp"] = {"d": rsvp["d"], "e": rsvp["e"], "tk": token_rsvp(em, rsvp["d"], rsvp["e"]), "m": rsvp.get("m", "ev")}
+                extra["rsvp"] = {"d": rsvp["d"], "e": rsvp["e"], "tk": token_rsvp(em, rsvp["d"], rsvp["e"]), "m": rsvp.get("m", "ev"),
+                                 "ou": OTP_URL if otp_ativo() else ""}   # para acordar o painel na hora (a lista atualiza em 1 a 3 minutos)
             dados_i = json.dumps(dict(json.loads(dados), **extra), ensure_ascii=False) if extra else dados
             wp.webpush(subscription_info=info, data=dados_i, vapid_private_key=ARQ_VAPID_PEM,
                        vapid_claims={"sub": "mailto:painel@insanos.app"}, ttl=86400)
@@ -2850,7 +2853,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v24";
+const CACHE = "insanos-v25";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -2945,6 +2948,10 @@ function idbGet(k) {
     o.onerror = () => r(null); } catch (e) { r(null); } });
 }
 function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
+// depois de um Vou / Não vou / Já respondi: acorda o painel na hora (a lista atualiza em 1 a 3 minutos)
+function acordarPainel(r, email) {
+  return (r && r.ou) ? fetch(r.ou, {method: "POST", body: JSON.stringify({tipo: "rsvp_acordar", email: email})}).catch(() => {}) : Promise.resolve();
+}
 self.addEventListener("notificationclick", e => {
   const dd = e.notification.data || {};
   if (dd.teste) {   // aviso de teste: nenhum botão envia nada
@@ -2983,7 +2990,7 @@ self.addEventListener("notificationclick", e => {
   if (dd.rsvp && e.action === "resp" && dd.ru && dd.para) {   // insight: "Já respondi" direto na notificação
     const r = dd.rsvp;
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
-        painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
+        painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
     return;
   }
@@ -2991,7 +2998,7 @@ self.addEventListener("notificationclick", e => {
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
-        painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
+        painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification(vou ? "✅ Presença confirmada" : "👍 Resposta registrada",
         {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ".",
          icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));

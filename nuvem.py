@@ -1519,6 +1519,12 @@ def main():
     if not planilha_id or not cred:
         print("[ERRO] Faltam os segredos PLANILHA_ID e/ou GOOGLE_CREDENTIALS no GitHub."); sys.exit(1)
     evento = os.environ.get("MODO", "")   # schedule (horário) · repository_dispatch (lançamento/edição) · workflow_dispatch (botão)
+    acao = ""   # no repository_dispatch: "lancamento" (planilha) ou "rsvp" (um irmão respondeu Vou / Não vou / Já respondi)
+    try:
+        if os.environ.get("GITHUB_EVENT_PATH"):
+            acao = str(json.load(open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8")).get("action", ""))
+    except Exception:
+        pass
     # horários automáticos: na época de pagamentos (dia 1 ao vencimento) de meia em meia hora, das 7h às 18h;
     # fora dela, só a rodada das 9h (avisos do dia). Modificações (painel ou planilha) atualizam na hora.
     sys.argv = [sys.argv[0], "--publicar"]
@@ -1683,7 +1689,7 @@ def main():
                 emoji, icone = min(tipos, key=lambda x: ordem.index(x[1])) if tipos else ("✅", None)
                 g.notificar(f"{emoji} Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao",
                             zap=zaps[-1] if zaps else None, icone=icone)      # a mensagem pronta do último lançamento com lista
-            elif evento == "repository_dispatch" and not lanc_recente:
+            elif evento == "repository_dispatch" and not lanc_recente and acao != "rsvp":
                 # a planilha avisou e a Fila estava vazia: foi edição feita à mão na planilha
                 g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")
         except Exception as e:
