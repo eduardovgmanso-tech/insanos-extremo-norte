@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v24";
+const CACHE = "insanos-v25";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -94,6 +94,10 @@ function idbGet(k) {
     o.onerror = () => r(null); } catch (e) { r(null); } });
 }
 function aparelhoSW() { const u = navigator.userAgent || ""; return /iPhone|iPad|iPod/.test(u) ? "iPhone" : /Android/.test(u) ? "Celular Android" : "Computador"; }
+// depois de um Vou / Não vou / Já respondi: acorda o painel na hora (a lista atualiza em 1 a 3 minutos)
+function acordarPainel(r, email) {
+  return (r && r.ou) ? fetch(r.ou, {method: "POST", body: JSON.stringify({tipo: "rsvp_acordar", email: email})}).catch(() => {}) : Promise.resolve();
+}
 self.addEventListener("notificationclick", e => {
   const dd = e.notification.data || {};
   if (dd.teste) {   // aviso de teste: nenhum botão envia nada
@@ -132,7 +136,7 @@ self.addEventListener("notificationclick", e => {
   if (dd.rsvp && e.action === "resp" && dd.ru && dd.para) {   // insight: "Já respondi" direto na notificação
     const r = dd.rsvp;
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
-        painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
+        painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
     return;
   }
@@ -140,7 +144,7 @@ self.addEventListener("notificationclick", e => {
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
-        painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {})
+        painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification(vou ? "✅ Presença confirmada" : "👍 Resposta registrada",
         {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ".",
          icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
