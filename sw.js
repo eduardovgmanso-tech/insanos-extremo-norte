@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v25";
+const CACHE = "insanos-v26";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -155,6 +155,11 @@ self.addEventListener("notificationclick", e => {
   }
   if (dd.link && (e.action === "link" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {   // ex.: "Abrir meu boleto"
     e.waitUntil(clients.openWindow(dd.link)); return;
+  }
+  if (dd.zap && dd.zap !== "__STATUS_PAGAMENTOS__" && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
+    e.notification.close();   // a mensagem já veio pronta: abre direto o WhatsApp, sem precisar entrar no app
+    e.waitUntil(clients.openWindow("https://wa.me/?text=" + encodeURIComponent(dd.zap)));
+    return;
   }
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
     e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap}))))
