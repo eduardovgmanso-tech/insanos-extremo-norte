@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v26";
+const CACHE = "insanos-v27";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -158,7 +158,8 @@ self.addEventListener("notificationclick", e => {
   }
   if (dd.zap && dd.zap !== "__STATUS_PAGAMENTOS__" && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
     e.notification.close();   // a mensagem já veio pronta: abre direto o WhatsApp, sem precisar entrar no app
-    e.waitUntil(clients.openWindow("https://wa.me/?text=" + encodeURIComponent(dd.zap)));
+    // api.whatsapp.com direto: o link curto wa.me passa por um redirecionamento que troca os emojis por "�"
+    e.waitUntil(clients.openWindow("https://api.whatsapp.com/send/?text=" + encodeURIComponent(dd.zap)));
     return;
   }
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
