@@ -3896,7 +3896,16 @@ function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   lancZapAtualiza()}
 const lancJust={};
 let lancInfo=null;   // a lista do evento no Lançar: tipo e campos (vêm da Lista ou do evento já lançado; em branco se não houver)
-function lancInfoPadrao(nome){return {tipo:"reuniao",f:{titulo:nome||""},mapas:true}}
+function lancInfoPadrao(nome){return {tipo:"reuniao",f:{titulo:nome||""},mapas:true,padrao:true}}   // padrao = o evento não veio da Lista (sem endereço, sem campos)
+// evento sem as informações da Lista: mensagem no formato de lista de presença (sem endereço), com o motivo de cada falta
+function lancZapPresenca(){const sv={anal:ANAL,marca:ez.marca,j:ez.j,tit:$("ezTit").value,data:$("ezData").value,obs:$("ezObs").value,assin:$("ezAssin").value};let txt="";
+  try{ANAL="pres";ez.marca={};M_FULL.forEach(m=>{const v=lanc[m.n];ez.marca[m.n]=v==="Sim"?1:v==="Staff"?"S":v==="Não"?0:v==="-"?"-":null});
+    ez.j={};Object.entries(lancJust).forEach(([n,x])=>{x=String(x||"").trim();if(x&&lanc[n]==="Não")ez.j[n]=x});
+    $("ezTit").value=$("lNome").value||"Evento";$("ezData").value=$("lData").value;$("ezObs").value="";
+    if(!$("ezAssin").value){const o=[...$("ezAssin").options].find(o=>o.value);if(o)$("ezAssin").value=([...M].find(m=>grupoDe(m)==="Comando"&&/^sub/i.test(String(m.c||"").trim()))||{}).n||o.value}
+    txt=ezTexto()}
+  finally{ANAL=sv.anal;ez.marca=sv.marca;ez.j=sv.j;$("ezTit").value=sv.tit;$("ezData").value=sv.data;$("ezObs").value=sv.obs;$("ezAssin").value=sv.assin}
+  return txt}
 function lancCamposUI(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);const tp=LW_TIPOS[lancInfo.tipo]&&lancInfo.tipo!=="original"?lancInfo.tipo:"reuniao";lancInfo.tipo=tp;
   const f=lancInfo.f=lancInfo.f||{};
   $("lTipos").innerHTML=Object.entries(LW_TIPOS).filter(([k])=>k!=="original").map(([k,x])=>`<button type="button" role="tab" data-lt="${k}" aria-selected="${k===tp}">${x.nome}</button>`).join("");
@@ -3906,7 +3915,7 @@ function lancCamposUI(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);c
     (LW_TIPOS[tp].campos.some(c=>c[4]==="assin")?"":lwCampoAssin(f));
   lancZapAtualiza()}
 // a mensagem do WhatsApp do Lançar: a mesma da Lista (usa a função da Lista com os dados do evento por um instante)
-function lancZapTexto(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);const tp=lancInfo.tipo,f=Object.assign({},lancInfo.f||{});
+function lancZapTexto(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);if(lancInfo.padrao)return lancZapPresenca();const tp=lancInfo.tipo,f=Object.assign({},lancInfo.f||{});
   if(!f.titulo)f.titulo=$("lNome").value||"";if($("lData").value)f.data=$("lData").value;
   if(!f.assin){const sub=[...M].find(m=>grupoDe(m)==="Comando"&&/^sub/i.test(String(m.c||"").trim()));if(sub)f.assin=sub.n}
   const sv={tipo:lw.tipo,f:lw.f[tp],tinha:tp in lw.f,marca:lw.marca,just:lw.just,mapas:lw.mapas};let txt="";
@@ -3917,7 +3926,7 @@ function lancZapTexto(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);c
   finally{lw.tipo=sv.tipo;if(sv.tinha)lw.f[tp]=sv.f;else delete lw.f[tp];lw.marca=sv.marca;lw.just=sv.just;lw.mapas=sv.mapas}
   return txt}
 function lancZapAtualiza(){if(!$("lZapPrev"))return;const txt=lancZapTexto();$("lZapPrev").textContent=txt;$("lZapBtn").href="https://wa.me/?text="+encodeURIComponent(txt);
-  $("lZapAviso").textContent="Leva todas as informações da Lista. Ao salvar, ela vai também no aviso de \"Painel atualizado\", para o comando mandar no grupo."}
+  $("lZapAviso").textContent=(lancInfo&&lancInfo.padrao?"Evento sem as informações da Lista: a mensagem sai como lista de presença.":"Leva todas as informações da Lista.")+" Ao salvar, ela vai também no aviso de \"Painel atualizado\", para o comando mandar no grupo."}
 function lancResumo(){const I=lancInfo||lancInfoPadrao($("lNome").value),f=Object.assign({},I.f||{});if($("lData").value)f.data=$("lData").value;let L={};try{if(I.tipo==="reuniao")L=lwSede(f)||{}}catch(_){}
   return {tipo:I.tipo,tnome:(LW_TIPOS[I.tipo]||{}).nome||I.tipo,hora:f.hora||f.conc_cheg||f.pe_hora||"",local:L.local||f.local||f.destino||"",endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:I.mapas!==false,f}}
 function lwInfoAtual(){const f=Object.assign({},lw.f[lw.tipo]||{});let L={};try{if(lw.tipo==="reuniao")L=lwSede(f)||{}}catch(_){}   // a sede só vale para reunião
@@ -3945,7 +3954,7 @@ async function salvarLancamento(){
   if(!editando&&EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Para corrigir a lista dele, escolha o evento no campo Evento. Salvar mesmo assim?"))return;
   const just=Object.fromEntries(Object.entries(lancJust).filter(([m,x])=>lanc[m]==="Não"&&String(x||"").trim()).map(([m,x])=>[m,String(x).trim().slice(0,80)]));
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,criado:new Date().toISOString()};
-  dados.info=lancResumo();dados.zap=lancZapTexto();   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
+  if(lancInfo&&!lancInfo.padrao)dados.info=lancResumo();dados.zap=lancZapTexto();   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
   if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});
