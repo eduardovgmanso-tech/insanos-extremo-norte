@@ -576,6 +576,7 @@ CAVEIRA_URL = ""       # imagem da caveira (vem do template): usada no "Meu pain
 MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu painel
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
+INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
 JUST = {}              # motivos das faltas (aba Justificativas): (data ISO, evento em minúsculas) -> {irmão: motivo}
 ZAP_CTX = {}           # o que a mensagem do evento para o WhatsApp precisa (integrantes, entrada de cada um na divisão)
 ZAP_PAG = ""           # mensagem pronta da situação dos pagamentos (vai dentro do aviso de pagamento novo: abre direto no WhatsApp)
@@ -844,7 +845,15 @@ function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>(!FF||e[2]!==1)&&(!PE
   if(feito)ok();
   b.onclick=async()=>{try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|resp|"+D.insp.d+"|"+D.insp.tk+"|"+D.insp.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
     try{localStorage.setItem("insr_"+D.email,D.insp.d+"|"+D.insp.e)}catch(_){}ok()}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}}})();
-function agendaAdd(e){const d1=e.d.replace(/-/g,""),dt=new Date(e.d+"T12:00:00");dt.setDate(dt.getDate()+1);
+function agendaAdd(e){const hm=String(e.hora||"").match(/(\d{1,2})\s*[:hH]\s*(\d{2})?/);
+  if(hm){   // com horário: evento de 3 horas, no horário de Brasília
+    const ini=new Date(`${e.d}T${hm[1].padStart(2,"0")}:${(hm[2]||"00")}:00`),fim=new Date(ini.getTime()+3*36e5),f=x=>`${x.getFullYear()}${String(x.getMonth()+1).padStart(2,"0")}${String(x.getDate()).padStart(2,"0")}T${String(x.getHours()).padStart(2,"0")}${String(x.getMinutes()).padStart(2,"0")}00`;
+    const tit=`Insanos · ${e.e}`,loc=[e.local||D.sede_n,e.endereco||D.sede].filter(Boolean).join(" · "),det=`Divisão ${D.div} ${D.reg}. Confirme sua presença no app.`;
+    if(/iPhone|iPad|iPod/.test(navigator.userAgent)){const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Insanos//Painel//PT","BEGIN:VEVENT",`UID:${f(ini)}-${encodeURIComponent(e.e)}@insanos`,
+        `DTSTAMP:${new Date().toISOString().replace(/[-:]/g,"").slice(0,15)}Z`,`DTSTART;TZID=America/Sao_Paulo:${f(ini)}`,`DTEND;TZID=America/Sao_Paulo:${f(fim)}`,`SUMMARY:${tit}`,`LOCATION:${loc}`,`DESCRIPTION:${det}`,"END:VEVENT","END:VCALENDAR"].join("\r\n");
+      const a=document.createElement("a");a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(ics);a.download="evento-insanos.ics";document.body.appendChild(a);a.click();a.remove();return}
+    window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(tit)}&dates=${f(ini)}/${f(fim)}&ctz=America/Sao_Paulo&location=${encodeURIComponent(loc)}&details=${encodeURIComponent(det)}`,"_blank");return}
+  const d1=e.d.replace(/-/g,""),dt=new Date(e.d+"T12:00:00");dt.setDate(dt.getDate()+1);
   const d2=`${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,"0")}${String(dt.getDate()).padStart(2,"0")}`;
   const tit=`Insanos · ${e.e}`,loc=[D.sede_n,D.sede].filter(Boolean).join(" · "),det=`Divisão ${D.div} ${D.reg}. Confirme sua presença no app.`;
   if(/iPhone|iPad|iPod/.test(navigator.userAgent)){   // iPhone: arquivo de agenda (abre direto no Calendário)
@@ -855,7 +864,7 @@ function agendaAdd(e){const d1=e.d.replace(/-/g,""),dt=new Date(e.d+"T12:00:00")
 function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;let loc={};try{loc=JSON.parse(localStorage.getItem("rsvp_"+D.email)||"{}")}catch(_){}
   el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
     const txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"Ainda não respondeu";
-    return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b><small class="nota" style="width:100%;padding-left:54px">${txt}</small>
+    return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b>${e.hora||e.local?`<small style="width:100%;padding-left:54px;color:#E9B949;font-weight:600">${[e.hora&&"🕗 "+es(e.hora),e.local&&"📍 "+es(e.local)].filter(Boolean).join(" · ")}</small>`:""}<small class="nota" style="width:100%;padding-left:54px">${txt}</small>
       <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button><button data-ag="${k}">📅 Agenda</button></div></div>`}).join("");
   el.querySelectorAll("[data-ag]").forEach(b=>b.onclick=()=>agendaAdd(D.prox[+b.dataset.ag]));
   el.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const e=D.prox[+b.dataset.k],r=b.dataset.r;
@@ -1015,6 +1024,8 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
                  "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
+                           **({k: INFO_EV[(e["d"], e["e"].strip().lower())][k] for k in ("hora", "local", "endereco")}
+                              if (e["d"], e["e"].strip().lower()) in INFO_EV else {}),
                            "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
                           for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()],
                  "insp": (lambda ui: {"d": ui["d"], "e": ui["e"], "tk": token_rsvp(email, ui["d"], ui["e"])}
@@ -3333,6 +3344,25 @@ def main():
                 JUST.setdefault((dj, str(ej).strip().lower()), {})[str(nj).strip()] = str(mj).strip()
     except Exception as e:
         print(f"Aviso: justificativas não lidas ({type(e).__name__}: {e}).")
+    # informações dos eventos (aba "Eventos", gravada pelo Lançar a partir da Lista): tipo, horário, local, endereço, campos da lista
+    global INFO_EV
+    INFO_EV = {}
+    try:
+        if "Eventos" in wb.sheetnames:
+            for r in wb["Eventos"].iter_rows(min_row=2, max_col=8, values_only=True):
+                dj, ej, tj, hj, lj, enj, oj, fj = (list(r) + [None] * 8)[:8]
+                if not (dj and ej):
+                    continue
+                dj = dj.date().isoformat() if hasattr(dj, "date") else str(dj).strip()[:10]
+                try:
+                    det = json.loads(fj) if fj else {}
+                except Exception:
+                    det = {}
+                info = {"tnome": str(tj or ""), "hora": str(hj or ""), "local": str(lj or ""), "endereco": str(enj or ""), "obs": str(oj or "")}
+                info.update({k: det[k] for k in ("tipo", "f", "mapas") if k in det})
+                INFO_EV[(dj, str(ej).strip().lower())] = info
+    except Exception as e:
+        print(f"Aviso: informações dos eventos não lidas ({type(e).__name__}: {e}).")
     pgto = list(wb["PGTO"].iter_rows(min_row=2, max_row=250, max_col=10, values_only=True)) if "PGTO" in wb.sheetnames else []
     msg_pag = [r[0] for r in wb["Pagamentos"].iter_rows(min_row=1, max_row=80, min_col=3, max_col=3, values_only=True)] \
         if "Pagamentos" in wb.sheetnames else []
@@ -3647,7 +3677,12 @@ def main():
         ZAP_CTX = {"membros": membros, "entrada": _ent}
     except Exception as e:
         print(f"Aviso: contexto da mensagem do evento não montado ({type(e).__name__}: {e}).")
-    eventos_adm = [dict(e, j=JUST[(e["d"], e["e"].strip().lower())]) if (e["d"], e["e"].strip().lower()) in JUST else e for e in eventos]
+    def _ev_adm(e):
+        k_ = (e["d"], e["e"].strip().lower()); x = dict(e)
+        if k_ in JUST: x["j"] = JUST[k_]
+        if k_ in INFO_EV: x["info"] = INFO_EV[k_]
+        return x
+    eventos_adm = [_ev_adm(e) for e in eventos]
     gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,

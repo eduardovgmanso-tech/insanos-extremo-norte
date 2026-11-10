@@ -273,7 +273,11 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .q-velho{display:none!important}
 .lanc-just{display:block;width:100%;box-sizing:border-box;margin:6px 0 2px;padding:8px 10px;border-radius:10px;border:1px solid rgba(224,116,114,.45);background:rgba(0,0,0,.35);color:var(--osso);font:inherit;font-size:14px}
-.lanc-just[hidden]{display:none}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
+.lanc-just[hidden]{display:none}
+.ez-info{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:rgba(233,185,73,.08);border:1px solid rgba(233,185,73,.3);font-size:14px}
+.ez-info[hidden]{display:none}.ez-info b{color:#E9B949}.ez-info .end,.ez-info .obs{flex-basis:100%;color:var(--osso2);font-size:13px}
+.lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
+.lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
   display:flex;align-items:center;justify-content:center;background:transparent;opacity:.54;-webkit-tap-highlight-color:transparent}
 .seta-tela.esq{left:6px}.seta-tela.dir{right:6px}.seta-tela[hidden]{display:none}
@@ -856,6 +860,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   </section>
   <section class="painel js so-adm" id="evZap" hidden>
     <p class="nota" id="ezLido" style="margin:0 0 10px"></p>
+    <div class="ez-info" id="ezInfo" hidden></div>
     <div class="pag-cab"><div><h2 style="margin:0">Lista do evento para o WhatsApp</h2><p class="sub" style="margin:4px 0 0">Já vem com os dados do evento filtrado. Tudo pode ser alterado antes de enviar.</p></div></div>
     <div class="lw-campos" id="ezCampos">
       <label class="inteiro" id="ezEvRot">Evento<select id="ezEv"></select></label>
@@ -1129,6 +1134,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
         <label>Nome do evento<input type="text" id="lNome" maxlength="80" placeholder="Ex.: Reunião mensal"></label>
         <label>Data do evento<input type="date" id="lData"></label>
       </div>
+      <div class="lanc-info" id="lInfo" hidden><div class="lanc-g">LISTA DO EVENTO</div><div class="lw-tipos" role="tablist" id="lTipos"></div><div class="lw-campos" id="lInfoCampos"></div></div>
       <div class="lanc-acoes" style="margin-top:14px">
         <button type="button" class="btn" data-todos="Sim">Todos ✅</button>
         <button type="button" class="btn" data-todos="Não">Todos ❌</button>
@@ -1137,6 +1143,9 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       </div>
       <div id="lLista"></div>
       <div class="lw-bts" style="margin-top:16px"><button type="button" class="btn" id="lSalvar">💾 Salvar na nuvem</button></div>
+      <div class="lanc-zap" id="lZapBox"><div class="lanc-g">MENSAGEM PARA O WHATSAPP</div><p class="nota" id="lZapAviso" style="margin:0 0 8px"></p>
+        <pre class="lanc-zap-prev" id="lZapPrev"></pre>
+        <div class="lw-bts"><a class="btn zap" id="lZapBtn" target="_blank" rel="noopener">📲 Enviar a lista alterada</a><button type="button" class="btn" id="lZapCopiar">📋 Copiar</button></div></div>
       <p class="nota" id="lDica" style="margin:2px 0 8px"></p>
   </section>
 
@@ -1231,11 +1240,13 @@ const ezTipo=()=>ANAL==="ins"?"ins":"pres";
 const EZ_T={pres:{sim:"presentes",nao:"ausentes",leg1:"✅-Presente",leg2:"❌-Ausente",leg3:"✅ (staff)-Presente no staff",pc:"de adesão",func:"Adesão por função",frase:"teve uma adesão de"},
   ins:{sim:"responderam",nao:"não responderam",leg1:"✅-Respondeu",leg2:"❌-Não respondeu",pc:"de resposta",func:"Resposta por função",frase:"teve uma taxa de resposta de"}};
 function ezEventosDaData(d){return (EV_SETS[ezTipo()]||[]).map((e,k)=>({...e,k})).filter(e=>e.d===d)}
-function ezCarregar(){const e=(EV_SETS[ezTipo()]||[])[ez.k];ez.marca={};ez.importado=false;ez.j=(e&&e.j)||{};if($("ezLido"))$("ezLido").innerHTML="";
+function ezCarregar(){const e=(EV_SETS[ezTipo()]||[])[ez.k];ez.marca={};ez.importado=false;ez.j=(e&&e.j)||{};
+  {const bx=$("ezInfo"),I=e&&e.info;if(bx){bx.hidden=!I;if(I)bx.innerHTML=[I.tnome&&`<b>${esc(I.tnome)}</b>`,I.hora&&`<span>🕗 ${esc(I.hora)}</span>`,I.local&&`<span>📍 ${esc(I.local)}</span>`,
+    I.endereco&&`<span class="end">${esc(I.endereco)}</span>`,I.obs&&`<span class="obs">Obs: ${esc(I.obs)}</span>`].filter(Boolean).join("")}}if($("ezLido"))$("ezLido").innerHTML="";
   M_FULL.forEach((m,i)=>{ez.marca[m.n]=e?(e.p[i]===undefined?null:e.p[i]):null;if(e&&e.st&&e.st[i]&&ez.marca[m.n]===1)ez.marca[m.n]="S";
     if(ezTipo()==="ins"&&ez.marca[m.n]==null&&grupoDe(m)!=="Comando")ez.marca[m.n]=0});
   $("ezTit").value=e?e.e:"";$("ezData").value=e?e.d:"";$("ezObs").value="";ezListaUI();ezAtualiza()}
-function ezChecar(){const s=$("evZap");if(!s||MODO!=="adm")return;
+function ezChecar(){const s=$("evZap");if(s)s.hidden=true;return;   // Presença: só consulta (a lista do evento é alterada no Lançar)
   if(ez.importado&&(ANAL==="pres"||ANAL==="ins")){s.hidden=false;return}
   const mostrar=(ANAL==="pres"||ANAL==="ins")&&!!st.data&&!st.nome&&!st.cargos.length&&!st.mes&&ezEventosDaData(st.data).length>0;
   s.hidden=!mostrar;if(!mostrar)return;
@@ -2025,9 +2036,7 @@ function diTexto(n){const m=M_FULL.find(x=>x.n===n);if(!m)return "";const x=m.x|
   const L=[`*📇 ${m.n}*`,"",x.nc?`*Nome completo:* ${x.nc}`:null,`*Nº do sistema:* ${m.num||"–"}`,`*Cargo/função:* ${m.c||"–"}`,`*Posição na lista:* ${String(m.lg||"").trim()||"–"}`,
     m.nasc?`*Nascimento:* ${br(m.nasc)}${m.idade?` (${m.idade} anos)`:""}`:null,tel?`*Telefone:* ${tel}`:null,
     x.col?`*Colete:* ${x.col}`:null,x.tamc?`*Camiseta:* ${x.tamc}`:null,m.ent?`*Entrada no MC:* ${fmtEnt(m.ent)} · ${pinDe(m)[1]}${pinProx(m)?` (${pinProx(m)[0]} em ${pinProx(m)[1]})`:" (maior pin)"}`:null,
-    af?`*Situação:* afastado${af.desde?" desde "+br(af.desde):""}`:"*Situação:* ativo","",`*Presença em ${ano}:* ${conta("pres")}`,(()=>{   // motivos das faltas no ano (vêm do Lançar / da Lista)
-      const q={};(EV_SETS.pres||[]).filter(e=>e.d.startsWith(ano)&&e.j&&e.j[m.n]&&e.p[i]===0).forEach(e=>{q[e.j[m.n]]=(q[e.j[m.n]]||0)+1});
-      const l=Object.entries(q).sort((a,b)=>b[1]-a[1]);return l.length?`*Motivos das faltas:* ${l.map(([k,v])=>`${k} (${v})`).join(" · ")}`:null})(),`*Insights em ${ano}:* ${conta("ins")}`,"",`_${DIV_NOME} ${DIV_REG}_`];
+    af?`*Situação:* afastado${af.desde?" desde "+br(af.desde):""}`:"*Situação:* ativo","",`*Presença em ${ano}:* ${conta("pres")}`,`*Insights em ${ano}:* ${conta("ins")}`,"",`_${DIV_NOME} ${DIV_REG}_`];
   return L.filter(l=>l!==null).join("\n").trim()}
 function dbDadosMeses(ms){const um=ms.map(dbDados),nomes=[];um.forEach(D=>D.g.forEach(x=>{if(!nomes.some(y=>y[0]===x[0]))nomes.push([x[0],x[1]])}));
   const ordem=M_FULL.map(m=>m.n);nomes.sort((a,b)=>ordem.indexOf(a[0])-ordem.indexOf(b[0]));
@@ -3136,6 +3145,11 @@ function montarListas(){
     M.forEach(m=>{const v=lw.marca[m.n]||"";lanc[m.n]=v.startsWith("✅")?"Sim":v==="❌"?"Não":""});
     Object.keys(lancJust).forEach(n=>delete lancJust[n]);M.forEach(m=>{if(lanc[m.n]==="Não"){const x=lwJustTexto(m.n);if(x)lancJust[m.n]=x}});
     if($("lEv"))$("lEv").value="novo";
+    lancInfo={tipo:lw.tipo==="original"?"reuniao":lw.tipo,f:Object.assign({},lw.f[lw.tipo]||{}),mapas:!!lw.mapas};   // a lista inteira vai para o Lançar
+    // e a Lista fica limpa, pronta para a próxima
+    try{localStorage.removeItem("lw_"+lw.tipo);localStorage.removeItem("lw_m_"+lw.tipo);localStorage.removeItem("lw_j_"+lw.tipo)}catch(_){}
+    delete lw.f[lw.tipo];lw.marca={};lw.just={};if($("lwColar"))$("lwColar").value="";if($("lwLido"))$("lwLido").textContent="";
+    lwCampos();lwListaUI();lwAtualiza();lancCamposUI();
     document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===lanc[x.dataset.n]));
     if(iso)$("lData").value=iso;$("lNome").value=(f.titulo||"")+(f.nome?" - "+f.nome:"");atualizaLanc();irPara("lancar")};
 }
@@ -3862,15 +3876,53 @@ function montarLancamento(){
     const t=ev.target.closest("[data-todos]");
     if(t){Object.keys(lanc).forEach(n=>lanc[n]=t.dataset.todos);document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===t.dataset.todos));atualizaLanc()}
   });
-  $("lancar").addEventListener("input",ev=>{const i=ev.target.closest(".lanc-just");if(i)lancJust[i.dataset.jn]=i.value});
+  $("lancar").addEventListener("input",ev=>{const i=ev.target.closest(".lanc-just");if(i){lancJust[i.dataset.jn]=i.value;lancZapAtualiza()}});
+  $("lTipos").onclick=ev=>{const b=ev.target.closest("[data-lt]");if(!b)return;lancInfo.tipo=b.dataset.lt;lancCamposUI()};
+  $("lInfoCampos").oninput=$("lInfoCampos").onchange=ev=>{const k=ev.target.dataset.lwc;if(!k)return;const F=lancInfo.f;
+    if(k==="base_sel"){F.base_sel=ev.target.value;F.base=ev.target.value==="__livre"?(F.base_livre||""):ev.target.value;const lv=$("lInfoCampos").querySelector("#lwLivre");if(lv)lv.hidden=ev.target.value!=="__livre"}
+    else if(k==="base_livre"){F.base_livre=ev.target.value;F.base=ev.target.value}else F[k]=ev.target.value;
+    if(k==="sede")$("lInfoCampos").querySelectorAll(".lw-livre").forEach(l=>l.hidden=F.sede!=="livre");
+    lancZapAtualiza()};
+  ["lNome","lData"].forEach(id=>$(id).addEventListener("input",lancZapAtualiza));
+  $("lZapCopiar").onclick=async()=>{try{await navigator.clipboard.writeText(lancZapTexto());$("lZapCopiar").textContent="Copiado ✓";setTimeout(()=>$("lZapCopiar").textContent="📋 Copiar",2500)}catch(_){alert("Não consegui copiar. Toque em Enviar a lista alterada.")}};
+  lancCamposUI();
   $("lSalvar").addEventListener("click",salvarLancamento);
 }
 function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
     (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
   document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])});
-  document.querySelectorAll("#lLista .lanc-just").forEach(i=>{const n=i.dataset.jn;i.hidden=lanc[n]!=="Não";if(document.activeElement!==i)i.value=lancJust[n]||""})}
-const lancJust={};   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
+  document.querySelectorAll("#lLista .lanc-just").forEach(i=>{const n=i.dataset.jn;i.hidden=lanc[n]!=="Não";if(document.activeElement!==i)i.value=lancJust[n]||""});
+  lancZapAtualiza()}
+const lancJust={};
+let lancInfo=null;   // a lista do evento no Lançar: tipo e campos (vêm da Lista ou do evento já lançado; em branco se não houver)
+function lancInfoPadrao(nome){return {tipo:"reuniao",f:{titulo:nome||""},mapas:true}}
+function lancCamposUI(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);const tp=LW_TIPOS[lancInfo.tipo]&&lancInfo.tipo!=="original"?lancInfo.tipo:"reuniao";lancInfo.tipo=tp;
+  const f=lancInfo.f=lancInfo.f||{};
+  $("lTipos").innerHTML=Object.entries(LW_TIPOS).filter(([k])=>k!=="original").map(([k,x])=>`<button type="button" role="tab" data-lt="${k}" aria-selected="${k===tp}">${x.nome}</button>`).join("");
+  $("lInfoCampos").innerHTML=LW_TIPOS[tp].campos.filter(([k])=>k!=="data").map(([k,r,,inteiro,tipo])=>tipo==="base"?lwCampoBase(f):tipo==="sede"?lwCampoSede(f):tipo==="assin"?lwCampoAssin(f):
+    tipo==="hora"?lwCampoHora(k,r,f[k]||""):`<label class="${inteiro?"inteiro":""} ${tipo==="livre"?"lw-livre":""}" ${tipo==="livre"&&LW_SEDE&&tp==="reuniao"&&f.sede!=="livre"?"hidden":""}>${esc(r)}${
+    tipo==="area"?`<textarea data-lwc="${k}">${esc(f[k]||"")}</textarea>`:`<input type="text" data-lwc="${k}" value="${esc(f[k]||"")}">`}</label>`).join("")+
+    (LW_TIPOS[tp].campos.some(c=>c[4]==="assin")?"":lwCampoAssin(f));
+  lancZapAtualiza()}
+// a mensagem do WhatsApp do Lançar: a mesma da Lista (usa a função da Lista com os dados do evento por um instante)
+function lancZapTexto(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);const tp=lancInfo.tipo,f=Object.assign({},lancInfo.f||{});
+  if(!f.titulo)f.titulo=$("lNome").value||"";if($("lData").value)f.data=$("lData").value;
+  if(!f.assin){const sub=[...M].find(m=>grupoDe(m)==="Comando"&&/^sub/i.test(String(m.c||"").trim()));if(sub)f.assin=sub.n}
+  const sv={tipo:lw.tipo,f:lw.f[tp],tinha:tp in lw.f,marca:lw.marca,just:lw.just,mapas:lw.mapas};let txt="";
+  try{lw.tipo=tp;lw.f[tp]=f;lw.marca={};lw.just={};if(typeof lancInfo.mapas==="boolean")lw.mapas=lancInfo.mapas;
+    M.forEach(m=>{const v=lanc[m.n];lw.marca[m.n]=v==="Sim"||v==="Staff"?"✅":v==="Não"?"❌":""});
+    Object.entries(lancJust).forEach(([n,x])=>{x=String(x||"").trim();if(x&&lanc[n]==="Não")lw.just[n]=LW_JUST.includes(x)?{op:x}:{op:"livre",txt:x}});
+    txt=lwTexto()}
+  finally{lw.tipo=sv.tipo;if(sv.tinha)lw.f[tp]=sv.f;else delete lw.f[tp];lw.marca=sv.marca;lw.just=sv.just;lw.mapas=sv.mapas}
+  return txt}
+function lancZapAtualiza(){if(!$("lZapPrev"))return;const txt=lancZapTexto();$("lZapPrev").textContent=txt;$("lZapBtn").href="https://wa.me/?text="+encodeURIComponent(txt);
+  $("lZapAviso").textContent="Leva todas as informações da Lista. Ao salvar, ela vai também no aviso de \"Painel atualizado\", para o comando mandar no grupo."}
+function lancResumo(){const I=lancInfo||lancInfoPadrao($("lNome").value),f=Object.assign({},I.f||{});if($("lData").value)f.data=$("lData").value;let L={};try{if(I.tipo==="reuniao")L=lwSede(f)||{}}catch(_){}
+  return {tipo:I.tipo,tnome:(LW_TIPOS[I.tipo]||{}).nome||I.tipo,hora:f.hora||f.conc_cheg||f.pe_hora||"",local:L.local||f.local||f.destino||"",endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:I.mapas!==false,f}}
+function lwInfoAtual(){const f=Object.assign({},lw.f[lw.tipo]||{});let L={};try{if(lw.tipo==="reuniao")L=lwSede(f)||{}}catch(_){}   // a sede só vale para reunião
+  return {tipo:lw.tipo,tnome:(LW_TIPOS[lw.tipo]||{}).nome||lw.tipo,hora:f.hora||f.conc_cheg||f.pe_hora||"",local:L.local||f.local||f.destino||"",
+    endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:!!lw.mapas,f}}   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
 function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
   s.innerHTML=`<option value="novo">➕ Novo evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
@@ -3878,6 +3930,7 @@ function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]
     const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
     Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
     Object.keys(lancJust).forEach(n=>delete lancJust[n]);if(e&&e.j)Object.assign(lancJust,e.j);   // os motivos já registrados desse evento
+    lancInfo=e&&e.info?{tipo:e.info.tipo||"reuniao",f:Object.assign({},e.info.f||{}),mapas:e.info.mapas!==false}:lancInfoPadrao(e?e.e:"");lancCamposUI();
     document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",lanc[x.dataset.n]===x.dataset.v&&x.dataset.v!==""));
     document.getElementById("lancar").classList.remove("mostrar-falta");atualizaLanc()}}
 async function salvarLancamento(){
@@ -3892,6 +3945,7 @@ async function salvarLancamento(){
   if(!editando&&EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Para corrigir a lista dele, escolha o evento no campo Evento. Salvar mesmo assim?"))return;
   const just=Object.fromEntries(Object.entries(lancJust).filter(([m,x])=>lanc[m]==="Não"&&String(x||"").trim()).map(([m,x])=>[m,String(x).trim().slice(0,80)]));
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,criado:new Date().toISOString()};
+  dados.info=lancResumo();dados.zap=lancZapTexto();   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
   if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});

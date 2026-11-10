@@ -135,6 +135,27 @@ def gravar_justificativas(api, pid, d, quem=""):
     api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW",
                                        body={"values": [cab] + outros + novos}).execute()
 
+def gravar_info_evento(api, pid, d, quem=""):
+    """Informações do evento vindas da Lista (tipo, horário, local, endereço, observação e os campos da lista):
+    aba "Eventos" (criada sozinha), uma linha por evento; salvar o mesmo evento de novo atualiza a linha dele."""
+    info = d.get("info")
+    if not info or str(d.get("aba") or "Presenca").strip().lower() != "presenca":
+        return
+    aba = _aba_real(api, pid, "Eventos")
+    if not aba:
+        _estrutura(api, pid, [{"addSheet": {"properties": {"title": "Eventos"}}}]); aba = "Eventos"
+    cab = ["Data", "Evento", "Tipo", "Horário", "Local", "Endereço", "Observação", "Detalhes da lista", "Lançado por", "Quando"]
+    v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:J3000").execute().get("values", [])
+    data, ev = str(d.get("data") or "")[:10], str(d.get("evento") or "").strip()
+    outros = [list(r) + [""] * (10 - len(r)) for r in v[1:] if r and not (str(r[0])[:10] == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+    det = json.dumps({"tipo": info.get("tipo", ""), "f": info.get("f", {}), "mapas": bool(info.get("mapas"))}, ensure_ascii=False)[:45000]
+    linha = [data, ev, str(info.get("tnome") or info.get("tipo") or "")[:40], str(info.get("hora") or "")[:20], str(info.get("local") or "")[:200],
+             str(info.get("endereco") or "")[:300], str(info.get("obs") or "")[:500], det, str(quem or "").split("@")[0],
+             datetime.datetime.now().strftime("%d/%m/%Y %H:%M")]
+    api.spreadsheets().values().clear(spreadsheetId=pid, range=f"'{aba}'!A1:J3000").execute()
+    api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW",
+                                       body={"values": [cab] + outros + [linha]}).execute()
+
 def aplicar_evento(api, pid, d):
     """Lançar evento / Insights / Salvar no Excel: data + nome + marcações na aba (Presenca ou Insights)."""
     aba = _aba_real(api, pid, d.get("aba") or "Presenca")
@@ -1266,6 +1287,10 @@ def processar_fila(api, pid):
                     gravar_justificativas(api, pid, d, row[1])
                 except Exception as e:
                     print(f"Aviso: justificativas não gravadas ({type(e).__name__}: {e}).")
+                try:
+                    gravar_info_evento(api, pid, d, row[1])
+                except Exception as e:
+                    print(f"Aviso: informações do evento não gravadas ({type(e).__name__}: {e}).")
             elif tp == "pagamento_manual":
                 res, sit = aplicar_pagamento(api, pid, d), "feito"
             elif tp == "integrante":
@@ -1735,7 +1760,7 @@ def main():
                 for _, em_, d_ in resumo_fila:   # evento lançado ou corrigido: a lista atualizada do evento, pronta para o WhatsApp
                     if d_.get("tipo") == "lancamento_presenca":
                         try:
-                            z = g.zap_evento(d_, em_)
+                            z = str(d_.get("zap") or "") or g.zap_evento(d_, em_)   # a mensagem do Lançar (igual à da Lista); senão, a da nuvem
                             if z and len(z.encode("utf-8")) <= 2800:
                                 zaps.append(z)
                         except Exception as e:
