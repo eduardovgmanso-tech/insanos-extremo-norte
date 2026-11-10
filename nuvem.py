@@ -1525,6 +1525,8 @@ def main():
             acao = str(json.load(open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8")).get("action", ""))
     except Exception:
         pass
+    if evento == "repository_dispatch" and acao == "agenda":
+        evento = "schedule"   # o despertador do Apps Script vale como uma rodada agendada (boletos, lembretes e avisos dos horários)
     # horários automáticos: na época de pagamentos (dia 1 ao vencimento) de meia em meia hora, das 7h às 18h;
     # fora dela, só a rodada das 9h (avisos do dia). Modificações (painel ou planilha) atualizam na hora.
     sys.argv = [sys.argv[0], "--publicar"]
