@@ -1250,7 +1250,7 @@ def processar_fila(api, pid):
             elif tp == "boletos_sistema":
                 res, sit = aplicar_boletos(api, pid, d), "feito"
             elif tp == "verificar_pagamentos":
-                VERIFICAR_AGORA.append(1)
+                VERIFICAR_AGORA.append(str(row[1]).strip().lower() or "?")   # guarda quem pediu (para o aviso ao comando)
                 res, sit = "verificação dos boletos pedida pela tela Pagamentos", "feito"
             elif tp == "boletos_aviso":
                 AVISO_BOLETO_MANUAL.append(1)
@@ -1655,10 +1655,34 @@ def main():
             escrever_otp(api, planilha_id, g)
         except Exception as e:
             print(f"Aviso: lista do código por e-mail não atualizada ({type(e).__name__}: {e}).")
+        # verificação feita à mão (Ver. Agora ou Run workflow): avisa o comando quem pediu, por onde e a hora
+        if VERIFICAR_AGORA or evento == "workflow_dispatch":
+            try:
+                hora = datetime.datetime.now().strftime("%H:%M")
+                if VERIFICAR_AGORA:
+                    em = VERIFICAR_AGORA[0]
+                    ap = (getattr(g, "EMAIL_APELIDO", {}) or {}).get(em) or em.split("@")[0]
+                    nomes = list(((getattr(g, "PAG_MEU", {}) or {}).get("st") or {}).keys())   # os apelidos como estão na planilha
+                    nome = next((x for x in nomes if x.lower() == str(ap).lower()), str(ap).title())
+                    onde = "pelo botão Ver. Agora"
+                else:
+                    ator = os.environ.get("GITHUB_ACTOR", "")
+                    dono = os.environ.get("GITHUB_REPOSITORY_OWNER", "")
+                    resp = list(getattr(g, "ACESSOS_SOMENTE", []) or [])
+                    nome = resp[0] if (ator and ator == dono and resp) else (ator or "alguém")
+                    onde = "pelo Run workflow do GitHub"
+                g.notificar("🔄 Verificação manual dos pagamentos", f"Pedida por {nome}, {onde}, às {hora}.", "verif-manual", icone="notif-pag.png")
+            except Exception as e:
+                print(f"Aviso: aviso da verificação manual não enviado ({type(e).__name__}: {e}).")
         for aviso in AVISOS_PAG:
             titulo, corpo, so_para, com_zap = (list(aviso) + [None, True])[:4]
             try:
-                g.notificar(titulo, corpo, "pagamento", zap="__STATUS_PAGAMENTOS__" if com_zap else None, icone="notif-pag.png", so_para=so_para)
+                zap = None
+                if com_zap:   # a mensagem pronta vai dentro do aviso (abre direto no WhatsApp); se for grande demais, o app monta na hora
+                    zap = getattr(g, "ZAP_PAG", "") or "__STATUS_PAGAMENTOS__"
+                    if len(zap.encode("utf-8")) > 2800:
+                        zap = "__STATUS_PAGAMENTOS__"
+                g.notificar(titulo, corpo, "pagamento", zap=zap, icone="notif-pag.png", so_para=so_para)
             except Exception as e:
                 print(f"Aviso: notificação de pagamento não enviada ({e}).")
         AVISOS_PAG.clear()

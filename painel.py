@@ -576,6 +576,48 @@ CAVEIRA_URL = ""       # imagem da caveira (vem do template): usada no "Meu pain
 MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu painel
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
+ZAP_PAG = ""           # mensagem pronta da situação dos pagamentos (vai dentro do aviso de pagamento novo: abre direto no WhatsApp)
+
+def zap_pagamentos(pag, membros):
+    """A mesma mensagem do botão "Copiar mensagem para o comando": a lista por grupo (Comando, Full, Meio, PP, Camiseta),
+    🏦 quem pagou, ⏰ quem está em compensação e os totais atualizados."""
+    import re as _r
+    linhas = str(pag.get("msg") or "").split("\n")
+    eh_irmao = lambda l: bool(_r.match(r"^\s*\d{1,2}\.\s", l))
+    idx = [k for k, l in enumerate(linhas) if eh_irmao(l)]
+    if not idx:
+        return pag.get("msg") or ""
+    i0, i1 = idx[0], idx[-1]
+    st = pag.get("status", {}) or {}
+    trav = pag.get("travado", {}) or {}
+    def grupo(m):
+        c = str(m.get("c") or "").strip().lower()
+        return "Full" if c.startswith("full") else "Meio" if c.startswith("meio") else "PP" if c.startswith("pp") else "Camiseta" if c.startswith("camiseta") else "Comando"
+    def pago(n):
+        s_ = str(st.get(n, ""))
+        return bool(_r.search("ades", s_, _r.I)) or bool(trav.get(n)) or bool(_r.search("pago", s_, _r.I))
+    def rot(m):
+        lg = str(m.get("lg") or "").rstrip() or str(m.get("num") or "")
+        return f"{m.get('lg') or lg + ' '} - {m.get('c')} {m['n']}" if grupo(m) == "Comando" else f"{lg} - {m['n']}"
+    def marca(m):
+        return "🏦" if pago(m["n"]) else "⏰" if _r.search("aguard", str(st.get(m["n"], "")), _r.I) else ""
+    ordem = sorted(membros, key=lambda m: m.get("o", 999))
+    blocos = []
+    for g_ in ("Comando", "Full", "Meio", "PP", "Camiseta"):
+        b = [m for m in ordem if grupo(m) == g_]
+        if b:
+            blocos.append("\n".join(rot(m) + marca(m) for m in b))
+    pagos = sum(1 for m in ordem if pago(m["n"]))
+    pct = int(pagos * 100 / len(ordem) + 0.5) if ordem else 0   # arredonda como o app (62,5% → 63%)
+    fim = [_r.sub(r"representa\s*\d+%", f"representa {pct}%",
+                  _r.sub(r"(Total de pagamentos efetuados:\s*)\d+(\.?)", lambda m: f"{m.group(1)}{pagos}{m.group(2)}", l, flags=_r.I), flags=_r.I)
+           for l in linhas[i1 + 1:]]
+    out = "\n".join(linhas[:i0] + ["\n\n".join(blocos)] + fim).split("\n")
+    out = [_r.sub(r"^(\s*)(\d{1,2})\.\s+", lambda m: f"{m.group(1)}{m.group(2).zfill(2)} ▸ ", l) for l in out]
+    sep = lambda l: bool(_r.match(r"^\s*[-–—_=═]{8,}\s*$", l))
+    larg = max([len(l) for l in out if not sep(l) and "http" not in l] or [0])
+    n = max(14, min(26, int(larg * 2 / 3 + 0.5)))
+    return "\n".join("═" * n if sep(l) else l for l in out)
 # Quando uma atualização exige reinstalar o app (mudança no manifesto, como o Compartilhar), suba o "v" e escreva o motivo.
 # "quem": "adm" (só o comando) ou "todos" (comando e irmãos). O aviso aparece só no Android, no app instalado, até a pessoa marcar "Já reinstalei".
 AVISO_REINSTALAR = {"v": 1, "quem": "adm", "motivo": "receber os flys pelo Compartilhar do WhatsApp"}
@@ -2855,7 +2897,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v25";
+const CACHE = "insanos-v26";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -3011,6 +3053,11 @@ self.addEventListener("notificationclick", e => {
   }
   if (dd.link && (e.action === "link" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {   // ex.: "Abrir meu boleto"
     e.waitUntil(clients.openWindow(dd.link)); return;
+  }
+  if (dd.zap && dd.zap !== "__STATUS_PAGAMENTOS__" && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
+    e.notification.close();   // a mensagem já veio pronta: abre direto o WhatsApp, sem precisar entrar no app
+    e.waitUntil(clients.openWindow("https://wa.me/?text=" + encodeURIComponent(dd.zap)));
+    return;
   }
   if (dd.zap && (e.action === "zap" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {
     e.waitUntil(caches.open("insanos-zap").then(c => c.put("zap", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap}))))
@@ -3419,6 +3466,7 @@ def main():
     import re as _re
     _v = vencimento(hoje.year, hoje.month)
     pag["msg"] = _re.sub(r"\(Vencimento\s*\d{1,2}/\d{1,2}/\d{2,4}\)", f"(Vencimento {_v:%d/%m/%Y})", pag["msg"])
+    global ZAP_PAG
     pag["agenda"] = agenda_ativa()
     pag["verif_antiga"] = False
     pag["horarios"] = HORARIOS_VERIFICACAO
@@ -3499,6 +3547,10 @@ def main():
         else:
             print("Aviso: e-mail de " + ", ".join(ACESSOS_SOMENTE) + " não encontrado: a tela Acessos não vai aparecer.")
     FLY = {}      # "Gerar fly" removido: o fly oficial é feito no site do clube
+    try:   # a mensagem pronta para o aviso de pagamento novo (abre direto no WhatsApp, sem entrar no app)
+        ZAP_PAG = zap_pagamentos(pag, membros)
+    except Exception as e:
+        ZAP_PAG = ""; print(f"Aviso: mensagem dos pagamentos para o WhatsApp não montada ({type(e).__name__}: {e}).")
     gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
