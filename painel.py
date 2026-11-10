@@ -576,7 +576,77 @@ CAVEIRA_URL = ""       # imagem da caveira (vem do template): usada no "Meu pain
 MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu painel
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
+JUST = {}              # motivos das faltas (aba Justificativas): (data ISO, evento em minúsculas) -> {irmão: motivo}
+ZAP_CTX = {}           # o que a mensagem do evento para o WhatsApp precisa (integrantes, entrada de cada um na divisão)
 ZAP_PAG = ""           # mensagem pronta da situação dos pagamentos (vai dentro do aviso de pagamento novo: abre direto no WhatsApp)
+
+def _zap_formatar(txt):
+    """Igual ao app: numeração "01 ▸" nas linhas da lista e as linhas de traços viram uma faixa ═ do tamanho do texto."""
+    import re as _r
+    out = [_r.sub(r"^(\s*)(\d{1,2})\.\s*", lambda m: f"{m.group(1)}{m.group(2).zfill(2)} ▸ ", l) if _r.match(r"^\s*\d{1,2}\.\s", l) else l
+           for l in str(txt).split("\n")]
+    sep = lambda l: bool(_r.match(r"^\s*[-–—_=═]{8,}\s*$", l))
+    larg = max([len(l) for l in out if not sep(l) and "http" not in l] or [0])
+    n = max(14, min(26, int(larg * 2 / 3 + 0.5)))
+    return "\n".join("═" * n if sep(l) else l for l in out)
+
+def zap_evento(d, quem_email=""):
+    """A mesma mensagem da "Lista do evento para o WhatsApp" (Presença › Data específica), para um evento lançado:
+    vai pronta dentro do aviso de "Painel atualizado" (abre direto no WhatsApp). Leva o motivo de cada falta."""
+    import datetime as _dt
+    membros = ZAP_CTX.get("membros") or []
+    if not membros:
+        return ""
+    ins = str(d.get("aba") or "").strip().lower() == "insights"
+    T = ({"leg1": "✅-Respondeu", "leg2": "❌-Não respondeu", "frase": "teve uma taxa de resposta de"} if ins else
+         {"leg1": "✅-Presente", "leg2": "❌-Ausente", "leg3": "✅ (staff)-Presente no staff", "frase": "teve uma adesão de"})
+    mv = {"Sim": 1, "Staff": "S", "Não": 0, "-": "-"}
+    marca = {n: mv.get(str(v), None) for n, v in (d.get("marcacoes") or {}).items()}
+    just = d.get("justificativas") or {}
+    data = str(d.get("data") or "")[:10]
+    def grupo(m):
+        c = str(m.get("c") or "").strip().lower()
+        return "Full" if c.startswith("full") else "Meio" if c.startswith("meio") else "PP" if c.startswith("pp") else "Camiseta" if c.startswith("camiseta") else "Comando"
+    def nome(m):
+        b = f"{m.get('lg') or ''}.{m['n']}"
+        return b + f"-{m.get('c')}" if grupo(m) == "Comando" else b
+    def mk(m):
+        v = marca.get(m["n"])
+        t = "✅" if v == 1 else "✅ (staff)" if v == "S" else "❌" if v == 0 else ""
+        if v == 0 and str(just.get(m["n"]) or "").strip():
+            t += f" ({str(just[m['n']]).strip()})"
+        return t
+    tit = str(d.get("evento") or "Evento").strip()
+    reg = str(DIV.get("regional", ""))
+    cab = [f"*💀 {tit} 💀*", f"*Divisão {DIV.get('nome', '')} - {reg[:1] + reg[1:].lower()}*", "-" * 35]
+    try:
+        cab.append(f"*🗓️ Data: {_dt.date.fromisoformat(data):%d/%m/%Y}*")
+    except Exception:
+        cab.append(f"*🗓️ Data: {data}*")
+    cab += ["-" * 35, "*Legenda:*", T["leg1"], T["leg2"]]
+    if not ins and any(v == "S" for v in marca.values()):
+        cab.append(T["leg3"])
+    ordem = sorted(membros, key=lambda m: m.get("o", 999))
+    blocos = []
+    for g_ in ("Comando", "Full", "Meio", "PP", "Camiseta"):
+        b = [m for m in ordem if grupo(m) == g_]
+        if b:
+            blocos.append("\n".join(nome(m) + (" " + mk(m) if mk(m) else "") for m in b))
+    ent = ZAP_CTX.get("entrada") or {}
+    base = [m for m in membros if marca.get(m["n"]) is not None or (ent.get(m["n"]) and data >= ent[m["n"]])]
+    pres = sum(1 for m in base if marca.get(m["n"]) in (1, "S"))
+    pct = int(pres * 100 / len(base) + 0.5) if base else 0
+    cmd = [m for m in ordem if grupo(m) == "Comando"]
+    ap = (EMAIL_APELIDO.get(str(quem_email).strip().lower()) or "").lower()
+    a = next((m for m in cmd if m["n"].lower() == ap), None) or next((m for m in cmd if str(m.get("c") or "").strip().lower().startswith("sub")), None)
+    assin = ""
+    if a:
+        import re as _r
+        cb = _r.sub(r"\s*\([^)]*\)\s*$", "", str(a.get("c") or "")).strip()
+        local = f"{DIV.get('assinatura_local', '')} - {DIV.get('estado', '')}"
+        assin = (f"\n\n*Somente {cb} Altera a Lista*\n*{a['n']} - {a.get('c')} - {local}*"
+                 f"\n\n*A {DIV.get('nome', '')} {reg} {T['frase']} {pct}% nesse evento.*")
+    return _zap_formatar("\n".join(cab) + "\n\n" + "\n\n".join(blocos) + assin)
 
 def zap_pagamentos(pag, membros):
     """A mesma mensagem do botão "Copiar mensagem para o comando": a lista por grupo (Comando, Full, Meio, PP, Camiseta),
@@ -759,7 +829,7 @@ const texto=e=>TT==="ev"
   ?`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não fui* ao evento *${e[1]}* de *${br(e[0])}*, mas eu estive presente.\n\nPodem conferir o lançamento? Obrigado! 🤝`
   :`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não respondi* o insight *${e[1]}* de *${br(e[0])}*, mas eu respondi.\n\nPodem conferir o lançamento? Obrigado! 🤝`;
 function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>(!FF||e[2]!==1)&&(!PER||e[0].startsWith(PER)));
-  document.getElementById("lista").innerHTML=L.length?L.map((e,k)=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span><b style="flex:1;font-weight:500">${es(e[1])}</b>
+  document.getElementById("lista").innerHTML=L.length?L.map((e,k)=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span><b style="flex:1;font-weight:500">${es(e[1])}${e[2]===0&&e[3]?`<small style="display:block;color:#E07472;font-weight:600;font-size:12.5px">Motivo: ${es(e[3])}</small>`:""}</b>
     ${e[2]===1?"":`<button class="q" data-k="${k}">Questionar</button>`}</div>${k===ABERTO?`<div class="qbox"><pre>${es(texto(e))}</pre>
       <div class="qbts"><button class="qc" data-k="${k}">📋 Copiar</button><button class="qz" data-k="${k}">Abrir no WhatsApp</button></div></div>`:""}`).join("")
     :`<p class="nota">${FF?"Nenhuma falta. 💪":"Nada lançado ainda."}</p>`;
@@ -931,7 +1001,8 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         if "@" not in email or (m["n"].lower() in autoriz and m["n"].lower() not in {a.lower() for a in ACESSOS_SOMENTE}):
             continue
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
-        lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(evs, key=lambda x: x["d"], reverse=True)
+        lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] + ([JUST[(e["d"], e["e"].strip().lower())][m["n"]]]
+                              if m["n"] in JUST.get((e["d"], e["e"].strip().lower()), {}) else []) for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
         dados = {"email": email, "push": MEU_PUSH, "n": m["n"], "c": m.get("c", ""), "ent": m.get("ent", ""), "reinst": AVISO_REINSTALAR if AVISO_REINSTALAR.get("quem") == "todos" else None,
                  "sede": str(DIV.get("sede_endereco", "")), "sede_n": str(DIV.get("sede_local", "")),
@@ -3249,6 +3320,19 @@ def main():
         aba = next((n for n in wb.sheetnames if n.strip().lower() == nome_aba), None)
         if aba:
             abas_extras[chave] = list(wb[aba].iter_rows(min_row=1, max_row=300, max_col=60, values_only=True))
+    # motivos das faltas (aba "Justificativas", gravada pelo Lançar): só para o comando e para o próprio irmão
+    global JUST
+    JUST = {}
+    try:
+        if "Justificativas" in wb.sheetnames:
+            for r in wb["Justificativas"].iter_rows(min_row=2, max_col=5, values_only=True):
+                dj, ej, aj, nj, mj = (list(r) + [None] * 5)[:5]
+                if not (dj and ej and nj and mj) or str(aj or "Presenca").strip().lower() != "presenca":
+                    continue
+                dj = dj.date().isoformat() if hasattr(dj, "date") else str(dj).strip()[:10]
+                JUST.setdefault((dj, str(ej).strip().lower()), {})[str(nj).strip()] = str(mj).strip()
+    except Exception as e:
+        print(f"Aviso: justificativas não lidas ({type(e).__name__}: {e}).")
     pgto = list(wb["PGTO"].iter_rows(min_row=2, max_row=250, max_col=10, values_only=True)) if "PGTO" in wb.sheetnames else []
     msg_pag = [r[0] for r in wb["Pagamentos"].iter_rows(min_row=1, max_row=80, min_col=3, max_col=3, values_only=True)] \
         if "Pagamentos" in wb.sheetnames else []
@@ -3551,10 +3635,23 @@ def main():
         ZAP_PAG = zap_pagamentos(pag, membros)
     except Exception as e:
         ZAP_PAG = ""; print(f"Aviso: mensagem dos pagamentos para o WhatsApp não montada ({type(e).__name__}: {e}).")
-    gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    global ZAP_CTX
+    try:
+        _ent = {}
+        for e in eventos + eventos_ins:
+            for k, v in enumerate(e["p"]):
+                if v not in (None, "") and k < len(membros):
+                    n_ = membros[k]["n"]
+                    if n_ not in _ent or e["d"] < _ent[n_]:
+                        _ent[n_] = e["d"]
+        ZAP_CTX = {"membros": membros, "entrada": _ent}
+    except Exception as e:
+        print(f"Aviso: contexto da mensagem do evento não montado ({type(e).__name__}: {e}).")
+    eventos_adm = [dict(e, j=JUST[(e["d"], e["e"].strip().lower())]) if (e["d"], e["e"].strip().lower()) in JUST else e for e in eventos]
+    gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]

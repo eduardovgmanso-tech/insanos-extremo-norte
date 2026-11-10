@@ -272,6 +272,8 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 @media (max-width:600px){.lanc-topo{grid-template-columns:1fr}.lanc-fim .btn{width:100%;justify-content:center}}
 .topo-dir{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .q-velho{display:none!important}
+.lanc-just{display:block;width:100%;box-sizing:border-box;margin:6px 0 2px;padding:8px 10px;border-radius:10px;border:1px solid rgba(224,116,114,.45);background:rgba(0,0,0,.35);color:var(--osso);font:inherit;font-size:14px}
+.lanc-just[hidden]{display:none}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
   display:flex;align-items:center;justify-content:center;background:transparent;opacity:.54;-webkit-tap-highlight-color:transparent}
 .seta-tela.esq{left:6px}.seta-tela.dir{right:6px}.seta-tela[hidden]{display:none}
@@ -1229,7 +1231,7 @@ const ezTipo=()=>ANAL==="ins"?"ins":"pres";
 const EZ_T={pres:{sim:"presentes",nao:"ausentes",leg1:"✅-Presente",leg2:"❌-Ausente",leg3:"✅ (staff)-Presente no staff",pc:"de adesão",func:"Adesão por função",frase:"teve uma adesão de"},
   ins:{sim:"responderam",nao:"não responderam",leg1:"✅-Respondeu",leg2:"❌-Não respondeu",pc:"de resposta",func:"Resposta por função",frase:"teve uma taxa de resposta de"}};
 function ezEventosDaData(d){return (EV_SETS[ezTipo()]||[]).map((e,k)=>({...e,k})).filter(e=>e.d===d)}
-function ezCarregar(){const e=(EV_SETS[ezTipo()]||[])[ez.k];ez.marca={};ez.importado=false;if($("ezLido"))$("ezLido").innerHTML="";
+function ezCarregar(){const e=(EV_SETS[ezTipo()]||[])[ez.k];ez.marca={};ez.importado=false;ez.j=(e&&e.j)||{};if($("ezLido"))$("ezLido").innerHTML="";
   M_FULL.forEach((m,i)=>{ez.marca[m.n]=e?(e.p[i]===undefined?null:e.p[i]):null;if(e&&e.st&&e.st[i]&&ez.marca[m.n]===1)ez.marca[m.n]="S";
     if(ezTipo()==="ins"&&ez.marca[m.n]==null&&grupoDe(m)!=="Comando")ez.marca[m.n]=0});
   $("ezTit").value=e?e.e:"";$("ezData").value=e?e.d:"";$("ezObs").value="";ezListaUI();ezAtualiza()}
@@ -1262,7 +1264,7 @@ function ezListaUI(){const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
   $("ezLista").innerHTML=GRUPOS.map(g=>{const ms=ord.filter(m=>grupoDe(m)===g);if(!ms.length)return "";
     return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lw-col">${ms.map(m=>{const v=ez.marca[m.n];
       return `<div class="lw-l"><div class="lw-lin"><span>${esc(lwNome(m))}</span><div class="seg">${(ezTipo()==="pres"?[["1","✅",1],["S","🛠️","S"],["0","❌",0],["-","–","-"]]:[["1","✅",1],["0","❌",0],["-","–","-"]]).map(([dv,rot,val])=>
-        `<button type="button" data-n="${esc(m.n)}" data-v="${dv}" title="${dv==="S"?"Fez staff (conta como presença)":""}" aria-pressed="${v===val}" style="${v===val?(val===0?"background:var(--sangue)":val===1?"background:var(--presente)":val==="S"?"background:#B8942F":"background:#555"):""}">${rot}</button>`).join("")}</div></div></div>`}).join("")}</div>`}).join("")}
+        `<button type="button" data-n="${esc(m.n)}" data-v="${dv}" title="${dv==="S"?"Fez staff (conta como presença)":""}" aria-pressed="${v===val}" style="${v===val?(val===0?"background:var(--sangue)":val===1?"background:var(--presente)":val==="S"?"background:#B8942F":"background:#555"):""}">${rot}</button>`).join("")}</div></div>${v===0&&(ez.j||{})[m.n]?`<div class="lanc-just-txt">Motivo: ${esc(ez.j[m.n])}</div>`:""}</div>`}).join("")}</div>`}).join("")}
 function ezConta(m){const v=ez.marca[m.n],d=$("ezData")?$("ezData").value:"";
   if(v!==undefined&&v!==null&&v!=="")return true;const en=ENTRADA[m.n];return !!en&&(!d||d>=en)}
 function ezPct(){const base=M_FULL.filter(m=>!(ezTipo()==="ins"&&SEM_CMD&&grupoDe(m)==="Comando")&&ezConta(m)),v=base.map(m=>ez.marca[m.n]),s=v.filter(ezPres).length,den=base.length;
@@ -1273,7 +1275,7 @@ function ezTexto(){const SEPR="-----------------------------------",tit=$("ezTit
   const TT=EZ_T[ezTipo()];cab.push("*Legenda:*",TT.leg1,TT.leg2);if(TT.leg3&&M_FULL.some(m=>ez.marca[m.n]==="S"))cab.push(TT.leg3);
   const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
   const blocos=blocosPorGrau(ord)
-    .map(b=>b.map(m=>{const mk=ezMarcaTxt(ez.marca[m.n]);return lwNome(m)+(mk?" "+mk:"")}).join("\n"));
+    .map(b=>b.map(m=>{let mk=ezMarcaTxt(ez.marca[m.n]);if(ez.marca[m.n]===0&&(ez.j||{})[m.n])mk+=` (${ez.j[m.n]})`;return lwNome(m)+(mk?" "+mk:"")}).join("\n"));
   const a=M_FULL.find(m=>m.n===$("ezAssin").value);
   const assin=a?`\n\n*Somente ${cargoBase(a.c)} Altera a Lista*\n*${a.n} - ${a.c} - ${LW_ASSIN_LOCAL}*\n\n*A ${DIV_NOME} ${DIV_REG} ${EZ_T[ezTipo()].frase} ${ezPct()}% nesse evento.*`:"";
   return zapFormatar(cab.filter(x=>x!=="").join("\n")+"\n\n"+blocos.join(ENTRE_GRAUS)+assin)}
@@ -2023,7 +2025,9 @@ function diTexto(n){const m=M_FULL.find(x=>x.n===n);if(!m)return "";const x=m.x|
   const L=[`*📇 ${m.n}*`,"",x.nc?`*Nome completo:* ${x.nc}`:null,`*Nº do sistema:* ${m.num||"–"}`,`*Cargo/função:* ${m.c||"–"}`,`*Posição na lista:* ${String(m.lg||"").trim()||"–"}`,
     m.nasc?`*Nascimento:* ${br(m.nasc)}${m.idade?` (${m.idade} anos)`:""}`:null,tel?`*Telefone:* ${tel}`:null,
     x.col?`*Colete:* ${x.col}`:null,x.tamc?`*Camiseta:* ${x.tamc}`:null,m.ent?`*Entrada no MC:* ${fmtEnt(m.ent)} · ${pinDe(m)[1]}${pinProx(m)?` (${pinProx(m)[0]} em ${pinProx(m)[1]})`:" (maior pin)"}`:null,
-    af?`*Situação:* afastado${af.desde?" desde "+br(af.desde):""}`:"*Situação:* ativo","",`*Presença em ${ano}:* ${conta("pres")}`,`*Insights em ${ano}:* ${conta("ins")}`,"",`_${DIV_NOME} ${DIV_REG}_`];
+    af?`*Situação:* afastado${af.desde?" desde "+br(af.desde):""}`:"*Situação:* ativo","",`*Presença em ${ano}:* ${conta("pres")}`,(()=>{   // motivos das faltas no ano (vêm do Lançar / da Lista)
+      const q={};(EV_SETS.pres||[]).filter(e=>e.d.startsWith(ano)&&e.j&&e.j[m.n]&&e.p[i]===0).forEach(e=>{q[e.j[m.n]]=(q[e.j[m.n]]||0)+1});
+      const l=Object.entries(q).sort((a,b)=>b[1]-a[1]);return l.length?`*Motivos das faltas:* ${l.map(([k,v])=>`${k} (${v})`).join(" · ")}`:null})(),`*Insights em ${ano}:* ${conta("ins")}`,"",`_${DIV_NOME} ${DIV_REG}_`];
   return L.filter(l=>l!==null).join("\n").trim()}
 function dbDadosMeses(ms){const um=ms.map(dbDados),nomes=[];um.forEach(D=>D.g.forEach(x=>{if(!nomes.some(y=>y[0]===x[0]))nomes.push([x[0],x[1]])}));
   const ordem=M_FULL.map(m=>m.n);nomes.sort((a,b)=>ordem.indexOf(a[0])-ordem.indexOf(b[0]));
@@ -3130,6 +3134,8 @@ function montarListas(){
     const iso=lwDataISO(cabO?cabO.join(" "):f.data);
     if(cabO)f.titulo=(cabO.find(l=>l.trim())||"").replace(/[*_~]/g,"").replace(/[^\p{L}\p{N}\s\-\/]/gu,"").trim();
     M.forEach(m=>{const v=lw.marca[m.n]||"";lanc[m.n]=v.startsWith("✅")?"Sim":v==="❌"?"Não":""});
+    Object.keys(lancJust).forEach(n=>delete lancJust[n]);M.forEach(m=>{if(lanc[m.n]==="Não"){const x=lwJustTexto(m.n);if(x)lancJust[m.n]=x}});
+    if($("lEv"))$("lEv").value="novo";
     document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===lanc[x.dataset.n]));
     if(iso)$("lData").value=iso;$("lNome").value=(f.titulo||"")+(f.nome?" - "+f.nome:"");atualizaLanc();irPara("lancar")};
 }
@@ -3844,7 +3850,8 @@ function montarLancamento(){
   ord.forEach(m=>lanc[m.n]="");
   $("lLista").innerHTML=GRUPOS.map(g=>{const ms=ord.filter(m=>grupoDe(m)===g);if(!ms.length)return "";
     return `<div class="lanc-g">${g.toUpperCase()}</div><div class="lw-col">${ms.map(m=>`<div class="lw-l"><div class="lw-lin"><span>${esc(lwNome(m))}</span>
-      <div class="seg" role="group" aria-label="${esc(m.n)}">${[["Sim","✅","Foi"],["Staff","🛠️","Fez staff (conta como presença)"],["Não","❌","Faltou"],["-","–","Não conta"]].map(([v,r,ti])=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="false" title="${ti}">${r}</button>`).join("")}</div></div></div>`).join("")}</div>`}).join("");
+      <div class="seg" role="group" aria-label="${esc(m.n)}">${[["Sim","✅","Foi"],["Staff","🛠️","Fez staff (conta como presença)"],["Não","❌","Faltou"],["-","–","Não conta"]].map(([v,r,ti])=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="false" title="${ti}">${r}</button>`).join("")}</div></div></div><input class="lanc-just" data-jn="${esc(m.n)}" list="lancJustOp" maxlength="80" placeholder="Motivo da falta (opcional)" hidden>`).join("")}</div>`}).join("");
+  $("lLista").insertAdjacentHTML("beforeend",`<datalist id="lancJustOp">${LW_JUST.map(o=>`<option value="${esc(o)}">`).join("")}</datalist>`);
   lancEventos();
   const hoje=new Date();$("lData").value=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;
   $("lDica").textContent="Ao salvar, a lista vai direto para a planilha (aba Presenca), e o painel se atualiza em uns 3 minutos. Evento que ainda vai acontecer: os irmãos recebem o convite com Vou e Não vou.";
@@ -3855,18 +3862,22 @@ function montarLancamento(){
     const t=ev.target.closest("[data-todos]");
     if(t){Object.keys(lanc).forEach(n=>lanc[n]=t.dataset.todos);document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===t.dataset.todos));atualizaLanc()}
   });
+  $("lancar").addEventListener("input",ev=>{const i=ev.target.closest(".lanc-just");if(i)lancJust[i.dataset.jn]=i.value});
   $("lSalvar").addEventListener("click",salvarLancamento);
 }
 function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
     (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
-  document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])})}
+  document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])});
+  document.querySelectorAll("#lLista .lanc-just").forEach(i=>{const n=i.dataset.jn;i.hidden=lanc[n]!=="Não";if(document.activeElement!==i)i.value=lancJust[n]||""})}
+const lancJust={};   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
 function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
   s.innerHTML=`<option value="novo">➕ Novo evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
   s.onchange=()=>{const k=s.value,e=k==="novo"?null:(EV_SETS.pres||[])[+k];
     const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
     Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
+    Object.keys(lancJust).forEach(n=>delete lancJust[n]);if(e&&e.j)Object.assign(lancJust,e.j);   // os motivos já registrados desse evento
     document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",lanc[x.dataset.n]===x.dataset.v&&x.dataset.v!==""));
     document.getElementById("lancar").classList.remove("mostrar-falta");atualizaLanc()}}
 async function salvarLancamento(){
@@ -3879,7 +3890,8 @@ async function salvarLancamento(){
       const x=document.querySelector("#lLista .lw-l.sem-status");if(x)x.scrollIntoView({block:"center"});return}}
   const editando=$("lEv")&&$("lEv").value!=="novo";
   if(!editando&&EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Para corrigir a lista dele, escolha o evento no campo Evento. Salvar mesmo assim?"))return;
-  const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},criado:new Date().toISOString()};
+  const just=Object.fromEntries(Object.entries(lancJust).filter(([m,x])=>lanc[m]==="Não"&&String(x||"").trim()).map(([m,x])=>[m,String(x).trim().slice(0,80)]));
+  const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,criado:new Date().toISOString()};
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
   if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});

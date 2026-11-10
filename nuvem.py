@@ -116,6 +116,25 @@ def migrar_entradas(api, pid):
     except Exception as e:
         print(f"Aviso: datas de entrada não preenchidas ({type(e).__name__}: {e}).")
 
+def gravar_justificativas(api, pid, d, quem=""):
+    """Motivos das faltas do evento (vindos do Lançar): aba "Justificativas" (criada sozinha). Ao salvar o mesmo evento
+    de novo, os motivos dele são trocados pelos novos (os dos outros eventos ficam como estão)."""
+    if d.get("justificativas") is None or str(d.get("aba") or "Presenca").strip().lower() != "presenca":
+        return
+    aba = _aba_real(api, pid, "Justificativas")
+    if not aba:
+        _estrutura(api, pid, [{"addSheet": {"properties": {"title": "Justificativas"}}}]); aba = "Justificativas"
+    cab = ["Data", "Evento", "Aba", "Irmão", "Motivo", "Lançado por", "Quando"]
+    v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:G5000").execute().get("values", [])
+    data, ev = str(d.get("data") or "")[:10], str(d.get("evento") or "").strip()
+    outros = [list(r) + [""] * (7 - len(r)) for r in v[1:] if r and not (str(r[0])[:10] == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+    agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    novos = [[data, ev, "Presenca", n, str(m).strip()[:80], str(quem or "").split("@")[0], agora]
+             for n, m in (d.get("justificativas") or {}).items() if str(m or "").strip()]
+    api.spreadsheets().values().clear(spreadsheetId=pid, range=f"'{aba}'!A1:G5000").execute()
+    api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW",
+                                       body={"values": [cab] + outros + novos}).execute()
+
 def aplicar_evento(api, pid, d):
     """Lançar evento / Insights / Salvar no Excel: data + nome + marcações na aba (Presenca ou Insights)."""
     aba = _aba_real(api, pid, d.get("aba") or "Presenca")
@@ -1243,6 +1262,10 @@ def processar_fila(api, pid):
             d = json.loads(row[3]); tp = d.get("tipo")
             if tp == "lancamento_presenca":
                 res, sit = aplicar_evento(api, pid, d), "feito"
+                try:
+                    gravar_justificativas(api, pid, d, row[1])
+                except Exception as e:
+                    print(f"Aviso: justificativas não gravadas ({type(e).__name__}: {e}).")
             elif tp == "pagamento_manual":
                 res, sit = aplicar_pagamento(api, pid, d), "feito"
             elif tp == "integrante":
@@ -1708,7 +1731,15 @@ def main():
                 quem = _quem([e for _, e, _d in resumo_fila], xlsx, g)
                 itens = [r for r, _, _d in resumo_fila]
                 corpo = " · ".join(itens[:3]) + (f" · e mais {len(itens) - 3}" if len(itens) > 3 else "")
-                zaps = [d.get("zap") for _, _, d in resumo_fila if d.get("zap") and d.get("tipo") == "pagamento_manual"]   # botão só nos pagamentos
+                zaps = [d.get("zap") for _, _, d in resumo_fila if d.get("zap") and d.get("tipo") == "pagamento_manual"]   # pagamentos lançados
+                for _, em_, d_ in resumo_fila:   # evento lançado ou corrigido: a lista atualizada do evento, pronta para o WhatsApp
+                    if d_.get("tipo") == "lancamento_presenca":
+                        try:
+                            z = g.zap_evento(d_, em_)
+                            if z and len(z.encode("utf-8")) <= 2800:
+                                zaps.append(z)
+                        except Exception as e:
+                            print(f"Aviso: lista do evento para o WhatsApp não montada ({type(e).__name__}: {e}).")
                 # emoji e imagem: pagamento > PUB > ação social > evento > insight > cadastro (o mais importante da rodada)
                 ordem = ["notif-pag.png", "notif-pub.png", "notif-social.png", "notif-evento.png", "notif-insight.png", "notif-cadastro.png"]
                 tipos = [_tipo_aviso(d) for _, _, d in resumo_fila]
