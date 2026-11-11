@@ -1164,7 +1164,13 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
   {const h=document.querySelector("#app h1");if(h&&!document.getElementById("msgIco")){const m=document.createElement("button");m.id="msgIco";m.type="button";m.setAttribute("aria-label","Mensagens: falar com o comando");m.textContent="✉️";
     m.onclick=()=>{const o=document.querySelector(".msg-meu");if(o)o.click()};h.appendChild(m);
     const aj=document.createElement("button");aj.id="ajIco";aj.type="button";aj.setAttribute("aria-label","Ajustes do app");aj.textContent="⚙️";aj.onclick=()=>ajustesAbrir();h.appendChild(aj)}}
-  if(location.hash==="#moto"){try{history.replaceState(null,"",location.pathname)}catch(_){}nav.querySelector('[data-aba="moto"]').click()}   // veio pelo atalho do ícone do app
+  // atalhos do ícone do app: ao abrir e também com o app já aberto (o Android só muda o endereço)
+  const atalho=()=>{const h=location.hash;if(!/^#(moto|eventos|sos-abrir)$/.test(h))return;try{history.replaceState(null,"",location.pathname)}catch(_){}
+    if(h==="#moto"){nav.querySelector('[data-aba="moto"]').click();return}
+    if(h==="#sos-abrir"){if(typeof abrirSOS==="function")abrirSOS();return}
+    vaiInicio();const tb=document.querySelector('#tri [data-tri="eventos"]'),d=document.getElementById("eventos");
+    if(tb&&d&&!d.open)tb.click();else if(d){d.open=true;d.scrollIntoView({behavior:"smooth"})}};
+  setTimeout(atalho,250);addEventListener("hashchange",atalho);
   function consumo(){const L=[...M.abs].sort((a,b)=>a.km-b.km);L.forEach((a,i)=>{a.kml=i>0&&a.km>L[i-1].km&&a.l>0?(a.km-L[i-1].km)/a.l:null});return L}
   function desenha(){const L=consumo(),comK=L.filter(a=>a.kml!=null),mes=new Date().toISOString().slice(0,7),doMes=L.filter(a=>a.d.slice(0,7)===mes);
     const kmT=comK.reduce((s,a,i)=>s,0);const media=comK.length?comK.reduce((s,a)=>s+a.kml*a.l,0)/comK.reduce((s,a)=>s+a.l,0):null;

@@ -2615,7 +2615,15 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
 
 // as caveiras grandes (Presença e Pagamentos) ganham a camada do brilho
 holoCobrir($("roda"),CAVEIRA);holoCobrir($("pagCav"),CAVEIRA);
-setTimeout(()=>{const h=location.hash;if(h==="#lancar"||h==="#lista"){try{history.replaceState(null,"",location.pathname)}catch(_){}irPara(h==="#lancar"?"lancar":"listas")}},400);   // veio pelo atalho do ícone do app   // já na carga, antes da primeira pintura
+// atalhos do ícone do app (tocar e segurar): ao abrir e também com o app já aberto
+function atalhoIr(){const h=location.hash;if(!/^#(lancar|lista|eventos|moto|sos-abrir)$/.test(h))return;
+  try{history.replaceState(null,"",location.pathname)}catch(_){}
+  if(h==="#lancar"||h==="#lista"){irPara(h==="#lancar"?"lancar":"listas");return}
+  if(h==="#sos-abrir"){if(window.abrirSOS)abrirSOS();return}
+  // Eventos e Minha moto ficam no Meu painel: quem tem Meu painel vai para lá (como o Ver como irmão), já na tela certa
+  if(window.TEM_ACESSOS){try{sessionStorage.setItem("ver_irmao","1")}catch(_){}location.href=location.pathname+h;return}
+  avisoRapido(h==="#moto"?"A Minha moto fica no Meu painel dos irmãos.":"Os próximos eventos ficam no Meu painel dos irmãos. Aqui, use a Presença e o Lançar.")}
+setTimeout(atalhoIr,400);addEventListener("hashchange",atalhoIr);   // já na carga, antes da primeira pintura
 // Top 5: um quadro só, com os botões Mais presentes / Menos presentes
 if($("topSel"))$("topSel").onclick=e=>{const b=e.target.closest("[data-top]");if(!b)return;
   $("topSel").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
