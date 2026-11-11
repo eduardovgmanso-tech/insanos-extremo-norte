@@ -101,6 +101,15 @@ h2{font-family:var(--titulo);font-weight:800;font-size:28px;letter-spacing:.02em
 .colunas.larga{gap:8px}
 .colunas.larga .col{flex:1 1 0;min-width:56px}
 .colunas.larga .col .area{height:150px}
+#topMais .col .area,#topMenos .col .area{height:96px}   /* Top 5 mais baixos */
+.tops5 #topSel{margin-bottom:12px}.tops5 [data-top-q][hidden]{display:none}.tops5 h2{margin-top:0}
+.metas:not(.ultimos){display:grid!important;grid-template-columns:1fr 1fr;gap:10px}
+.metas:not(.ultimos) .item{display:block;border:1px solid rgba(236,231,220,.14)!important;border-radius:14px;padding:12px!important;margin:0;background:rgba(0,0,0,.18)}
+.metas:not(.ultimos) .item .big{font-size:40px;line-height:1.05;margin-bottom:6px}.metas:not(.ultimos) .item .txt{font-size:12.5px;line-height:1.35}
+.mini-d{margin-top:14px;border-top:1px solid rgba(236,231,220,.10);padding-top:10px}
+.mini-d>summary{list-style:none;display:flex;align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap}.mini-d>summary::-webkit-details-marker{display:none}
+.mini-d>summary h4{margin:0}.mini-d>summary small{color:#E9B949;font-weight:700;font-size:12.5px;flex:1}.mini-d>summary i{font-style:normal;font-size:20px;transition:transform .2s}
+.mini-d[open]>summary i{transform:rotate(90deg)}.mini-d .mini{margin-top:10px}
 .colunas.larga .col .pilha{width:min(44px,70%)}
 .colunas.larga .col .crot{writing-mode:horizontal-tb;transform:none;height:auto;text-align:center;white-space:normal;padding:8px 2px 6px;font-size:13px;font-weight:600;color:var(--osso);line-height:1.2}
 .colunas.larga .col .crot small{display:block;font-weight:400;font-size:12px;color:var(--osso2);margin-top:2px}
@@ -828,8 +837,9 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   <section class="ficha painel js" id="ficha" aria-live="polite"></section>
 
   <div class="tops so-geral js" id="tops">
-    <section class="painel mais"><h2 id="hTopMais">Top 5 mais presentes</h2><p class="sub" id="subTop">Considera o mês, a data e o cargo filtrados.</p><div class="colunas larga" id="topMais"></div></section>
-    <section class="painel menos"><h2 id="hTopMenos">Top 5 menos presentes</h2><p class="sub" id="subTopMenos">Só entra quem tem pelo menos uma marcação no período.</p><div class="colunas larga" id="topMenos"></div></section>
+    <section class="painel tops5"><div class="ordem" role="group" aria-label="Top 5" id="topSel"><button type="button" data-top="mais" aria-pressed="true">Mais presentes</button><button type="button" data-top="menos" aria-pressed="false">Menos presentes</button></div>
+      <div class="mais" data-top-q="mais"><h2 id="hTopMais">Top 5 mais presentes</h2><p class="sub" id="subTop">Considera o mês, a data e o cargo filtrados.</p><div class="colunas larga" id="topMais"></div></div>
+      <div class="menos" data-top-q="menos" hidden><h2 id="hTopMenos">Top 5 menos presentes</h2><p class="sub" id="subTopMenos">Só entra quem tem pelo menos uma marcação no período.</p><div class="colunas larga" id="topMenos"></div></div></section>
   </div>
 
   <div class="visao-bar so-geral js" role="tablist" aria-label="Tipo de visão">
@@ -2432,8 +2442,9 @@ function render(){
         return `<div class="item ult" tabindex="0" data-data="${x.e.d}"><div class="big" style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</div><div class="txt"><b>${esc(x.e.e)}</b><br>${dd} · ${x.p} de ${x.p+x.a} responderam</div></div>`}).join("")
         :`<div class="txt">Nenhum insight com resposta nesse período.</div>`}</div>`};
     $("meta").innerHTML=`${alvoU?ultimos():ANAL==="ins"?ult3():`<div class="metas">${linhaMeta(pcE,50,acima)}${linhaMeta(pcE75,75,acima75)}</div>`}
-      <div class="mini"><h4>ADESÃO POR FUNÇÃO</h4>${porG.map(x=>{const o=selG&&x.g!==selG?"off":"";
-        return `<span class="${o}">${esc(x.g)}</span><div class="t ${o}"><i style="width:${x.pc||0}%"></i></div><span class="n ${o}">${x.pc==null?"–":x.pc+"%"}</span>`}).join("")}</div>`;
+      ${(()=>{const ok=porG.filter(x=>x.pc!=null).sort((a,b)=>b.pc-a.pc),res=ok.length?`${esc(ok[0].g)} ${ok[0].pc}%`+(ok.length>1?` · menor: ${esc(ok[ok.length-1].g)} ${ok[ok.length-1].pc}%`:""):"";
+        return `<details class="mini-d" ${window.__funcAberta?"open":""}><summary><h4>ADESÃO POR FUNÇÃO</h4><small>${res}</small><i>›</i></summary><div class="mini">${porG.map(x=>{const o=selG&&x.g!==selG?"off":"";
+        return `<span class="${o}">${esc(x.g)}</span><div class="t ${o}"><i style="width:${x.pc||0}%"></i></div><span class="n ${o}">${x.pc==null?"–":x.pc+"%"}</span>`}).join("")}</div></details>`})()}`;
   }
   $("kpis").innerHTML=[
     ["",comReg.length,comReg.length===1?"evento com registro":"eventos com registro"],
@@ -2487,7 +2498,7 @@ function render(){
 
   // por integrante
   const ord=[...todos].sort(ordem==="hier"?(x,y)=>x.o-y.o:(x,y)=>(y.pc??-1)-(x.pc??-1)||y.p-x.p||x.o-y.o);
-  document.querySelectorAll(".ordem button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ord===ordem));
+  document.querySelectorAll(".ordem button[data-ord]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ord===ordem));   // (os botões do Top 5 cuidam de si)
   const maxM=Math.max(1,...ord.map(s=>s.p+s.a));
   $("listaMembros").classList.toggle("foco",!!sel);
   $("listaMembros").innerHTML=ord.length?ord.map(s=>coluna({ativa:st.nome===s.n,attr:`data-nome="${esc(s.n)}"`,
@@ -2541,6 +2552,11 @@ $("fCargoOp").addEventListener("change",ev=>{st.cargos=[...$("fCargoOp").querySe
   if(st.cargos.length&&st.nome&&!M.some(m=>m.n===st.nome&&noCargo(m)))st.nome="";if(typeof ez!=="undefined")ez.importado=false;
   $("fCargoBt").textContent=st.cargos.length?cargoRot():"Todos os cargos";montarFiltros();cargoLista(true);render()});
 document.addEventListener("click",()=>{if($("fCargoOp"))cargoLista(false)});
+// Top 5: um quadro só, com os botões Mais presentes / Menos presentes
+if($("topSel"))$("topSel").onclick=e=>{const b=e.target.closest("[data-top]");if(!b)return;
+  $("topSel").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  document.querySelectorAll("[data-top-q]").forEach(d=>d.hidden=d.dataset.topQ!==b.dataset.top)};
+document.addEventListener("toggle",e=>{if(e.target.classList&&e.target.classList.contains("mini-d"))window.__funcAberta=e.target.open},true);   // lembra se a adesão por função está aberta
 ["fNome","fMes","fData"].forEach(id=>$(id).addEventListener("change",ev=>{
   const k={fNome:"nome",fMes:"mes",fData:"data"}[id];st[k]=ev.target.value;if(typeof ez!=="undefined")ez.importado=false;
   if(k==="mes")st.data="";render();}));

@@ -747,7 +747,8 @@ RESPOSTAS = []          # respostas "Vou / Não vou" aplicadas nesta rodada (par
 
 def aplicar_respostas(api, pid, g):
     """Respostas "✅ Vou / ❌ Não vou" dos irmãos (registradas na aba Acessos com a assinatura):
-    confere a assinatura e marca SIM/NÃO na aba Presença, só onde o comando não marcou (ou onde a marca veio do próprio irmão)."""
+    confere a assinatura e marca SIM/NÃO na aba Presença. Até o dia do evento, vale a resposta do irmão (mesmo onde o comando
+    já marcou, exceto o staff); nos insights, só onde o comando não marcou (ou onde a marca veio do próprio irmão)."""
     regs = (g.buscar_acessos() or [])[1:]
     if not regs:
         return []
@@ -820,7 +821,10 @@ def aplicar_respostas(api, pid, g):
                 cel = f"{aba_nome}|{d}|{nome}|{ap}"
                 novo = "SIM" if resp in ("vou", "resp") else "NÃO"
                 livre = ("", "-") + (("NÃO", "NAO") if resp == "resp" else ())     # no insight, o NÃO padrão vira SIM quando o irmão marca
-                if atual in livre or celulas.get(cel) == atual or celulas.get(f"{d}|{nome}|{ap}") == atual:   # vale a marcação do comando
+                futuro = aba_nome == "Presenca" and d >= hoje   # até o dia do evento, vale a resposta do próprio irmão
+                if futuro and atual.startswith("STAFF") and novo == "SIM":
+                    continue                                   # o comando marcou staff: "Vou" não tira o staff
+                if futuro or atual in livre or celulas.get(cel) == atual or celulas.get(f"{d}|{nome}|{ap}") == atual:   # vale a marcação do comando
                     if atual != novo:
                         gr.append((f"'{aba}'!{_col(cc)}{linha}", novo))
                     celulas[cel] = novo

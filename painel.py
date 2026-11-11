@@ -1407,9 +1407,9 @@ SELECT_MODULO = r"""<style>
       const item=o=>`<button type="button" role="option" data-v="${String(o.value).replace(/"/g,"&quot;")}"${o.disabled?" disabled":""} aria-selected="${o.selected}"><i>${o.selected?"✓":""}</i><span>${o.textContent.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</span></button>`;
       if(el.tagName==="OPTGROUP"){html+=`<div class="grp">${el.label}</div>`+[...el.children].map(item).join("")}else if(el.tagName==="OPTION")html+=item(el)});
     m.innerHTML=html;document.body.appendChild(veu);document.body.appendChild(m);
-    const W=Math.max(r.width,190),H=m.offsetHeight,vw=innerWidth,vh=innerHeight,emb=vh-r.bottom-10,cima=r.top-10;
-    const left=Math.min(Math.max(8,r.left),vw-Math.min(W,vw-16)-8);
-    m.style.minWidth=Math.min(W,vw-16)+"px";m.style.left=left+"px";
+    const vw=innerWidth,vh=innerHeight,left=8;   // sempre na largura da tela (as caixas lado a lado abriam a lista pela metade)
+    m.style.width=(vw-16)+"px";m.style.minWidth=(vw-16)+"px";m.style.left=left+"px";
+    const H=m.offsetHeight,emb=vh-r.bottom-10,cima=r.top-10;
     if(emb>=H||emb>=cima){m.style.top=(r.bottom+6)+"px";m.style.maxHeight=Math.max(160,emb-6)+"px";m.style.setProperty("--oy","0px")}
     else{m.style.bottom=(vh-r.top+6)+"px";m.style.maxHeight=Math.max(160,cima-6)+"px";m.style.setProperty("--oy","100%")}
     m.style.setProperty("--ox",Math.max(10,Math.min(r.left+r.width/2-left,40))+"px");
