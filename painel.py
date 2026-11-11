@@ -840,7 +840,9 @@ h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margi
 .hl,.hl-cobre{position:absolute;inset:0;pointer-events:none;z-index:2;-webkit-mask:var(--m,var(--cav)) center/contain no-repeat;mask:var(--m,var(--cav)) center/contain no-repeat;
   background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,0) 30%,rgba(200,200,200,.55) 40%,rgba(255,255,255,.95) 48%,rgba(150,150,150,.6) 54%,rgba(235,235,235,.8) 60%,rgba(255,255,255,0) 70%,transparent 80%);
   background-size:300% 300%;background-position:var(--hx,50%) var(--hy,50%);mix-blend-mode:soft-light;opacity:.9}
-.hl-cobre.fora{display:none}
+.hl-cobre.fora{display:none}.hl-env,.cav,.cav-dash{filter:drop-shadow(var(--sx,0px) var(--sy,0px) 9px var(--g,transparent))}
+.hl-env.trofeu,.cav.trofeu,.cav-dash.trofeu{filter:drop-shadow(var(--sx,0px) var(--sy,0px) 10px rgba(233,185,73,.85)) drop-shadow(0 0 24px rgba(233,185,73,.35))}
+.trofeu .hl-cobre,.trofeu .hl{mix-blend-mode:overlay;opacity:1}.cav .hl,.cav-dash .hl{clip-path:inset(calc(100% - var(--p,100%)) 0 0 0)}.hl-env{position:relative;display:block;width:fit-content;margin:0 auto;line-height:0}.hl-cobre.cv{top:2.54%;bottom:2.54%}
 .trofeu{filter:drop-shadow(0 0 10px rgba(233,185,73,.75)) drop-shadow(0 0 26px rgba(233,185,73,.35))}
 .cv{display:flex;flex-direction:column;align-items:center;gap:2px}
 .cv b{font-size:34px;font-weight:800;line-height:1}.cv span{font-size:14px}.cv small{font-size:12px;color:var(--osso2)}
@@ -904,7 +906,7 @@ function mensQuadro(){const M=D.mens,st=String(M.st||""),mes=M.venc?MESES_N[+M.v
     <div class="qbts">${M.lk?`<a class="qz" href="${es(M.lk)}" target="_blank" rel="noopener" style="text-decoration:none">📄 Abrir meu boleto</a>`:""}
     ${M.adm?`<button id="mensPedir">🙋 Pedir o boleto ao ${es(M.adm)}</button>`:""}</div>
     <p class="nota" id="mensTx" style="margin:8px 0 0">${M.lk?"O boleto também chega pelos avisos do app.":"O boleto deste mês ainda não está no painel. Se precisar, peça ao comando."}</p></details>`}
-const cav=(v,r,sub)=>`<div class="cv"><span class="cav${v!=null&&v>=90?" trofeu":""}" style="--cav:url('${CAV}');--c:${cor(v)[0]};--p:${v||0}%"><i class="hl"></i></span><b style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</b><span>${r}</span><small>${sub}</small></div>`;
+const cav=(v,r,sub)=>`<div class="cv"><span class="cav${v!=null&&v>=90?" trofeu":""}" style="--g:${corGlow(v)};--cav:url('${CAV}');--c:${cor(v)[0]};--p:${v||0}%"><i class="hl"></i></span><b style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</b><span>${r}</span><small>${sub}</small></div>`;
 const bar=(r,v)=>`<div class="br"><span>${r}</span><div class="tr"><i style="width:${v||0}%;background:${cor(v)[1]}"></i></div><em style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</em></div>`;
 const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
@@ -1073,7 +1075,8 @@ body.tema-aniv h1,body.tema-aniv .painel h2,body.tema-aniv .card h2{color:#F1CF6
       fecha();location.href=`https://api.whatsapp.com/send/?phone=${a.tel}&text=${encodeURIComponent(t)}`}}})();
 // ---- ✨ efeito holográfico das caveiras: um brilho prateado que corre conforme a inclinação do celular ----
 (function(){if(window.__holo)return;window.__holo=1;const R=document.documentElement,quieto=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%")};poe(0,0);
+  let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%");
+    R.style.setProperty("--sx",(y*.32).toFixed(1)+"px");R.style.setProperty("--sy",(x*.32).toFixed(1)+"px")};   // a sombra colorida se desloca com a inclinaçãopoe(0,0);
   if(quieto)return;
   const ori=e=>{if(e.beta==null)return;ult=performance.now();ax=Math.max(-30,Math.min(30,(e.beta||0)-45));ay=Math.max(-30,Math.min(30,e.gamma||0))};
   addEventListener("deviceorientation",ori);
@@ -1081,12 +1084,11 @@ body.tema-aniv h1,body.tema-aniv .painel h2,body.tema-aniv .card h2{color:#F1CF6
     if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function")DeviceOrientationEvent.requestPermission().catch(()=>{})},true);
   let t0=performance.now(),q=0;const laco=t=>{if(!document.hidden&&(++q%2===0)){if(t-ult<2500)poe(ax,ay);else{const k=(t-t0)/1000;poe(Math.sin(k*.7)*16,Math.sin(k*.5)*24)}}requestAnimationFrame(laco)};
   requestAnimationFrame(laco)})();
+function corGlow(v){return v==null?"transparent":v>=90?"rgba(233,185,73,.85)":v>75?"rgba(143,217,163,.65)":v>=50?"rgba(242,139,130,.65)":"rgba(185,20,20,.95)"}   // a sombra colorida da caveira (a cor da faixa)
 // camada do brilho por cima de uma caveira desenhada (svg ou canvas), com o formato da caveira
-function holoCobrir(el,mask){if(!el||el.__hl)return;const pai=el.parentElement;if(!pai)return;if(getComputedStyle(pai).position==="static")pai.style.position="relative";
-  const s=document.createElement("span");s.className="hl-cobre";s.style.setProperty("--m",`url('${mask}')`);pai.appendChild(s);el.__hl=s;
-  const ajusta=()=>{const r=el.getBoundingClientRect(),pr=pai.getBoundingClientRect(),cv=el.tagName==="CANVAS",fol=cv?r.height*6/236:0,alt=cv?r.height*224/236:r.height;
-    Object.assign(s.style,{inset:"auto",left:(r.left-pr.left)+"px",top:(r.top-pr.top+fol)+"px",width:r.width+"px",height:alt+"px"})};   // (a caveira da Pagamentos tem uma folga em cima)
-  ajusta();try{new ResizeObserver(ajusta).observe(el)}catch(_){addEventListener("resize",ajusta)}}
+function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelope do mesmo tamanho da caveira: a camada do brilho nunca sai do lugar
+  const w=document.createElement("span");w.className="hl-env";el.parentNode.insertBefore(w,el);w.appendChild(el);
+  const s=document.createElement("span");s.className="hl-cobre"+(el.tagName==="CANVAS"?" cv":"");s.style.setProperty("--m",`url('${mask}')`);w.appendChild(s);el.__hl=s}
 
 // ---- 🏍️ Minha moto (só neste celular: documentos e abastecimentos; nada vai para a planilha, a nuvem ou o comando) ----
 (function(){if(document.getElementById("motoV"))return;const K="moto_"+(D.email||"eu");

@@ -298,7 +298,9 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .hl,.hl-cobre{position:absolute;inset:0;pointer-events:none;z-index:2;-webkit-mask:var(--m,var(--cav)) center/contain no-repeat;mask:var(--m,var(--cav)) center/contain no-repeat;
   background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,0) 30%,rgba(200,200,200,.55) 40%,rgba(255,255,255,.95) 48%,rgba(150,150,150,.6) 54%,rgba(235,235,235,.8) 60%,rgba(255,255,255,0) 70%,transparent 80%);
   background-size:300% 300%;background-position:var(--hx,50%) var(--hy,50%);mix-blend-mode:soft-light;opacity:.9}
-.hl-cobre.fora{display:none}
+.hl-cobre.fora{display:none}.hl-env,.cav,.cav-dash{filter:drop-shadow(var(--sx,0px) var(--sy,0px) 9px var(--g,transparent))}
+.hl-env.trofeu,.cav.trofeu,.cav-dash.trofeu{filter:drop-shadow(var(--sx,0px) var(--sy,0px) 10px rgba(233,185,73,.85)) drop-shadow(0 0 24px rgba(233,185,73,.35))}
+.trofeu .hl-cobre,.trofeu .hl{mix-blend-mode:overlay;opacity:1}.cav .hl,.cav-dash .hl{clip-path:inset(calc(100% - var(--p,100%)) 0 0 0)}.hl-env{position:relative;display:block;width:fit-content;margin:0 auto;line-height:0}.hl-cobre.cv{top:2.54%;bottom:2.54%}
 .trofeu{filter:drop-shadow(0 0 10px rgba(233,185,73,.75)) drop-shadow(0 0 26px rgba(233,185,73,.35))}
 
 .cav-dash .hl{border-radius:0}
@@ -1544,7 +1546,7 @@ function montarRoda(){montarLogo();
 function encher(frac){
   const alvo=Math.max(0,Math.min(1,frac)),de=nivel,t0=performance.now();window.__rodaAlvo=alvo;
   const reduz=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const pinta=f=>{const h=CAV_H*f,y=CAV_H-h;
+  const pinta=f=>{if($("roda").__hl)$("roda").__hl.style.clipPath=`inset(${(1-f)*100}% 0 0 0)`;const h=CAV_H*f,y=CAV_H-h;
     $("encheR").setAttribute("y",y);$("encheR").setAttribute("height",h);
     const L=$("encheL");L.setAttribute("y1",y);L.setAttribute("y2",y);L.setAttribute("opacity",f>0.01&&f<0.99?.5:0)};
   if(reduz){pinta(alvo);nivel=alvo;return}
@@ -1552,7 +1554,7 @@ function encher(frac){
   if(subir){const txt=$("rodaPct").textContent,T1=650,T2=800,corFim=[$("tintaCor").getAttribute("flood-color"),$("rodaPct").style.color];   // sobe até 100% e desce até a porcentagem real, com o número acompanhando
     const passo2=now=>{const k=now-t0;let f;
       if(k<T1){const a=k/T1,d0=Math.max(0,Math.min(1,de));f=d0+(1-d0)*(1-Math.pow(1-a,3))}else{const a=Math.min(1,(k-T1)/T2);f=1+(alvo-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
-      f=Math.max(0,Math.min(1,f));pinta(f);nivel=f;const vv=Math.round(f*100),cc=corFaixa(vv);$("rodaPct").textContent=vv+"%";if($("roda")&&$("roda").__hl)$("roda").__hl.classList.toggle("fora",vv>=90||getComputedStyle($("roda")).display==="none");
+      f=Math.max(0,Math.min(1,f));pinta(f);nivel=f;const vv=Math.round(f*100),cc=corFaixa(vv);$("rodaPct").textContent=vv+"%";
       $("tintaCor").setAttribute("flood-color",cc[0]);$("rodaPct").style.color=cc[1];
       if(k<T1+T2)requestAnimationFrame(passo2);else{pinta(alvo);nivel=alvo;$("rodaPct").textContent=txt;$("tintaCor").setAttribute("flood-color",corFim[0]);$("rodaPct").style.color=corFim[1]}};
     requestAnimationFrame(passo2);return}
@@ -1563,13 +1565,13 @@ function atualizarRoda(P,A,tx,semMarca){
   const t=P+A;semMarca=semMarca||0;
   $("rodaPct").textContent=tx===null?"–":tx+"%";
   // cor da caveira: abaixo de 50% vermelho claro, de 50% a 75% amarelo claro, acima de 75% verde claro
-  // faixas pelo valor exato: <50 vermelho · 50 a 75 amarelo · acima de 75 até 89,99 verde · 90 ou mais dourado
+  // faixas pelo valor exato: <50 vermelho sangue · 50 a 75 vermelho claro · acima de 75 até 89,99 verde · 90 ou mais dourado
   const v=tx===null||tx===undefined?(t?P*100/t:null):tx,ouro=v!==null&&v>=90;
   const cor=v===null?["#ffffff","var(--osso)"]:ouro?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F28B82","#F28B82"]:["#9B1111","#C0392B"];
   $("tintaCor").setAttribute("flood-color",cor[0]);$("rodaPct").style.color=cor[1];
   $("roda").classList.toggle("ouro",ouro);
-  // nível ouro: a caveira dá lugar ao logo completo, também em dourado
-  $("roda").style.display=ouro?"none":"";$("logoOuro").classList.toggle("on",ouro);
+  // nível ouro: a caveira fica dourada, com o brilho em volta (como as demais caveiras do app)
+  $("roda").style.display="";$("logoOuro").classList.remove("on");{const en=$("roda").closest(".hl-env")||$("roda");en.classList.toggle("trofeu",ouro);en.style.setProperty("--g",corGlow(v))}
   const irmao=MODO==="individual"||!!st.nome;
   $("seloOuro").innerHTML=ouro&&irmao?`<div class="selo-ouro" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 16.9 6.1 20.1l1.3-6.6L2.5 8.9l6.6-.8z"/></svg><div><b>Irmão Nível Ouro</b><span>Você faz a diferença</span></div></div>`:"";
   encher(v===null?0:v/100);
@@ -1711,10 +1713,9 @@ async function pagCavDesenhar(animar){const el=$("pagCav");if(!el)return;const p
   const g=el.getContext("2d"),P=await pagCavPrep();if(!P.cv)return;
   const h=224*s,w=h*P.cv.width/P.cv.height,x=100*s-w/2,top=6*s,tinta=c=>P.t[c+w]||(P.t[c+w]=_tinta(P.cv,w,h,c));
   const quadro=(v,fim)=>{const cor=corFaixa(v);g.clearRect(0,0,el.width,el.height);
-    if(fim&&v>=90&&P.lg){const lw=h*P.lg.width/P.lg.height;g.drawImage(_tinta(P.lg,lw,h,"#E9B949"),100*s-lw/2,top,lw,h)}   // 90% ou mais: o logo dourado
-    else{g.save();g.globalAlpha=.18;g.drawImage(P.cv,x,top,w,h);g.restore();
+    {g.save();g.globalAlpha=.18;g.drawImage(P.cv,x,top,w,h);g.restore();
       if(v>0){const tc=tinta(cor[0]),fh=h*v/100;g.drawImage(tc,0,h-fh,w,fh,x,top+h-fh,w,fh)}}
-    $("pagCavPc").textContent=v+"%";$("pagCavPc").style.color=cor[1]};
+    $("pagCavPc").textContent=v+"%";if(el.__hl)el.__hl.style.clipPath=`inset(${100-v}% 0 0 0)`;$("pagCavPc").style.color=cor[1];{const en=el.closest(".hl-env")||el;en.classList.toggle("trofeu",!!fim&&v>=90);en.style.setProperty("--g",corGlow(v))}};
   if(!animar||reduz||pc<=0){window.__pagAnimando=false;quadro(pc,true);return}
   ["#9B1111","#F28B82","#9BE3AE","#E9B949"].forEach(tinta);   // prepara as quatro cores antes de começar
   const t0=performance.now(),T1=650,T2=800,id=(window.__pagAnim=(window.__pagAnim||0)+1);window.__pagAnimando=true;
@@ -2030,7 +2031,7 @@ function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice
 // tabela de vários meses (comparativo e presença por integrante): meses centralizados, % em etiqueta
 // e, entre um mês e outro, quanto subiu (▲) ou desceu (▼)
 function dashCav(v,rot,sub,w,a,peq){const dl=v==null||a==null?"":v>a?`<small class="up">▲ +${v-a}</small>`:v<a?`<small class="dn">▼ −${a-v}</small>`:`<small class="eq">=</small>`;
-  return `<div class="dcav${peq?" peq":""}"><span class="cav-dash${v!=null&&v>=90?" trofeu":""}" style="--w:${w}px;--cav:url('${CAVEIRA}');--c:${v==null?"transparent":corFaixa(v)[0]};--p:${v||0}%"><i class="hl"></i></span>
+  return `<div class="dcav${peq?" peq":""}"><span class="cav-dash${v!=null&&v>=90?" trofeu":""}" style="--g:${corGlow(v)};--w:${w}px;--cav:url('${CAVEIRA}');--c:${v==null?"transparent":corFaixa(v)[0]};--p:${v||0}%"><i class="hl"></i></span>
     <b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b>${dl}<span>${rot}</span>${sub?`<small>${sub}</small>`:""}</div>`}
 function dashTabMeses(ms,linhas,tit){const n=ms.length,cols=1+n+(n-1);
   const chip=v=>{if(v==null)return `<span class="dchip vazio">–</span>`;const c=corFaixa(v)[1];
@@ -2581,7 +2582,8 @@ if($("bdTg2")){const b=$("bdTg2");let em="";try{em=(sessionStorage.getItem("pain
     catch(_){alert("Não consegui agora. Tente de novo em instantes.")}}}
 // ---- ✨ efeito holográfico das caveiras: um brilho prateado que corre conforme a inclinação do celular ----
 (function(){if(window.__holo)return;window.__holo=1;const R=document.documentElement,quieto=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%")};poe(0,0);
+  let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%");
+    R.style.setProperty("--sx",(y*.32).toFixed(1)+"px");R.style.setProperty("--sy",(x*.32).toFixed(1)+"px")};   // a sombra colorida se desloca com a inclinaçãopoe(0,0);
   if(quieto)return;
   const ori=e=>{if(e.beta==null)return;ult=performance.now();ax=Math.max(-30,Math.min(30,(e.beta||0)-45));ay=Math.max(-30,Math.min(30,e.gamma||0))};
   addEventListener("deviceorientation",ori);
@@ -2589,12 +2591,11 @@ if($("bdTg2")){const b=$("bdTg2");let em="";try{em=(sessionStorage.getItem("pain
     if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function")DeviceOrientationEvent.requestPermission().catch(()=>{})},true);
   let t0=performance.now(),q=0;const laco=t=>{if(!document.hidden&&(++q%2===0)){if(t-ult<2500)poe(ax,ay);else{const k=(t-t0)/1000;poe(Math.sin(k*.7)*16,Math.sin(k*.5)*24)}}requestAnimationFrame(laco)};
   requestAnimationFrame(laco)})();
+function corGlow(v){return v==null?"transparent":v>=90?"rgba(233,185,73,.85)":v>75?"rgba(143,217,163,.65)":v>=50?"rgba(242,139,130,.65)":"rgba(185,20,20,.95)"}   // a sombra colorida da caveira (a cor da faixa)
 // camada do brilho por cima de uma caveira desenhada (svg ou canvas), com o formato da caveira
-function holoCobrir(el,mask){if(!el||el.__hl)return;const pai=el.parentElement;if(!pai)return;if(getComputedStyle(pai).position==="static")pai.style.position="relative";
-  const s=document.createElement("span");s.className="hl-cobre";s.style.setProperty("--m",`url('${mask}')`);pai.appendChild(s);el.__hl=s;
-  const ajusta=()=>{const r=el.getBoundingClientRect(),pr=pai.getBoundingClientRect(),cv=el.tagName==="CANVAS",fol=cv?r.height*6/236:0,alt=cv?r.height*224/236:r.height;
-    Object.assign(s.style,{inset:"auto",left:(r.left-pr.left)+"px",top:(r.top-pr.top+fol)+"px",width:r.width+"px",height:alt+"px"})};   // (a caveira da Pagamentos tem uma folga em cima)
-  ajusta();try{new ResizeObserver(ajusta).observe(el)}catch(_){addEventListener("resize",ajusta)}}
+function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelope do mesmo tamanho da caveira: a camada do brilho nunca sai do lugar
+  const w=document.createElement("span");w.className="hl-env";el.parentNode.insertBefore(w,el);w.appendChild(el);
+  const s=document.createElement("span");s.className="hl-cobre"+(el.tagName==="CANVAS"?" cv":"");s.style.setProperty("--m",`url('${mask}')`);w.appendChild(s);el.__hl=s}
 
 // as caveiras grandes (Presença e Pagamentos) ganham a camada do brilho
 setTimeout(()=>{holoCobrir($("roda"),CAVEIRA);holoCobrir($("pagCav"),CAVEIRA)},600);
