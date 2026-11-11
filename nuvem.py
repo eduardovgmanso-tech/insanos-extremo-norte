@@ -8,6 +8,7 @@ import os, sys, json, datetime, unicodedata, re, base64
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
+ABAS_OPC = ["Eventos", "Justificativas"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
 COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17]}   # colunas de data (0 = A): B, J e R
 
 def _serial_para_data(v):
@@ -47,7 +48,7 @@ def ler_google(planilha_id, cred_json, api=None):
     # acha cada aba sem ligar para espaços, acentos ou maiúsculas ("Presença " = "Presenca")
     norm = lambda x: "".join(ch for ch in unicodedata.normalize("NFD", str(x).strip().lower()) if not unicodedata.combining(ch))
     real = {}
-    for a in ABAS:
+    for a in ABAS + ABAS_OPC:
         achou = next((e for e in existentes if norm(e) == norm(a)), None)
         if achou:
             real[a] = achou
@@ -58,7 +59,7 @@ def ler_google(planilha_id, cred_json, api=None):
         print("[ERRO] A planilha precisa ter as abas Presenca e Dados Integrantes. Confira se o PLANILHA_ID é o da planilha certa.")
         sys.exit(1)
     nomes = list(real)
-    res = api.spreadsheets().values().batchGet(spreadsheetId=planilha_id, ranges=[f"'{real[a]}'!A1:BZ500" for a in nomes],
+    res = api.spreadsheets().values().batchGet(spreadsheetId=planilha_id, ranges=[f"'{real[a]}'!A1:J5000" if a in ABAS_OPC else f"'{real[a]}'!A1:BZ500" for a in nomes],
           valueRenderOption="UNFORMATTED_VALUE", dateTimeRenderOption="SERIAL_NUMBER").execute()
     return {a: vr.get("values", []) for a, vr in zip(nomes, res.get("valueRanges", []))}
 
@@ -1719,7 +1720,9 @@ def main():
                     resp = list(getattr(g, "ACESSOS_SOMENTE", []) or [])
                     nome = resp[0] if (ator and ator == dono and resp) else (ator or "alguém")
                     onde = "pelo Run workflow do GitHub"
-                g.notificar("🔄 Verificação manual dos pagamentos", f"Pedida por {nome}, {onde}, às {hora}.", "verif-manual", icone="notif-pag.png")
+                resp_ = {str(x).strip().lower() for x in (getattr(g, "ACESSOS_SOMENTE", []) or [])}
+                teste = " (Possível teste ou melhoria)" if str(nome).strip().lower() in resp_ else ""   # o responsável pelo painel: pode ser teste
+                g.notificar("🔄 Verificação manual dos pagamentos", f"Pedida por {nome}, às {hora}.{teste}", "verif-manual", icone="notif-pag.png")
             except Exception as e:
                 print(f"Aviso: aviso da verificação manual não enviado ({type(e).__name__}: {e}).")
         for aviso in AVISOS_PAG:
@@ -1769,7 +1772,9 @@ def main():
                 ordem = ["notif-pag.png", "notif-pub.png", "notif-social.png", "notif-evento.png", "notif-insight.png", "notif-cadastro.png"]
                 tipos = [_tipo_aviso(d) for _, _, d in resumo_fila]
                 emoji, icone = min(tipos, key=lambda x: ordem.index(x[1])) if tipos else ("✅", None)
-                g.notificar(f"{emoji} Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else ""), "atualizacao",
+                resp_ = {str(x).strip().lower() for x in (getattr(g, "ACESSOS_SOMENTE", []) or [])}
+                teste = " (Possível teste ou melhoria)" if any(str(q).strip().lower() in resp_ for q in quem) else ""   # lançado pelo responsável pelo painel
+                g.notificar(f"{emoji} Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else "") + teste, "atualizacao",
                             zap=zaps[-1] if zaps else None, icone=icone)      # a mensagem pronta do último lançamento com lista
             elif evento == "repository_dispatch" and not lanc_recente and acao != "rsvp":
                 # a planilha avisou e a Fila estava vazia: foi edição feita à mão na planilha

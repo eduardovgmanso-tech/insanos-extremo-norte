@@ -276,6 +276,10 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .lanc-just[hidden]{display:none}
 .ez-info{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:rgba(233,185,73,.08);border:1px solid rgba(233,185,73,.3);font-size:14px}
 .ez-info[hidden]{display:none}.ez-info b{color:#E9B949}.ez-info .end,.ez-info .obs{flex-basis:100%;color:var(--osso2);font-size:13px}
+.q3 .q3-emo{font-size:24px;line-height:1}
+.bug-cx textarea{width:100%;box-sizing:border-box;border-radius:12px;padding:10px;background:rgba(0,0,0,.4);color:var(--osso);border:1px solid rgba(236,231,220,.25);font:inherit;font-size:14.5px}
+.bug-img{display:block;margin-top:10px;padding:10px;border-radius:12px;border:1px dashed rgba(233,185,73,.6);text-align:center;color:#E9B949;font-weight:600;cursor:pointer}
+#bugPrev{display:block;max-width:100%;max-height:180px;margin:10px auto 0;border-radius:10px}#bugPrev[hidden]{display:none}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
@@ -2645,6 +2649,34 @@ function folhaAtalhos(titulo,itens){let v=document.getElementById("folhaAt");if(
     <button type="button" class="fa-fechar">Fechar</button></div>`;
   document.body.appendChild(v);const fecha=()=>v.remove();
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar")||e.target.closest("a.fa-it"))return fecha();const b=e.target.closest("button[data-k]");if(b){fecha();itens[+b.dataset.k].fn()}}}
+// ---- 🐞 avisar um problema ao responsável pelo painel (WhatsApp, com print opcional) ----
+function bugAbrir(){const resp=String(DADOS.resp||"").trim(),eu=(()=>{try{const e=(sessionStorage.getItem("painel_email")||"").toLowerCase();const ap=String((DADOS.quem||{})[e]||e.split("@")[0]);const m=M_FULL.find(x=>x.n.toLowerCase()===ap.toLowerCase());return m?m.n:ap}catch(_){return ""}})();
+  const r=M_FULL.find(m=>m.n.toLowerCase()===resp.toLowerCase()),tel=String((r&&r.tel)||"").replace(/\D/g,""),fone=tel?(tel.startsWith("55")?tel:"55"+tel):"";
+  const tela=(document.querySelector(".lateral button[aria-current='page'],.lateral button.on,.lateral button[aria-pressed='true']")||{}).textContent||"";
+  const v=document.createElement("div");v.className="fa-veu";v.innerHTML=`<div class="fa-cx bug-cx" role="dialog" aria-label="Avisar um problema">
+    <h3 style="margin:0 0 4px">🐞 Teve algum problema no app?</h3><p class="nota" style="margin:0 0 12px">Conte para o ${esc(resp||"responsável")} o que aconteceu. Se puder, anexe um print da tela.</p>
+    <textarea id="bugTx" rows="5" maxlength="1500" placeholder="Ex.: na tela Pagamentos, toquei em Reg. e não abriu nada."></textarea>
+    <label class="bug-img"><input type="file" id="bugArq" accept="image/*" hidden><span id="bugImgRot">📎 Anexar uma imagem (opcional)</span></label>
+    <img id="bugPrev" alt="" hidden>
+    <button type="button" class="btn zap" id="bugEnviar" style="width:100%;margin-top:12px">📲 Enviar pelo WhatsApp</button>
+    <p class="nota" id="bugDica" style="margin:8px 0 0;font-size:12.5px"></p>
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+  document.body.appendChild(v);let arq=null;const fecha=()=>v.remove();
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))fecha()};
+  v.querySelector("#bugArq").onchange=ev=>{arq=ev.target.files[0]||null;const pv=v.querySelector("#bugPrev");
+    if(arq){pv.src=URL.createObjectURL(arq);pv.hidden=false;v.querySelector("#bugImgRot").textContent="📎 Trocar a imagem";v.querySelector("#bugDica").textContent="Com imagem, o celular abre a tela de compartilhar: escolha o WhatsApp e a conversa do "+(resp||"responsável")+"."}
+    else{pv.hidden=true}};
+  v.querySelector("#bugEnviar").onclick=async()=>{const tx=v.querySelector("#bugTx").value.trim();if(!tx&&!arq){alert("Escreva o que aconteceu (ou anexe uma imagem).");return}
+    const d=new Date(),dt=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")} às ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    const ap=/iPhone|iPad|iPod/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Android":"Computador";
+    const msg=`🐞 *Problema no app Insanos*\n\n${tx||"(veja a imagem)"}\n\n_${[eu&&"De: "+eu,tela.trim()&&"Tela: "+tela.trim(),"Aparelho: "+ap,dt].filter(Boolean).join(" · ")}_`;
+    if(arq&&navigator.canShare&&navigator.canShare({files:[arq]})){try{await navigator.share({files:[arq],text:msg});fecha();return}catch(e){if(e&&e.name==="AbortError")return}}
+    if(arq)alert("Este aparelho não compartilha a imagem direto. Vou abrir o WhatsApp com o texto: anexe o print por lá.");
+    window.open((fone?`https://api.whatsapp.com/send/?phone=${fone}&text=`:"https://api.whatsapp.com/send/?text=")+encodeURIComponent(msg),"_blank");fecha()}}
+// ---- 🚪 sair: agradece a visita e volta para a tela de entrada ----
+function sairApp(){const v=document.createElement("div");v.className="fa-veu";v.innerHTML=`<div class="fa-cx" style="text-align:center;padding:26px 20px">
+    <div style="font-size:44px;line-height:1">🤝</div><h3 style="margin:10px 0 6px">Obrigado pela visita, irmão!</h3><p class="nota" style="margin:0">Até a próxima. Insanos sempre. 💀</p></div>`;
+  document.body.appendChild(v);setTimeout(()=>{try{sessionStorage.clear()}catch(_){}location.href=location.pathname},1800)}
 function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||document.getElementById("quadros3"))return;
   const ico=id=>{const a=$(id);if(!a)return"";const im=a.querySelector("img"),sv=a.querySelector("svg");return im?`<img alt="" src="${im.src||LOGO}">`:sv?sv.outerHTML:""};
   const href=id=>{const a=$(id);return a&&a.getAttribute("href")||""};
@@ -2652,10 +2684,14 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
   const q=document.createElement("div");q.id="quadros3";q.className="quadros3";
   q.innerHTML=`<button type="button" class="q3" data-q="clube">${ico("site18")}<span>Clube</span></button>
     <button type="button" class="q3" data-q="gestao">${ico("dash18")}<span class="q3-2l">Gestão e Notificações</span></button>
-    <button type="button" class="q3 sos" data-q="sos"><b>SOS</b><span>Preciso de ajuda</span></button>`;
+    <button type="button" class="q3 sos" data-q="sos"><b>SOS</b><span>Preciso de ajuda</span></button>
+    <button type="button" class="q3" data-q="bug"><b class="q3-emo">🐞</b><span class="q3-2l">Avisar um problema</span></button>
+    <button type="button" class="q3" data-q="sair"><b class="q3-emo">🚪</b><span>Sair</span></button>`;
   dir.prepend(q);
   q.onclick=e=>{const b=e.target.closest("[data-q]");if(!b)return;const k=b.dataset.q;
     if(k==="sos"){if(window.abrirSOS)abrirSOS();return}
+    if(k==="bug"){bugAbrir();return}
+    if(k==="sair"){sairApp();return}
     if(k==="clube")folhaAtalhos("📚 Clube",[{ico:ico("site18"),t:"Sistema Insanos",d:"Entrar no sistema do motoclube",href:href("site18")},
       {ico:ico("doc18"),t:"RDI",d:"Regulamento",href:href("doc18")},{ico:ico("man18"),t:"Manual do integrante",d:"Abrir o manual",href:href("man18")}]);
     if(k==="gestao"){const it=[{ico:ico("dash18"),t:"Dashboard",d:"Cards e comparativo entre meses",fn:()=>irPara("dash")}];
@@ -3205,7 +3241,7 @@ function flyWhatsFolha(){const iph=/iPhone|iPad|iPod/.test(navigator.userAgent);
     <button type="button" class="fa-it" id="flyZap"><span class="fa-ico">💬</span><span><b>Abrir o WhatsApp</b><small>Para achar o fly no grupo</small></span></button>
     <button type="button" class="fa-fechar">Fechar</button></div>`;
   document.body.appendChild(v);v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
-  document.getElementById("flyZap").onclick=()=>{location.href="whatsapp://"};
+  document.getElementById("flyZap").onclick=()=>{location.href=/Android/i.test(navigator.userAgent)?"intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.whatsapp;S.browser_fallback_url=https%3A%2F%2Fweb.whatsapp.com%2F;end":"whatsapp://"};
   document.getElementById("flyColar").onclick=async()=>{try{
       if(!navigator.clipboard||!navigator.clipboard.read)throw new Error("Este navegador não deixa colar imagens. Use o Compartilhar ou a Galeria.");
       const itens=await navigator.clipboard.read();for(const it of itens){const tp=it.types.find(x=>x.startsWith("image/"));

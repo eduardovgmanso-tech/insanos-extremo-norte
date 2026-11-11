@@ -3684,10 +3684,10 @@ def main():
         if k_ in INFO_EV: x["info"] = INFO_EV[k_]
         return x
     eventos_adm = [_ev_adm(e) for e in eventos]
-    gravar(SAIDA_ADM, {"modo": "adm", "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]
