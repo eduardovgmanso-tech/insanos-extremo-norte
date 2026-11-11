@@ -304,6 +304,17 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .trofeu{filter:drop-shadow(0 0 10px rgba(233,185,73,.75)) drop-shadow(0 0 26px rgba(233,185,73,.35))}
 
 .cav-dash .hl{border-radius:0}
+html.eco .fundo-video{display:none!important}html.eco .hl,html.eco .hl-cobre{display:none!important}
+html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none!important}
+html.eco *,html.eco *::before,html.eco *::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
+.aj-op{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:12px;border-radius:14px;border:1px solid rgba(236,231,220,.2);background:rgba(236,231,220,.04);color:inherit;font:inherit}
+.aj-op span{flex:1}.aj-op small{display:block;color:#BDB7AA;font-size:12.5px;margin-top:3px;line-height:1.35}.aj-op i{font-style:normal;font-weight:800;font-size:13px;color:#8f887d;white-space:nowrap}
+.aj-op[aria-pressed="true"]{border-color:#4CAF6A;background:rgba(76,175,106,.1)}.aj-op[aria-pressed="true"] i{color:#4CAF6A}
+.aj-letras{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.aj-letras button{padding:12px 6px;border-radius:12px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-weight:700}
+.aj-letras button[data-l="g"]{font-size:17px}.aj-letras button[data-l="gg"]{font-size:19px}.aj-letras button[aria-pressed="true"]{background:#ECE7DC;color:#111}
+
+.q-links{display:flex;justify-content:flex-end;gap:14px;margin:6px 0 0}.q-links .sair-link{margin:0}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
@@ -2584,7 +2595,7 @@ if($("bdTg2")){const b=$("bdTg2");let em="";try{em=(sessionStorage.getItem("pain
 (function(){if(window.__holo)return;window.__holo=1;const R=document.documentElement,quieto=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
   let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%");
     R.style.setProperty("--sx",(y*.32).toFixed(1)+"px");R.style.setProperty("--sy",(x*.32).toFixed(1)+"px")};   // a sombra colorida se desloca com a inclinaçãopoe(0,0);
-  if(quieto)return;
+  if(quieto||document.documentElement.classList.contains("eco"))return;
   const ori=e=>{if(e.beta==null)return;ult=performance.now();ax=Math.max(-30,Math.min(30,(e.beta||0)-45));ay=Math.max(-30,Math.min(30,e.gamma||0))};
   addEventListener("deviceorientation",ori);
   document.addEventListener("click",e=>{if(!e.target.closest(".cav,.cav-dash,.hl-cobre,#roda,#pagCav"))return;   // iPhone: pede a permissão ao tocar numa caveira
@@ -2602,7 +2613,8 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
   if(el.dataset.clip)s.style.clipPath=el.dataset.clip}
 
 // as caveiras grandes (Presença e Pagamentos) ganham a camada do brilho
-holoCobrir($("roda"),CAVEIRA);holoCobrir($("pagCav"),CAVEIRA);   // já na carga, antes da primeira pintura
+holoCobrir($("roda"),CAVEIRA);holoCobrir($("pagCav"),CAVEIRA);
+setTimeout(()=>{const h=location.hash;if(h==="#lancar"||h==="#lista"){try{history.replaceState(null,"",location.pathname)}catch(_){}irPara(h==="#lancar"?"lancar":"listas")}},400);   // veio pelo atalho do ícone do app   // já na carga, antes da primeira pintura
 // Top 5: um quadro só, com os botões Mais presentes / Menos presentes
 if($("topSel"))$("topSel").onclick=e=>{const b=e.target.closest("[data-top]");if(!b)return;
   $("topSel").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
@@ -2745,6 +2757,22 @@ function bugAbrir(){const resp=String(DADOS.resp||"").trim(),eu=(()=>{try{const 
     if(arq&&navigator.canShare&&navigator.canShare({files:[arq]})){try{await navigator.share({files:[arq],text:msg});fecha();return}catch(e){if(e&&e.name==="AbortError")return}}
     if(arq)alert("Este aparelho não compartilha a imagem direto. Vou abrir o WhatsApp com o texto: anexe o print por lá.");
     window.open((fone?`https://api.whatsapp.com/send/?phone=${fone}&text=`:"https://api.whatsapp.com/send/?text=")+encodeURIComponent(msg),"_blank");fecha()}}
+// ---- ⚙️ ajustes do app (só neste celular): modo economia e tamanho da letra ----
+function ajustesLer(){try{return JSON.parse(localStorage.getItem("ajustes_app")||"{}")}catch(_){return {}}}
+function ajustesAplicar(){const a=ajustesLer(),R=document.documentElement;R.classList.toggle("eco",!!a.eco);R.classList.toggle("letra-g",a.letra==="g");R.classList.toggle("letra-gg",a.letra==="gg");
+  if(a.eco)document.querySelectorAll("video.fundo-video").forEach(v=>{try{v.pause()}catch(_){}})}
+ajustesAplicar();
+function ajustesAbrir(){const v=document.createElement("div");v.className="fa-veu";
+  const tela=()=>{const a=ajustesLer();v.innerHTML=`<div class="fa-cx aj-cx" role="dialog" aria-label="Ajustes do app"><h3 style="margin:0 0 4px">⚙️ Ajustes do app</h3>
+    <p class="nota" style="margin:0 0 14px">Valem só para este celular.</p>
+    <button type="button" class="aj-op" id="ajEco" aria-pressed="${!!a.eco}"><span><b>🔋 Modo economia</b><small>Desliga o vídeo de fundo e os efeitos animados (brilho e sombras das caveiras). Bom para celular mais simples ou para poupar bateria e internet.</small></span><i>${a.eco?"Ligado":"Desligado"}</i></button>
+    <p style="margin:16px 0 8px;font-weight:700">🔠 Tamanho da letra</p>
+    <div class="aj-letras">${[["","Normal"],["g","Grande"],["gg","Muito grande"]].map(([k,r])=>`<button type="button" data-l="${k}" aria-pressed="${(a.letra||"")===k}">${r}</button>`).join("")}</div>
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+    v.querySelector("#ajEco").onclick=()=>{const b=ajustesLer();b.eco=!b.eco;try{localStorage.setItem("ajustes_app",JSON.stringify(b))}catch(_){}ajustesAplicar();if(!b.eco)document.querySelectorAll("video.fundo-video").forEach(x=>{try{x.play()}catch(_){}});tela()};
+    v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
+
 // ---- 📊 enquete do comando: criar, acompanhar (só o comando vê o resultado) e encerrar ----
 function enqAbrir(){const E=DADOS.enq,v=document.createElement("div");v.className="fa-veu";
   const res=()=>{const tot=Object.values(E.res||{}).reduce((a,x)=>a+x.length,0),mx=Math.max(1,...Object.values(E.res||{}).map(x=>x.length));
@@ -2785,8 +2813,8 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
     <button type="button" class="q3" data-q="enq"><b class="q3-emo">📊</b><span>Enquete</span>${DADOS.enq&&DADOS.enq.aberta?'<i class="q3-pt" aria-label="enquete aberta"></i>':""}</button>`;
 
   dir.prepend(q);
-  q.insertAdjacentHTML("afterend",`<button type="button" class="sair-link" id="sairLink">Sair</button>`);   // o Sair, pequeno e discreto
-  document.getElementById("sairLink").onclick=sairApp;
+  q.insertAdjacentHTML("afterend",`<div class="q-links"><button type="button" class="sair-link" id="ajLink">⚙️ Ajustes</button><button type="button" class="sair-link" id="sairLink">Sair</button></div>`);   // pequenos e discretos
+  document.getElementById("sairLink").onclick=sairApp;document.getElementById("ajLink").onclick=ajustesAbrir;
   q.onclick=e=>{const b=e.target.closest("[data-q]");if(!b)return;const k=b.dataset.q;
     if(k==="sos"){if(window.abrirSOS)abrirSOS();return}
     if(k==="bug"){bugAbrir();return}

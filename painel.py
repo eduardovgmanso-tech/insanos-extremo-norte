@@ -289,7 +289,7 @@ body.abertura.fotos-on .fotos-login .fl{opacity:.45}      /* durante o vídeo, b
 body.entrou:not(.anim) .fotos-login .fl{transition:none}
 body.entrou .fotos-login .fl{transition-delay:0s!important}     /* ao entrar, todas esmaecem juntas */
 @media (prefers-reduced-motion:reduce){.fundo-video{display:none}}
-</style></head><body class="abertura"><video class="fundo-video" id="fv" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
+</style></head><body class="abertura"><script>try{var _a=JSON.parse(localStorage.getItem("ajustes_app")||"{}");if(_a.eco)document.documentElement.classList.add("eco");if(_a.letra)document.documentElement.classList.add("letra-"+_a.letra)}catch(_){}</script><style>html.eco .fundo-video{display:none!important}html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}</style><video class="fundo-video" id="fv" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
   oncanplay="document.documentElement.classList.add('com-video')" onerror="this.remove();entrar()"></video>
 <script>
 // abertura do app: o vídeo aparece sozinho por ~2 s e depois a tela de entrada surge por cima
@@ -837,6 +837,16 @@ MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta na
 h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margin:0 0 14px}
 .card{border:1px solid var(--linha);border-radius:16px;background:#161412;padding:16px;margin:12px 0}.card h2{font-size:17px;margin:0 0 12px}
 .cavs{display:flex;justify-content:space-around;gap:10px;text-align:center}
+html.eco .fundo-video{display:none!important}html.eco .hl,html.eco .hl-cobre{display:none!important}
+html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none!important}
+html.eco *,html.eco *::before,html.eco *::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
+.aj-op{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:12px;border-radius:14px;border:1px solid rgba(236,231,220,.2);background:rgba(236,231,220,.04);color:inherit;font:inherit}
+.aj-op span{flex:1}.aj-op small{display:block;color:#BDB7AA;font-size:12.5px;margin-top:3px;line-height:1.35}.aj-op i{font-style:normal;font-weight:800;font-size:13px;color:#8f887d;white-space:nowrap}
+.aj-op[aria-pressed="true"]{border-color:#4CAF6A;background:rgba(76,175,106,.1)}.aj-op[aria-pressed="true"] i{color:#4CAF6A}
+.aj-letras{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.aj-letras button{padding:12px 6px;border-radius:12px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-weight:700}
+.aj-letras button[data-l="g"]{font-size:17px}.aj-letras button[data-l="gg"]{font-size:19px}.aj-letras button[aria-pressed="true"]{background:#ECE7DC;color:#111}
+
 .hl,.hl-cobre{position:absolute;inset:0;pointer-events:none;z-index:2;-webkit-mask:var(--m,var(--cav)) center/contain no-repeat;mask:var(--m,var(--cav)) center/contain no-repeat;
   background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,0) 30%,rgba(200,200,200,.55) 40%,rgba(255,255,255,.95) 48%,rgba(150,150,150,.6) 54%,rgba(235,235,235,.8) 60%,rgba(255,255,255,0) 70%,transparent 80%);
   background-size:300% 300%;background-position:var(--hx,50%) var(--hy,50%);mix-blend-mode:soft-light;opacity:.9}
@@ -1079,7 +1089,7 @@ body.tema-aniv h1,body.tema-aniv .painel h2,body.tema-aniv .card h2{color:#F1CF6
 (function(){if(window.__holo)return;window.__holo=1;const R=document.documentElement,quieto=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
   let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%");
     R.style.setProperty("--sx",(y*.32).toFixed(1)+"px");R.style.setProperty("--sy",(x*.32).toFixed(1)+"px")};   // a sombra colorida se desloca com a inclinaçãopoe(0,0);
-  if(quieto)return;
+  if(quieto||document.documentElement.classList.contains("eco"))return;
   const ori=e=>{if(e.beta==null)return;ult=performance.now();ax=Math.max(-30,Math.min(30,(e.beta||0)-45));ay=Math.max(-30,Math.min(30,e.gamma||0))};
   addEventListener("deviceorientation",ori);
   document.addEventListener("click",e=>{if(!e.target.closest(".cav,.cav-dash,.hl-cobre,#roda,#pagCav"))return;   // iPhone: pede a permissão ao tocar numa caveira
@@ -1128,7 +1138,8 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     .nav-m .nav-sos i{font-size:24px}.nav-m .nav-sos span{font-size:11px;font-weight:900;letter-spacing:.5px}
     body{padding-bottom:96px}
     #app .cart-bts,#app .sos-meu,#app .msg-meu{display:none!important}
-    #msgIco{margin-left:auto;width:44px;height:44px;border-radius:50%;border:1px solid rgba(236,231,220,.25);background:rgba(236,231,220,.06);font-size:20px;flex:none}
+    #ajIco{width:44px;height:44px;border-radius:50%;border:1px solid rgba(236,231,220,.25);background:rgba(236,231,220,.06);font-size:19px;flex:none}
+#msgIco{margin-left:auto;width:44px;height:44px;border-radius:50%;border:1px solid rgba(236,231,220,.25);background:rgba(236,231,220,.06);font-size:20px;flex:none}
     .tri button{aspect-ratio:auto!important;min-height:0;padding:8px 9px!important;gap:2px!important;border-radius:14px!important}
     .tri .ti{font-size:16px!important;display:inline}.tri .tt{font-size:10.5px!important}.tri .tp{font-size:12.5px!important;-webkit-line-clamp:1!important}.tri .ts{font-size:11px!important}
     .aviso-doc{background:rgba(155,17,17,.18);border:1px solid rgba(220,80,80,.6);border-radius:14px;padding:12px 14px;margin:0 0 14px;font-weight:600}</style>`);
@@ -1148,7 +1159,9 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     document.body.classList.toggle("aba-moto",b.dataset.aba==="moto");scrollTo(0,0);if(b.dataset.aba==="moto")desenha()};
   // ✉️ Mensagens: um ícone ao lado do nome
   {const h=document.querySelector("#app h1");if(h&&!document.getElementById("msgIco")){const m=document.createElement("button");m.id="msgIco";m.type="button";m.setAttribute("aria-label","Mensagens: falar com o comando");m.textContent="✉️";
-    m.onclick=()=>{const o=document.querySelector(".msg-meu");if(o)o.click()};h.appendChild(m)}}
+    m.onclick=()=>{const o=document.querySelector(".msg-meu");if(o)o.click()};h.appendChild(m);
+    const aj=document.createElement("button");aj.id="ajIco";aj.type="button";aj.setAttribute("aria-label","Ajustes do app");aj.textContent="⚙️";aj.onclick=()=>ajustesAbrir();h.appendChild(aj)}}
+  if(location.hash==="#moto"){try{history.replaceState(null,"",location.pathname)}catch(_){}nav.querySelector('[data-aba="moto"]').click()}   // veio pelo atalho do ícone do app
   function consumo(){const L=[...M.abs].sort((a,b)=>a.km-b.km);L.forEach((a,i)=>{a.kml=i>0&&a.km>L[i-1].km&&a.l>0?(a.km-L[i-1].km)/a.l:null});return L}
   function desenha(){const L=consumo(),comK=L.filter(a=>a.kml!=null),mes=new Date().toISOString().slice(0,7),doMes=L.filter(a=>a.d.slice(0,7)===mes);
     const kmT=comK.reduce((s,a,i)=>s,0);const media=comK.length?comK.reduce((s,a)=>s+a.kml*a.l,0)/comK.reduce((s,a)=>s+a.l,0):null;
@@ -1186,6 +1199,22 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     if(!it.length)return;const a=document.createElement("div");a.id="avisoDoc";a.className="aviso-doc";a.innerHTML="⚠️ "+it.join("<br>⚠️ ")+`<div style="margin-top:6px;font-size:13px;font-weight:500;opacity:.85">Toque para ver na aba Minha moto.</div>`;
     a.onclick=()=>nav.querySelector('[data-aba="moto"]').click();const app=document.getElementById("app");app.insertBefore(a,app.children[1]||null)}
   avisoDocs()})();
+
+// ---- ⚙️ ajustes do app (só neste celular): modo economia e tamanho da letra ----
+function ajustesLer(){try{return JSON.parse(localStorage.getItem("ajustes_app")||"{}")}catch(_){return {}}}
+function ajustesAplicar(){const a=ajustesLer(),R=document.documentElement;R.classList.toggle("eco",!!a.eco);R.classList.toggle("letra-g",a.letra==="g");R.classList.toggle("letra-gg",a.letra==="gg");
+  if(a.eco)document.querySelectorAll("video.fundo-video").forEach(v=>{try{v.pause()}catch(_){}})}
+ajustesAplicar();
+function ajustesAbrir(){const v=document.createElement("div");v.className="fa-veu";
+  const tela=()=>{const a=ajustesLer();v.innerHTML=`<div class="fa-cx aj-cx" role="dialog" aria-label="Ajustes do app"><h3 style="margin:0 0 4px">⚙️ Ajustes do app</h3>
+    <p class="nota" style="margin:0 0 14px">Valem só para este celular.</p>
+    <button type="button" class="aj-op" id="ajEco" aria-pressed="${!!a.eco}"><span><b>🔋 Modo economia</b><small>Desliga o vídeo de fundo e os efeitos animados (brilho e sombras das caveiras). Bom para celular mais simples ou para poupar bateria e internet.</small></span><i>${a.eco?"Ligado":"Desligado"}</i></button>
+    <p style="margin:16px 0 8px;font-weight:700">🔠 Tamanho da letra</p>
+    <div class="aj-letras">${[["","Normal"],["g","Grande"],["gg","Muito grande"]].map(([k,r])=>`<button type="button" data-l="${k}" aria-pressed="${(a.letra||"")===k}">${r}</button>`).join("")}</div>
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+    v.querySelector("#ajEco").onclick=()=>{const b=ajustesLer();b.eco=!b.eco;try{localStorage.setItem("ajustes_app",JSON.stringify(b))}catch(_){}ajustesAplicar();if(!b.eco)document.querySelectorAll("video.fundo-video").forEach(x=>{try{x.play()}catch(_){}});tela()};
+    v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
 
 // ---- ☀️ bom-dia das 9h: o irmão pode desligar só esse aviso (fica guardado na planilha, aba Preferências) ----
 (function(){const b=document.getElementById("bdTg");if(!b)return;const k="bomdia_off_"+D.email;
@@ -3383,7 +3412,13 @@ def arquivos_app():
                                {"name": "🆘 SOS · Preciso de ajuda", "short_name": "SOS", "description": "Pedir ajuda aos irmãos",
                                 "url": inicio + "#sos-abrir", "icons": [{"src": "atalho-sos.png", "sizes": "192x192", "type": "image/png"}]},
                                {"name": "Próximos eventos", "short_name": "Eventos", "description": "Responder Vou / Não vou",
-                                "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]}]},
+                                "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]},
+                               {"name": "Minha moto", "short_name": "Minha moto", "description": "Documentos e abastecimentos",
+                                "url": inicio + "#moto", "icons": [{"src": "atalho-moto.png", "sizes": "192x192", "type": "image/png"}]},
+                               {"name": "Lançar (comando)", "short_name": "Lançar", "description": "Lançar um evento ou insight",
+                                "url": inicio + "#lancar", "icons": [{"src": "atalho-lancar.png", "sizes": "192x192", "type": "image/png"}]},
+                               {"name": "Lista (comando)", "short_name": "Lista", "description": "Montar a lista do WhatsApp",
+                                "url": inicio + "#lista", "icons": [{"src": "atalho-lista.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
 const CACHE = "insanos-v27";
