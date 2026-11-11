@@ -1475,9 +1475,9 @@ function montarFiltros(){
   $("fCargoOp").innerHTML=cargos.map(c=>`<label><input type="checkbox" value="${esc(c)}"${st.cargos.includes(c)?" checked":""}> ${esc(c)}</label>`).join("")+'<button type="button" class="multi-lim" data-lim="1">Limpar (todos os cargos)</button>';
   $("fCargoBt").textContent=st.cargos.length?cargoRot():"Todos os cargos";
   opts($("fNome"),nomes,"Todos os integrantes",st.nome); st.nome=$("fNome").value;
-  const meses=[...new Set(EV.map(e=>mesDe(e.d)))];
+  const meses=[...new Set(EV.map(e=>mesDe(e.d)))].sort().reverse();   // do mais recente para o mais antigo
   opts($("fMes"),meses.map(m=>[m,MESES[+m.slice(5)-1]+" "+m.slice(0,4)]),"Todos os meses",st.mes);
-  const datas=[...new Set(EV.filter(e=>!st.mes||mesDe(e.d)===st.mes).map(e=>e.d))];
+  const datas=[...new Set(EV.filter(e=>!st.mes||mesDe(e.d)===st.mes).map(e=>e.d))].sort().reverse();   // do mais recente para o mais antigo
   opts($("fData"),datas.map(d=>[d,fmtD(d)+" · "+EV.filter(e=>e.d===d).map(e=>e.e).join(" / ").slice(0,48)]),"Todas as datas",st.data); st.data=$("fData").value;
 }
 function filtrados(){
@@ -2505,9 +2505,9 @@ function render(){
     $("colEventos").classList.toggle("com-sel",!!sel);
     $("sEventos").innerHTML=sel
       ?`<b style="color:var(--osso)">${esc(sel.n)}</b> esteve em <b style="color:var(--presente)">${fo}</b> e faltou em <b style="color:#D25A57">${fa}</b> dos eventos. Os eventos em que ele foi ficam em destaque; os que faltou ficam apagados.`
-      :"Cada coluna é um evento, em ordem de data. Toque ou passe o mouse para ver o nome; clique para ver só aquela data.";
+      :"Cada coluna é um evento, do mais recente para o mais antigo. Toque ou passe o mouse para ver o nome; clique para ver só aquela data.";
     $("legEventos").style.display="";
-    const cont=evs.map(e=>{let p=0,a=0;todos.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a}});   // SIM ÷ quem já tinha entrado (regra da entrada)iltro
+    const cont=[...evs].reverse().map(e=>{let p=0,a=0;todos.forEach(m=>{if(e.p[m.i]===1)p++;else if(e.p[m.i]===0)a++});return {e,p,a}});   // SIM ÷ quem já tinha entrado (regra da entrada)iltro
     const maxE=Math.max(1,...cont.map(c=>c.p+c.a));
     $("colEventos").classList.toggle("foco",!!st.data);
     $("colEventos").innerHTML=cont.length?cont.map(({e,p,a})=>{const v=sel?e.p[sel.i]:undefined;
@@ -3241,7 +3241,7 @@ function flyWhatsFolha(){const iph=/iPhone|iPad|iPod/.test(navigator.userAgent);
     <button type="button" class="fa-it" id="flyZap"><span class="fa-ico">💬</span><span><b>Abrir o WhatsApp</b><small>Para achar o fly no grupo</small></span></button>
     <button type="button" class="fa-fechar">Fechar</button></div>`;
   document.body.appendChild(v);v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
-  document.getElementById("flyZap").onclick=()=>{location.href=/Android/i.test(navigator.userAgent)?"intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.whatsapp;S.browser_fallback_url=https%3A%2F%2Fweb.whatsapp.com%2F;end":"whatsapp://"};
+  document.getElementById("flyZap").onclick=()=>{location.href=/Android/i.test(navigator.userAgent)?"intent://send/#Intent;scheme=whatsapp;end":"whatsapp://"};   // Android: o próprio WhatsApp atende (o app instalado bloqueia o whatsapp:// direto)
   document.getElementById("flyColar").onclick=async()=>{try{
       if(!navigator.clipboard||!navigator.clipboard.read)throw new Error("Este navegador não deixa colar imagens. Use o Compartilhar ou a Galeria.");
       const itens=await navigator.clipboard.read();for(const it of itens){const tp=it.types.find(x=>x.startsWith("image/"));
@@ -3970,7 +3970,7 @@ function lwInfoAtual(){const f=Object.assign({},lw.f[lw.tipo]||{});let L={};try{
     endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:!!lw.mapas,f}}   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
 function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
-  s.innerHTML=`<option value="novo">➕ Novo evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
+  s.innerHTML=`<option value="novo">➕ Novo evento ou alterar um evento anterior</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
   s.onchange=()=>{const k=s.value,e=k==="novo"?null:(EV_SETS.pres||[])[+k];
     const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
     Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
