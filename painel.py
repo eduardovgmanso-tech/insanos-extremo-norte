@@ -1088,7 +1088,11 @@ function corGlow(v){return v==null?"transparent":v>=90?"rgba(233,185,73,.85)":v>
 // camada do brilho por cima de uma caveira desenhada (svg ou canvas), com o formato da caveira
 function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelope do mesmo tamanho da caveira: a camada do brilho nunca sai do lugar
   const w=document.createElement("span");w.className="hl-env";el.parentNode.insertBefore(w,el);w.appendChild(el);
-  const s=document.createElement("span");s.className="hl-cobre"+(el.tagName==="CANVAS"?" cv":"");s.style.setProperty("--m",`url('${mask}')`);w.appendChild(s);el.__hl=s}
+  const s=document.createElement("span");s.className="hl-cobre"+(el.tagName==="CANVAS"?" cv":"");s.style.setProperty("--m",`url('${mask}')`);w.appendChild(s);el.__hl=s;
+  // se a caveira já foi pintada antes do envelope existir: leva a cor da sombra, o dourado e o recorte do brilho
+  const g=el.style.getPropertyValue("--g");if(g){w.style.setProperty("--g",g);el.style.removeProperty("--g")}
+  if(el.classList.contains("trofeu")){w.classList.add("trofeu");el.classList.remove("trofeu")}
+  if(el.dataset.clip)s.style.clipPath=el.dataset.clip}
 
 // ---- 🏍️ Minha moto (só neste celular: documentos e abastecimentos; nada vai para a planilha, a nuvem ou o comando) ----
 (function(){if(document.getElementById("motoV"))return;const K="moto_"+(D.email||"eu");
