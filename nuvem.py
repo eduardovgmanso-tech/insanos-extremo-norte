@@ -983,6 +983,17 @@ def processar_mensagens(api, pid, g):
             if de not in por_email:
                 gr.append((f"'Mensagens'!I{i}", "recusada: remetente não encontrado na planilha")); continue
             ap_de, cargo_de = por_email[de]
+            if str(r[1]) == "Parabens":            # parabéns de aniversário (Meu painel): vai para o aniversariante
+                alvo = por_ap.get(_sa(str(r[6]).strip()))
+                em = alvo[0] if alvo else ""
+                if "@" not in em or em == de:
+                    gr.append((f"'Mensagens'!I{i}", "recusada: aniversariante sem e-mail no painel")); continue
+                g.notificar(f"🎂 {ap_de} te mandou os parabéns!", str(r[7]), f"parabens-{r[2]}", icone="notif-social.png", so_para=em)
+                gr.append((f"'Mensagens'!I{i}", "enviada"))
+                gr.append((f"'Mensagens'!J{i}", em))
+                print(f"Parabéns de {ap_de} para {r[6]}.")
+                n += 1
+                continue
             if str(r[1]) == "Mensagem":
                 eh_cmd = _sa(ap_de) in comando
                 dest = [x.strip() for x in str(r[6]).split(";") if x.strip()]

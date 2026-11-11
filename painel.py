@@ -776,8 +776,10 @@ document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt
 <div id="conqBox" hidden></div>
 <button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
 <button class="msg-meu" onclick="abrirMensagens({modo:'irmao',comando:D.cmd||[]})">✉️ Mensagens · falar com o comando</button>
-${(D.prox||[]).length&&D.ru?`<div class="card" id="eventos"><h2>🗓️ Próximos eventos</h2><div id="proxL"></div>
-  <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></div>`:""}
+<div class="tri" id="tri"></div>
+${(D.prox||[]).length&&D.ru?`<details class="card mens-d" id="eventos"><summary><span><b>🗓️ Próximos eventos</b><small id="proxRes">${D.prox.length} evento${D.prox.length>1?"s":""}</small></span><i>›</i></summary><div id="proxL"></div>
+  <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></details>`:""}
+${(D.anivs||[]).length?`<details class="card mens-d" id="anivC"><summary><span><b>🎂 Próximos aniversários</b><small id="anivRes"></small></span><i>›</i></summary><div id="anivL"></div></details>`:""}
 ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p class="nota" id="insTx" style="margin:0 0 10px">Ainda não consta a sua resposta. Já respondeu no grupo? Toque abaixo para marcar.</p>
   <div class="qbts"><button class="qz" id="insBt">✅ Já respondi</button></div></div>`:""}
 ${D.mens&&D.mens.st?mensQuadro():""}
@@ -862,6 +864,8 @@ function agendaAdd(e){const hm=String(e.hora||"").match(/(\d{1,2})\s*[:hH]\s*(\d
     const a=document.createElement("a");a.href="data:text/calendar;charset=utf-8,"+encodeURIComponent(ics);a.download="evento-insanos.ics";document.body.appendChild(a);a.click();a.remove();return}
   window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(tit)}&dates=${d1}/${d2}&location=${encodeURIComponent(loc)}&details=${encodeURIComponent(det)}`,"_blank")}
 function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;let loc={};try{loc=JSON.parse(localStorage.getItem("rsvp_"+D.email)||"{}")}catch(_){}
+  {const sem=D.prox.filter(e=>!(loc[e.d+"|"+e.e]||e.st)).length,r=document.getElementById("proxRes");
+    if(r){r.textContent=`${D.prox.length} evento${D.prox.length>1?"s":""}`+(sem?` · ${sem} sem a sua resposta`:" · todos respondidos ✓");r.style.color=sem?"#E9B949":""}}
   el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
     const txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"Ainda não respondeu";
     return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b>${e.hora||e.local?`<small style="width:100%;padding-left:54px;color:#E9B949;font-weight:600">${[e.hora&&"🕗 "+es(e.hora),e.local&&"📍 "+es(e.local)].filter(Boolean).join(" · ")}</small>`:""}<small class="nota" style="width:100%;padding-left:54px">${txt}</small>
@@ -871,7 +875,78 @@ function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;l
     try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
       loc[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(loc))}catch(_){}proxDesenha();
       alert(r==="vou"?"✅ Presença confirmada! Valeu, irmão. 🤝":"👍 Resposta registrada. Valeu por avisar!")}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}})}
-proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("eventos");if(x)x.scrollIntoView({behavior:"smooth"})}
+proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("eventos");if(x){x.open=true;x.scrollIntoView({behavior:"smooth"})}}
+// ---- 🎂 próximos aniversários e os parabéns (WhatsApp + notificação para o aniversariante) ----
+(function(){const el=document.getElementById("anivL");if(!el)return;
+  const FR=["Parabéns, {n}! 🎂 Que Deus abençoe o seu novo ano com muita saúde, estrada livre e vento no rosto. Insanos sempre! 💀🏍️",
+    "Feliz aniversário, irmão {n}! 🎉 Muitos anos de vida, de estrada e de irmandade. Conte sempre com a gente. 🤝",
+    "{n}, parabéns pelo seu dia! 🎂 Que não falte gasolina no tanque, saúde no corpo e irmãos do seu lado. Insanos M.C.! 💀",
+    "Salve, {n}! 🎉 Mais um ano rodando com a gente. Que venham muitas viagens, muitas histórias e muita paz. Parabéns, irmão! 🏍️",
+    "Parabéns, {n}! 🎂 Hoje o asfalto é todo seu. Que o novo ano traga saúde, prosperidade e muitas estradas ao lado da irmandade. 🤝",
+    "Feliz aniversário, {n}! 💀 Que a vida te dê sempre motivo pra acelerar e irmãos pra dividir o caminho. Tamo junto! 🏍️",
+    "{n}, irmão, parabéns! 🎉 Que Deus te guarde em cada quilômetro e te dê muitos anos de vida e de Insanos. Forte abraço! 🤝",
+    "Parabéns pelo seu dia, {n}! 🎂 Saúde, paz, família feliz e moto na estrada. O resto a gente resolve junto! 💀",
+    "Hoje é dia de comemorar, {n}! 🎉 Muitas felicidades, muita estrada e muita irmandade. Insanos sempre! 🏍️",
+    "Feliz aniversário, {n}! 🎂 Que o próximo ano seja de conquistas, saúde e muitos rolês com os irmãos. Parabéns! 🤝",
+    "{n}, parabéns! 💀 Mais um ano de estrada e de lealdade. Que nunca falte vento no rosto e irmão do lado. 🏍️",
+    "Parabéns, irmão {n}! 🎉 Que o seu novo ano seja leve como uma estrada vazia num domingo de sol. Felicidades! 🎂"];
+  let ult=-1;const frase=n=>{let k;do{k=Math.floor(Math.random()*FR.length)}while(FR.length>1&&k===ult);ult=k;return FR[k].split("{n}").join(n)};
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const dias=md=>{const [mm,dd]=md.split("-").map(Number);let d=new Date(hoje.getFullYear(),mm-1,dd);if(d<hoje)d=new Date(hoje.getFullYear()+1,mm-1,dd);return Math.round((d-hoje)/864e5)};
+  const L=(D.anivs||[]).map(a=>({...a,d:dias(a.md)})).sort((a,b)=>a.d-b.d).slice(0,5);
+  el.innerHTML=L.map((a,k)=>{const eu=a.n===D.n,dm=a.md.slice(3,5)+"/"+a.md.slice(0,2);
+    const qd=a.d===0?(eu?"🎉 Hoje é o seu dia!":"🎉 É hoje!"):a.d===1?"amanhã":`em ${a.d} dias`;
+    return `<div class="ev" style="flex-wrap:wrap${a.d===0?";background:rgba(233,185,73,.10);border-radius:12px;padding:10px":""}"><span>${dm}</span><b style="flex:1;font-weight:600">${es(a.n)}${eu?" (você)":""}</b>
+      <small class="nota" style="${a.d===0?"color:#E9B949;font-weight:700":""}">${qd}</small>
+      ${a.d===0&&!eu&&a.tel?`<div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button class="qz" data-pb="${k}">🎉 Mandar os parabéns</button></div>`:""}</div>`}).join("");
+  {const r=document.getElementById("anivRes"),h=L.filter(a=>a.d===0),p=L.find(a=>a.d>0);
+    if(r){if(h.length){r.textContent="🎉 Hoje: "+h.map(a=>a.n===D.n?"você!":a.n).join(", ");r.style.color="#E9B949";r.style.fontWeight="700"}
+      else if(p)r.textContent=`Próximo: ${p.n} · ${p.d===1?"amanhã":"em "+p.d+" dias"}`}}
+  el.onclick=e=>{const b=e.target.closest("[data-pb]");if(!b)return;const a=L[+b.dataset.pb];
+    const v=document.createElement("div");v.className="sosm-veu";v.innerHTML=`<div class="sosm-cx" style="border-top-color:#E9B949" role="dialog" aria-modal="true">
+      <h3 style="margin:0 0 6px">🎉 Parabéns para ${es(a.n)}</h3><p class="nota" style="margin:0 0 10px">Edite como quiser, ou toque em Outra frase.</p>
+      <textarea id="pbTx" rows="6" maxlength="400" style="width:100%;box-sizing:border-box;border-radius:12px;padding:10px;background:rgba(0,0,0,.4);color:#ECE7DC;border:1px solid rgba(236,231,220,.25);font:inherit;font-size:15px"></textarea>
+      <div class="qbts" style="margin-top:10px"><button id="pbOutra">🔄 Outra frase</button><button class="qz" id="pbZap">📲 Mandar pelo WhatsApp</button></div>
+      <p class="nota" style="margin:10px 0 0;font-size:12.5px">${es(a.n)} também recebe a sua mensagem como notificação no app.</p>
+      <div class="qbts" style="margin-top:8px"><button id="pbFechar">Fechar</button></div></div>`;
+    document.body.appendChild(v);const tx=v.querySelector("#pbTx");tx.value=frase(a.n);
+    const fecha=()=>v.remove();v.onclick=ev=>{if(ev.target===v||ev.target.id==="pbFechar")fecha()};
+    v.querySelector("#pbOutra").onclick=()=>{tx.value=frase(a.n)};
+    v.querySelector("#pbZap").onclick=async()=>{const t=tx.value.trim();if(!t){tx.focus();return}
+      const q=typeof sosQuem==="function"?sosQuem():null;
+      if(q&&window.SOS_URL){try{await Promise.race([fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify({tipo:"parabens",email:q.email,s:q.s,para:a.n,texto:t})}),new Promise(r=>setTimeout(r,3000))])}catch(_){}}
+      fecha();location.href=`https://api.whatsapp.com/send/?phone=${a.tel}&text=${encodeURIComponent(t)}`}}})();
+// ---- os 3 quadrados (eventos, aniversários, mensalidade): prévia; tocando, abre o bloco completo logo abaixo ----
+(function(){const tri=document.getElementById("tri");if(!tri)return;
+  document.head.insertAdjacentHTML("beforeend",`<style>
+    .tri{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:8px;margin:0 0 12px}
+    .tri button{aspect-ratio:1/1;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:4px;padding:10px;border-radius:16px;
+      border:1px solid rgba(236,231,220,.16);background:rgba(236,231,220,.05);color:#ECE7DC;font:inherit;text-align:left;cursor:pointer;min-width:0}
+    .tri button[aria-pressed="true"]{border-color:#E9B949;background:rgba(233,185,73,.10)}
+    .tri .ti{font-size:22px;line-height:1}.tri .tt{font-size:11.5px;font-weight:700;color:#BDB7AA;text-transform:uppercase;letter-spacing:.03em}
+    .tri .tp{font-size:13px;font-weight:700;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;width:100%}
+    .tri .ts{font-size:11.5px;color:#BDB7AA;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    details.em-tri:not([open]){display:none}details.em-tri>summary{display:none}</style>`);
+  const hoje=new Date();hoje.setHours(0,0,0,0);const br=d=>d.slice(8,10)+"/"+d.slice(5,7);
+  const Q=[];
+  if(document.getElementById("eventos")){let loc={};try{loc=JSON.parse(localStorage.getItem("rsvp_"+D.email)||"{}")}catch(_){}
+    const e=D.prox[0],st=e?(loc[e.d+"|"+e.e]||e.st):"";
+    Q.push({id:"eventos",ico:"🗓️",t:"Eventos",p:e?`${br(e.d)} · ${e.e}`:"Nenhum",s:st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"⏳ Responder",ouro:!st})}
+  if(document.getElementById("anivC")){const dias=md=>{const [m,dd]=md.split("-").map(Number);let x=new Date(hoje.getFullYear(),m-1,dd);if(x<hoje)x=new Date(hoje.getFullYear()+1,m-1,dd);return Math.round((x-hoje)/864e5)};
+    const L=(D.anivs||[]).map(a=>({...a,d:dias(a.md)})).sort((a,b)=>a.d-b.d),a=L[0];
+    if(a)Q.push({id:"anivC",ico:"🎂",t:"Aniversários",p:a.n===D.n?"Você!":a.n,s:a.d===0?"🎉 Hoje!":`${a.md.slice(3,5)}/${a.md.slice(0,2)} · ${a.d===1?"amanhã":"em "+a.d+" dias"}`,ouro:a.d===0})}
+  const ms=document.getElementById("mensal");
+  if(ms){const sm=(ms.querySelector("summary small")||{}).textContent||"";Q.push({id:"mensal",ico:"💵",t:"Mensalidade",p:sm.replace(/^[^A-Za-zÀ-ÿ0-9]+/,"").split("·")[0].trim(),s:(sm.split("·")[1]||"").trim(),ouro:/aberto/i.test(sm)})}
+  if(Q.length<2){tri.remove();return}   // com um bloco só, fica como está
+  tri.style.setProperty("--n",Q.length);
+  Q.forEach(q=>{const d=document.getElementById(q.id);if(d){d.classList.add("em-tri");d.open=false}});
+  tri.innerHTML=Q.map(q=>`<button type="button" data-tri="${q.id}" aria-pressed="false"><span class="ti">${q.ico}</span><span class="tt">${q.t}</span>
+    <span class="tp">${es(q.p)}</span><span class="ts" style="${q.ouro?"color:#E9B949;font-weight:700":""}">${es(q.s)}</span></button>`).join("");
+  tri.onclick=ev=>{const b=ev.target.closest("[data-tri]");if(!b)return;const alvo=document.getElementById(b.dataset.tri),abrir=!alvo.open;
+    Q.forEach(q=>{const d=document.getElementById(q.id);if(d)d.open=false});tri.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
+    if(abrir){alvo.open=true;b.setAttribute("aria-pressed","true");setTimeout(()=>alvo.scrollIntoView({behavior:"smooth",block:"nearest"}),50)}};
+  if(location.hash==="#eventos"){const b=tri.querySelector('[data-tri="eventos"]');if(b)b.click()}})();
 // avisos no celular (lembretes individuais): mesmo cadastro do painel ADM, ligado ao e-mail do irmão
 const b64u=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
 const ehApp=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone,ehIph=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -1005,6 +1080,31 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
     todos = list(range(len(membros)))
     autoriz = {a.lower() for a in AUTORIZADOS + ADM_EXTRA}
     meses = sorted({e["d"][:7] for e in eventos + eventos_ins if e["d"].startswith(ano)})
+    # próximos aniversários (Meu painel): dia/mês e apelido; o telefone só de quem faz aniversário hoje ou amanhã (para os parabéns)
+    anivs_lista = []
+    try:
+        hj = datetime.date.today()
+        for mm in membros:
+            if not mm.get("nasc"):
+                continue
+            nd = datetime.date.fromisoformat(mm["nasc"])
+            try:
+                prox = nd.replace(year=hj.year)
+            except ValueError:
+                prox = datetime.date(hj.year, 3, 1)   # 29/02 em ano comum
+            if prox < hj:
+                try:
+                    prox = nd.replace(year=hj.year + 1)
+                except ValueError:
+                    prox = datetime.date(hj.year + 1, 3, 1)
+            x = {"n": mm["n"], "md": prox.strftime("%m-%d"), "dias": (prox - hj).days}
+            tel = "".join(ch for ch in str(mm.get("tel") or "") if ch.isdigit())
+            if x["dias"] <= 1 and tel:
+                x["tel"] = tel if tel.startswith("55") else "55" + tel
+            anivs_lista.append(x)
+        anivs_lista = sorted(anivs_lista, key=lambda x: x["dias"])[:6]
+    except Exception as e:
+        print(f"Aviso: próximos aniversários não montados ({type(e).__name__}: {e}).")
     for i, m in enumerate(membros):
         email = EMAIL_APELIDO_INV.get(m["n"].lower(), "")
         if "@" not in email or (m["n"].lower() in autoriz and m["n"].lower() not in {a.lower() for a in ACESSOS_SOMENTE}):
@@ -1023,6 +1123,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
                  "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
                  "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
+                 "anivs": anivs_lista,
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
                            **({k: INFO_EV[(e["d"], e["e"].strip().lower())][k] for k in ("hora", "local", "endereco")}
                               if (e["d"], e["e"].strip().lower()) in INFO_EV else {}),
@@ -3359,9 +3460,9 @@ def main():
                     det = json.loads(fj) if fj else {}
                 except Exception:
                     det = {}
-                info = {"tnome": str(tj or ""), "hora": str(hj or ""), "local": str(lj or ""), "endereco": str(enj or ""), "obs": str(oj or "")}
-                info.update({k: det[k] for k in ("tipo", "f", "mapas") if k in det})
-                INFO_EV[(dj, str(ej).strip().lower())] = info
+                inf_ev = {"tnome": str(tj or ""), "hora": str(hj or ""), "local": str(lj or ""), "endereco": str(enj or ""), "obs": str(oj or "")}
+                inf_ev.update({k: det[k] for k in ("tipo", "f", "mapas") if k in det})
+                INFO_EV[(dj, str(ej).strip().lower())] = inf_ev   # (nome próprio: "info" é o dos integrantes)
     except Exception as e:
         print(f"Aviso: informações dos eventos não lidas ({type(e).__name__}: {e}).")
     pgto = list(wb["PGTO"].iter_rows(min_row=2, max_row=250, max_col=10, values_only=True)) if "PGTO" in wb.sheetnames else []

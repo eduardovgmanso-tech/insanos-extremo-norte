@@ -280,6 +280,7 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .bug-cx textarea{width:100%;box-sizing:border-box;border-radius:12px;padding:10px;background:rgba(0,0,0,.4);color:var(--osso);border:1px solid rgba(236,231,220,.25);font:inherit;font-size:14.5px}
 .bug-img{display:block;margin-top:10px;padding:10px;border-radius:12px;border:1px dashed rgba(233,185,73,.6);text-align:center;color:#E9B949;font-weight:600;cursor:pointer}
 #bugPrev{display:block;max-width:100%;max-height:180px;margin:10px auto 0;border-radius:10px}#bugPrev[hidden]{display:none}
+#lEv{font-size:14.5px!important;text-overflow:ellipsis}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
@@ -702,7 +703,8 @@ body.iz-preencher .wrap > *:not(header):not(#analBar):not(#insZap):not(footer):n
 .lw-just{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
 .lw-just select,.lw-just input{flex:1 1 150px;background:rgba(0,0,0,.45);color:var(--osso);border:1px solid rgba(236,231,220,.25);border-radius:8px;padding:6px 8px;font:inherit;font-size:14px;color-scheme:dark}
 .lw-just input[hidden]{display:none}
-.lw-l.falta{box-shadow:inset 3px 0 0 #D25A57}.lw-l.falta .lw-jsel{border-color:#D25A57}
+.lw-l.falta{box-shadow:inset 3px 0 0 #D25A57}.lw-l.falta .lw-jsel,.lw-l.falta .lw-jtx{border-color:#D25A57}
+.lw-jtx{display:block;width:100%;box-sizing:border-box;margin:6px 0 2px;padding:9px 11px;border-radius:10px;border:1px solid rgba(224,116,114,.45);background:rgba(0,0,0,.35);color:var(--osso);font:inherit;font-size:14px}
 .lw-saida{position:sticky;top:12px}
 .lw-bts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 #lwPrev{white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.5;background:rgba(0,0,0,.4);border:1px solid var(--linha);border-radius:10px;padding:14px;max-height:70vh;overflow:auto;margin:0}
@@ -1481,7 +1483,10 @@ function montarFiltros(){
   opts($("fData"),datas.map(d=>[d,fmtD(d)+" · "+EV.filter(e=>e.d===d).map(e=>e.e).join(" / ").slice(0,48)]),"Todas as datas",st.data); st.data=$("fData").value;
 }
 function filtrados(){
-  const evs=EV.filter(e=>(!st.mes||mesDe(e.d)===st.mes)&&(!st.data||e.d===st.data));
+  let evs=EV.filter(e=>(!st.mes||mesDe(e.d)===st.mes)&&(!st.data||e.d===st.data));
+  // evento que ainda vai acontecer, filtrado pela data: mostra as confirmações (✅ conta como presença, ❌ como falta)
+  if(st.data&&st.data>HOJE_ISO)evs=evs.map(e=>{const bruto=(EV_SETS[ANAL]||[])[e.i];if(!bruto)return e;
+    return {...e,p:(bruto.p||[]).map(v=>v===1||v==="S"?1:v===0?0:null)}});
   const mem=M.map((m,i)=>({...m,i})).filter(m=>noCargo(m)&&(!st.nome||m.n===st.nome));
   return {evs,mem};
 }
@@ -3148,12 +3153,15 @@ function montarListas(){
     const t=ev.target.closest("[data-lwtodos]");if(t){M.forEach(m=>lw.marca[m.n]=t.dataset.lwtodos);if(!t.dataset.lwtodos)lw.just={};lwListaUI();lwAtualiza()}
   });
   $("lwLista").addEventListener("input",ev=>{const el=ev.target,n=el.dataset.jn;if(!n)return;lw.just=lw.just||{};const j=lw.just[n]=lw.just[n]||{op:"",txt:""};
+    if(el.classList.contains("lw-jtx")){const v=el.value.trim();j.op=!v?"":LW_JUST.includes(v)?v:"livre";j.txt=j.op==="livre"?v:"";
+      el.closest(".lw-l").classList.toggle("falta",!lwJustTexto(n));lwAtualiza();if(LW_JUST.includes(v))lwListaUI();return}   // escolheu uma das opções: desce para "Não vão"
     if(el.classList.contains("lw-jsel")){j.op=el.value;const li=el.parentNode.querySelector(".lw-jlivre");li.hidden=el.value!=="livre";if(el.value==="livre")li.focus()}
     else j.txt=el.value;
     el.closest(".lw-l").classList.toggle("falta",!lwJustTexto(n));lwAtualiza();
     // justificativa escolhida na lista: agora sim desce para "Não vão"
     if(el.classList.contains("lw-jsel")&&el.value&&el.value!=="livre")lwListaUI()});
   $("lwLista").addEventListener("change",ev=>{const el=ev.target;
+    if(el.classList&&el.classList.contains("lw-jtx")){if(el.value.trim())lwListaUI();return}   // terminou de escrever o motivo: desce para "Não vão"
     if(el.classList.contains("lw-jlivre")&&el.value.trim())lwListaUI()});
   $("lwLimparTudo").onclick=()=>{
     if(!confirm("Limpar TODAS as listas (Reunião, Evento/Bonde, Ação Social, PUB e Copiar Original)? Os campos voltam ao padrão e todas as marcações ✅/❌ e justificativas são apagadas."))return;
@@ -3455,13 +3463,11 @@ function lwCampoBase(f){if(f.base_sel===undefined){f.base_sel=BASES.includes(f.b
   return `<label class="inteiro">Base<select data-lwc="base_sel">${BASES.map(b=>`<option value="${esc(b)}" ${f.base_sel===b?"selected":""}>${esc(b)}</option>`).join("")}
     <option value="__livre" ${f.base_sel==="__livre"?"selected":""}>Outro (texto livre)</option></select></label>
     <label class="inteiro" id="lwLivre" ${f.base_sel==="__livre"?"":"hidden"}>Texto da base<input type="text" data-lwc="base_livre" value="${esc(f.base_livre||"")}" placeholder="Ex.: Regional SP3 - Comando VIII"></label>`}
-function lwListaUI(){const marcas=LW_TIPOS[lw.tipo].marcas||["✅","❌"];const ord=[...M].sort((a,b)=>a.o-b.o);
+function lwListaUI(){if(!document.getElementById("lwJustOp"))document.body.insertAdjacentHTML("beforeend",`<datalist id="lwJustOp">${LW_JUST.map(o=>`<option value="${esc(o)}">`).join("")}</datalist>`);const marcas=LW_TIPOS[lw.tipo].marcas||["✅","❌"];const ord=[...M].sort((a,b)=>a.o-b.o);
   const linha=m=>{const nao=lw.marca[m.n]==="❌",j=(lw.just||{})[m.n]||{op:"",txt:""};
       return `<div class="lw-l ${nao&&!lwJustTexto(m.n)?"falta":""}"><div class="lw-lin"><span title="${esc(lwNome(m))}">${esc(lwNome(m))}</span>
       <div class="seg lw-seg">${marcas.map(v=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="${lw.marca[m.n]===v}" style="${lw.marca[m.n]===v?(v==="❌"?"background:var(--sangue)":"background:var(--presente)"):""}">${v}</button>`).join("")}</div></div>
-      ${nao?`<div class="lw-just"><select class="lw-jsel" data-jn="${esc(m.n)}" aria-label="Justificativa de ${esc(m.n)}"><option value="" ${!j.op?"selected":""}>Justificativa…</option>
-        ${LW_JUST.map(o=>`<option ${j.op===o?"selected":""}>${o}</option>`).join("")}<option value="livre" ${j.op==="livre"?"selected":""}>Outro (escrever)</option></select>
-        <input type="text" class="lw-jlivre" data-jn="${esc(m.n)}" value="${esc(j.txt||"")}" placeholder="Escreva a justificativa" ${j.op==="livre"?"":"hidden"}></div>`:""}</div>`};
+      ${nao?`<div class="lw-just"><input type="text" class="lw-jtx" data-jn="${esc(m.n)}" list="lwJustOp" maxlength="80" value="${esc(lwJustTexto(m.n))}" placeholder="Justificativa (toque para ver as opções)" aria-label="Justificativa de ${esc(m.n)}"></div>`:""}</div>`};
   // só na tela: três blocos (falta responder / vão / não vão), cada um na ordem da hierarquia. O texto do WhatsApp não muda.
   const blocos=[["falta","FALTA RESPONDER",ord.filter(m=>!lw.marca[m.n])],
                 ["vao","VÃO ✅",ord.filter(m=>String(lw.marca[m.n]||"").startsWith("✅"))],
@@ -3970,7 +3976,7 @@ function lwInfoAtual(){const f=Object.assign({},lw.f[lw.tipo]||{});let L={};try{
     endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:!!lw.mapas,f}}   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
 function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
-  s.innerHTML=`<option value="novo">➕ Novo evento ou alterar um evento anterior</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
+  s.innerHTML=`<option value="novo">➕ Novo ou alterar um evento anterior</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
   s.onchange=()=>{const k=s.value,e=k==="novo"?null:(EV_SETS.pres||[])[+k];
     const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
     Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
