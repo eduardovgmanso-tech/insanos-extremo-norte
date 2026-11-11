@@ -66,6 +66,45 @@
      "type": "image/png"
     }
    ]
+  },
+  {
+   "name": "Minha moto",
+   "short_name": "Minha moto",
+   "description": "Documentos e abastecimentos",
+   "url": "./adm.html#moto",
+   "icons": [
+    {
+     "src": "atalho-moto.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
+  },
+  {
+   "name": "Lançar (comando)",
+   "short_name": "Lançar",
+   "description": "Lançar um evento ou insight",
+   "url": "./adm.html#lancar",
+   "icons": [
+    {
+     "src": "atalho-lancar.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
+  },
+  {
+   "name": "Lista (comando)",
+   "short_name": "Lista",
+   "description": "Montar a lista do WhatsApp",
+   "url": "./adm.html#lista",
+   "icons": [
+    {
+     "src": "atalho-lista.png",
+     "sizes": "192x192",
+     "type": "image/png"
+    }
+   ]
   }
  ]
 }
