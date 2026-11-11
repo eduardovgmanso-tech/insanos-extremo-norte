@@ -295,6 +295,13 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .bug-img{display:block;margin-top:10px;padding:10px;border-radius:12px;border:1px dashed rgba(233,185,73,.6);text-align:center;color:#E9B949;font-weight:600;cursor:pointer}
 #bugPrev{display:block;max-width:100%;max-height:180px;margin:10px auto 0;border-radius:10px}#bugPrev[hidden]{display:none}
 #lEv{font-size:14.5px!important;text-overflow:ellipsis}
+.hl,.hl-cobre{position:absolute;inset:0;pointer-events:none;z-index:2;-webkit-mask:var(--m,var(--cav)) center/contain no-repeat;mask:var(--m,var(--cav)) center/contain no-repeat;
+  background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,0) 30%,rgba(200,200,200,.55) 40%,rgba(255,255,255,.95) 48%,rgba(150,150,150,.6) 54%,rgba(235,235,235,.8) 60%,rgba(255,255,255,0) 70%,transparent 80%);
+  background-size:300% 300%;background-position:var(--hx,50%) var(--hy,50%);mix-blend-mode:soft-light;opacity:.9}
+.hl-cobre.fora{display:none}
+.trofeu{filter:drop-shadow(0 0 10px rgba(233,185,73,.75)) drop-shadow(0 0 26px rgba(233,185,73,.35))}
+
+.cav-dash .hl{border-radius:0}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
@@ -1545,7 +1552,7 @@ function encher(frac){
   if(subir){const txt=$("rodaPct").textContent,T1=650,T2=800,corFim=[$("tintaCor").getAttribute("flood-color"),$("rodaPct").style.color];   // sobe até 100% e desce até a porcentagem real, com o número acompanhando
     const passo2=now=>{const k=now-t0;let f;
       if(k<T1){const a=k/T1,d0=Math.max(0,Math.min(1,de));f=d0+(1-d0)*(1-Math.pow(1-a,3))}else{const a=Math.min(1,(k-T1)/T2);f=1+(alvo-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
-      f=Math.max(0,Math.min(1,f));pinta(f);nivel=f;const vv=Math.round(f*100),cc=corFaixa(vv);$("rodaPct").textContent=vv+"%";
+      f=Math.max(0,Math.min(1,f));pinta(f);nivel=f;const vv=Math.round(f*100),cc=corFaixa(vv);$("rodaPct").textContent=vv+"%";if($("roda")&&$("roda").__hl)$("roda").__hl.classList.toggle("fora",vv>=90||getComputedStyle($("roda")).display==="none");
       $("tintaCor").setAttribute("flood-color",cc[0]);$("rodaPct").style.color=cc[1];
       if(k<T1+T2)requestAnimationFrame(passo2);else{pinta(alvo);nivel=alvo;$("rodaPct").textContent=txt;$("tintaCor").setAttribute("flood-color",corFim[0]);$("rodaPct").style.color=corFim[1]}};
     requestAnimationFrame(passo2);return}
@@ -1558,7 +1565,7 @@ function atualizarRoda(P,A,tx,semMarca){
   // cor da caveira: abaixo de 50% vermelho claro, de 50% a 75% amarelo claro, acima de 75% verde claro
   // faixas pelo valor exato: <50 vermelho · 50 a 75 amarelo · acima de 75 até 89,99 verde · 90 ou mais dourado
   const v=tx===null||tx===undefined?(t?P*100/t:null):tx,ouro=v!==null&&v>=90;
-  const cor=v===null?["#ffffff","var(--osso)"]:ouro?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F3DE8A","#EBD27A"]:["#F2A3A3","#EE9A9A"];
+  const cor=v===null?["#ffffff","var(--osso)"]:ouro?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F28B82","#F28B82"]:["#9B1111","#C0392B"];
   $("tintaCor").setAttribute("flood-color",cor[0]);$("rodaPct").style.color=cor[1];
   $("roda").classList.toggle("ouro",ouro);
   // nível ouro: a caveira dá lugar ao logo completo, também em dourado
@@ -1688,7 +1695,7 @@ function ficha(alvo){
 }
 // ---- imagem do integrante (substitui o HTML individual) ----
 function _img(src){return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src})}
-function corFaixa(v){return v==null?["#ffffff","#ECE7DC"]:v>=90?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F3DE8A","#EBD27A"]:["#F2A3A3","#EE9A9A"]}
+function corFaixa(v){return v==null?["#ffffff","#ECE7DC"]:v>=90?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F28B82","#F28B82"]:["#9B1111","#C0392B"]}
 function _tinta(img,w,h,cor){const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d");
   g.drawImage(img,0,0,w,h);g.globalCompositeOperation="multiply";g.fillStyle=cor;g.fillRect(0,0,w,h);
   g.globalCompositeOperation="destination-in";g.drawImage(img,0,0,w,h);return c}
@@ -1709,7 +1716,7 @@ async function pagCavDesenhar(animar){const el=$("pagCav");if(!el)return;const p
       if(v>0){const tc=tinta(cor[0]),fh=h*v/100;g.drawImage(tc,0,h-fh,w,fh,x,top+h-fh,w,fh)}}
     $("pagCavPc").textContent=v+"%";$("pagCavPc").style.color=cor[1]};
   if(!animar||reduz||pc<=0){window.__pagAnimando=false;quadro(pc,true);return}
-  ["#F2A3A3","#F3DE8A","#9BE3AE","#E9B949"].forEach(tinta);   // prepara as quatro cores antes de começar
+  ["#9B1111","#F28B82","#9BE3AE","#E9B949"].forEach(tinta);   // prepara as quatro cores antes de começar
   const t0=performance.now(),T1=650,T2=800,id=(window.__pagAnim=(window.__pagAnim||0)+1);window.__pagAnimando=true;
   const passo=now=>{if(id!==window.__pagAnim)return;const k=now-t0,pc=window.PAG_PC||0;let f;
     if(k<T1){const a=k/T1;f=1-Math.pow(1-a,3)}else{const a=Math.min(1,(k-T1)/T2);f=1+(pc/100-1)*(a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2)}
@@ -2023,7 +2030,7 @@ function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice
 // tabela de vários meses (comparativo e presença por integrante): meses centralizados, % em etiqueta
 // e, entre um mês e outro, quanto subiu (▲) ou desceu (▼)
 function dashCav(v,rot,sub,w,a,peq){const dl=v==null||a==null?"":v>a?`<small class="up">▲ +${v-a}</small>`:v<a?`<small class="dn">▼ −${a-v}</small>`:`<small class="eq">=</small>`;
-  return `<div class="dcav${peq?" peq":""}"><span class="cav-dash" style="--w:${w}px;--cav:url('${CAVEIRA}');--c:${v==null?"transparent":corFaixa(v)[0]};--p:${v||0}%"></span>
+  return `<div class="dcav${peq?" peq":""}"><span class="cav-dash${v!=null&&v>=90?" trofeu":""}" style="--w:${w}px;--cav:url('${CAVEIRA}');--c:${v==null?"transparent":corFaixa(v)[0]};--p:${v||0}%"><i class="hl"></i></span>
     <b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b>${dl}<span>${rot}</span>${sub?`<small>${sub}</small>`:""}</div>`}
 function dashTabMeses(ms,linhas,tit){const n=ms.length,cols=1+n+(n-1);
   const chip=v=>{if(v==null)return `<span class="dchip vazio">–</span>`;const c=corFaixa(v)[1];
@@ -2572,6 +2579,25 @@ if($("bdTg2")){const b=$("bdTg2");let em="";try{em=(sessionStorage.getItem("pain
     try{await fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"bomdia",email:q.email,s:q.s,ativo:off})});
       off=!off;try{localStorage.setItem(k,off?"1":"0")}catch(_){}rot();alert(off?"🔕 Pronto: você não recebe mais o bom-dia (os outros avisos continuam).":"🔔 Pronto: o bom-dia volta amanhã, às 9h.")}
     catch(_){alert("Não consegui agora. Tente de novo em instantes.")}}}
+// ---- ✨ efeito holográfico das caveiras: um brilho prateado que corre conforme a inclinação do celular ----
+(function(){if(window.__holo)return;window.__holo=1;const R=document.documentElement,quieto=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%")};poe(0,0);
+  if(quieto)return;
+  const ori=e=>{if(e.beta==null)return;ult=performance.now();ax=Math.max(-30,Math.min(30,(e.beta||0)-45));ay=Math.max(-30,Math.min(30,e.gamma||0))};
+  addEventListener("deviceorientation",ori);
+  document.addEventListener("click",e=>{if(!e.target.closest(".cav,.cav-dash,.hl-cobre,#roda,#pagCav"))return;   // iPhone: pede a permissão ao tocar numa caveira
+    if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function")DeviceOrientationEvent.requestPermission().catch(()=>{})},true);
+  let t0=performance.now(),q=0;const laco=t=>{if(!document.hidden&&(++q%2===0)){if(t-ult<2500)poe(ax,ay);else{const k=(t-t0)/1000;poe(Math.sin(k*.7)*16,Math.sin(k*.5)*24)}}requestAnimationFrame(laco)};
+  requestAnimationFrame(laco)})();
+// camada do brilho por cima de uma caveira desenhada (svg ou canvas), com o formato da caveira
+function holoCobrir(el,mask){if(!el||el.__hl)return;const pai=el.parentElement;if(!pai)return;if(getComputedStyle(pai).position==="static")pai.style.position="relative";
+  const s=document.createElement("span");s.className="hl-cobre";s.style.setProperty("--m",`url('${mask}')`);pai.appendChild(s);el.__hl=s;
+  const ajusta=()=>{const r=el.getBoundingClientRect(),pr=pai.getBoundingClientRect(),cv=el.tagName==="CANVAS",fol=cv?r.height*6/236:0,alt=cv?r.height*224/236:r.height;
+    Object.assign(s.style,{inset:"auto",left:(r.left-pr.left)+"px",top:(r.top-pr.top+fol)+"px",width:r.width+"px",height:alt+"px"})};   // (a caveira da Pagamentos tem uma folga em cima)
+  ajusta();try{new ResizeObserver(ajusta).observe(el)}catch(_){addEventListener("resize",ajusta)}}
+
+// as caveiras grandes (Presença e Pagamentos) ganham a camada do brilho
+setTimeout(()=>{holoCobrir($("roda"),CAVEIRA);holoCobrir($("pagCav"),CAVEIRA)},600);
 // Top 5: um quadro só, com os botões Mais presentes / Menos presentes
 if($("topSel"))$("topSel").onclick=e=>{const b=e.target.closest("[data-top]");if(!b)return;
   $("topSel").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));

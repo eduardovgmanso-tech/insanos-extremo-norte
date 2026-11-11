@@ -836,7 +836,13 @@ MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta na
 .top img{width:52px;height:52px}.top b{display:block;font-size:20px}.top span{color:var(--osso2);font-size:13px}
 h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margin:0 0 14px}
 .card{border:1px solid var(--linha);border-radius:16px;background:#161412;padding:16px;margin:12px 0}.card h2{font-size:17px;margin:0 0 12px}
-.cavs{display:flex;justify-content:space-around;gap:10px;text-align:center}.cv{display:flex;flex-direction:column;align-items:center;gap:2px}
+.cavs{display:flex;justify-content:space-around;gap:10px;text-align:center}
+.hl,.hl-cobre{position:absolute;inset:0;pointer-events:none;z-index:2;-webkit-mask:var(--m,var(--cav)) center/contain no-repeat;mask:var(--m,var(--cav)) center/contain no-repeat;
+  background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,0) 30%,rgba(200,200,200,.55) 40%,rgba(255,255,255,.95) 48%,rgba(150,150,150,.6) 54%,rgba(235,235,235,.8) 60%,rgba(255,255,255,0) 70%,transparent 80%);
+  background-size:300% 300%;background-position:var(--hx,50%) var(--hy,50%);mix-blend-mode:soft-light;opacity:.9}
+.hl-cobre.fora{display:none}
+.trofeu{filter:drop-shadow(0 0 10px rgba(233,185,73,.75)) drop-shadow(0 0 26px rgba(233,185,73,.35))}
+.cv{display:flex;flex-direction:column;align-items:center;gap:2px}
 .cv b{font-size:34px;font-weight:800;line-height:1}.cv span{font-size:14px}.cv small{font-size:12px;color:var(--osso2)}
 .cav{position:relative;width:120px;height:146px;isolation:isolate}
 .cav:before{content:"";position:absolute;inset:0;background:var(--cav) center/contain no-repeat;filter:grayscale(1) brightness(.75) contrast(1.1)}
@@ -886,7 +892,7 @@ const D=__DADOS__,CAV="__CAV__";
 // honrarias: o pin pelo ano de entrada no MC (entregue no começo do ano em que completa 3, 6 ou 9 anos)
 const PIN=(()=>{if(!D.ent)return null;const a=new Date().getFullYear()-(+String(D.ent).slice(0,4));
   return a>=9?["ouro","Pin Ouro"]:a>=6?["prata","Pin Prata"]:a>=3?["bronze","Pin Bronze"]:["caveira","Pin Caveira"]})();
-const cor=v=>v==null?["transparent","#ECE7DC"]:v>=90?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F3DE8A","#EBD27A"]:["#F2A3A3","#EE9A9A"];
+const cor=v=>v==null?["transparent","#ECE7DC"]:v>=90?["#E9B949","#E9B949"]:v>75?["#9BE3AE","#8FD9A3"]:v>=50?["#F28B82","#F28B82"]:["#9B1111","#C0392B"];
 const pc=a=>a&&a[1]?Math.round(a[0]*100/a[1]):null,es=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const MS=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 const MESES_N=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -898,7 +904,7 @@ function mensQuadro(){const M=D.mens,st=String(M.st||""),mes=M.venc?MESES_N[+M.v
     <div class="qbts">${M.lk?`<a class="qz" href="${es(M.lk)}" target="_blank" rel="noopener" style="text-decoration:none">📄 Abrir meu boleto</a>`:""}
     ${M.adm?`<button id="mensPedir">🙋 Pedir o boleto ao ${es(M.adm)}</button>`:""}</div>
     <p class="nota" id="mensTx" style="margin:8px 0 0">${M.lk?"O boleto também chega pelos avisos do app.":"O boleto deste mês ainda não está no painel. Se precisar, peça ao comando."}</p></details>`}
-const cav=(v,r,sub)=>`<div class="cv"><span class="cav" style="--cav:url('${CAV}');--c:${cor(v)[0]};--p:${v||0}%"></span><b style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</b><span>${r}</span><small>${sub}</small></div>`;
+const cav=(v,r,sub)=>`<div class="cv"><span class="cav${v!=null&&v>=90?" trofeu":""}" style="--cav:url('${CAV}');--c:${cor(v)[0]};--p:${v||0}%"><i class="hl"></i></span><b style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</b><span>${r}</span><small>${sub}</small></div>`;
 const bar=(r,v)=>`<div class="br"><span>${r}</span><div class="tr"><i style="width:${v||0}%;background:${cor(v)[1]}"></i></div><em style="color:${cor(v)[1]}">${v==null?"–":v+"%"}</em></div>`;
 const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
@@ -917,10 +923,7 @@ ${(D.anivs||[]).length?`<details class="card mens-d" id="anivC"><summary><span><
 ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p class="nota" id="insTx" style="margin:0 0 10px">Ainda não consta a sua resposta. Já respondeu no grupo? Toque abaixo para marcar.</p>
   <div class="qbts"><button class="qz" id="insBt">✅ Já respondi</button></div></div>`:""}
 ${D.mens&&D.mens.st?mensQuadro():""}
-<div class="card per"><label style="display:flex;align-items:center;gap:10px;font-weight:700">📅 Período
-  <select id="perSel" style="flex:1;padding:10px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:inherit;font:inherit;font-size:15px">
-  <option value="">Ano todo (${D.ano})</option>${[...D.meses].reverse().map(m=>`<option value="${m.ym}">${MESES_N[+m.ym.slice(5)-1]}/${m.ym.slice(0,4)}</option>`).join("")}</select></label></div>
-<div class="card" id="adesaoCard"><h2 id="adTit">Minha adesão em ${D.ano}</h2><div class="cavs" id="adCavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
+<div class="card" id="adesaoCard"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h2 id="adTit" style="flex:1;margin:0">Minha adesão em ${D.ano}</h2><select id="perSel" aria-label="Período" style="max-width:46%;padding:7px 9px;border-radius:10px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:inherit;font:inherit;font-size:13.5px"><option value="">Ano todo (${D.ano})</option>${[...D.meses].reverse().map(m=>`<option value="${m.ym}">${MESES_N[+m.ym.slice(5)-1]}/${m.ym.slice(0,4)}</option>`).join("")}</select></div><div class="cavs" id="adCavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
 <div class="card"><h2>Minha posição (presença) <span class="nota" style="font-weight:500">· no ano</span></h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
 <div class="card"><h2>Comparação</h2>
   <div class="cmp"><p>Presença</p>${bar("Eu",vp)}${bar("Média "+es(D.g),D.mf[0])}${bar("Média da divisão",D.md[0])}</div>
@@ -1068,6 +1071,114 @@ body.tema-aniv h1,body.tema-aniv .painel h2,body.tema-aniv .card h2{color:#F1CF6
       if(q&&window.SOS_URL){try{await Promise.race([fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
         body:JSON.stringify({tipo:"parabens",email:q.email,s:q.s,para:a.n,texto:t})}),new Promise(r=>setTimeout(r,3000))])}catch(_){}}
       fecha();location.href=`https://api.whatsapp.com/send/?phone=${a.tel}&text=${encodeURIComponent(t)}`}}})();
+// ---- ✨ efeito holográfico das caveiras: um brilho prateado que corre conforme a inclinação do celular ----
+(function(){if(window.__holo)return;window.__holo=1;const R=document.documentElement,quieto=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let ult=0,ax=0,ay=0;const poe=(x,y)=>{R.style.setProperty("--hx",(50+y*1.6).toFixed(1)+"%");R.style.setProperty("--hy",(50+x*1.6).toFixed(1)+"%")};poe(0,0);
+  if(quieto)return;
+  const ori=e=>{if(e.beta==null)return;ult=performance.now();ax=Math.max(-30,Math.min(30,(e.beta||0)-45));ay=Math.max(-30,Math.min(30,e.gamma||0))};
+  addEventListener("deviceorientation",ori);
+  document.addEventListener("click",e=>{if(!e.target.closest(".cav,.cav-dash,.hl-cobre,#roda,#pagCav"))return;   // iPhone: pede a permissão ao tocar numa caveira
+    if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function")DeviceOrientationEvent.requestPermission().catch(()=>{})},true);
+  let t0=performance.now(),q=0;const laco=t=>{if(!document.hidden&&(++q%2===0)){if(t-ult<2500)poe(ax,ay);else{const k=(t-t0)/1000;poe(Math.sin(k*.7)*16,Math.sin(k*.5)*24)}}requestAnimationFrame(laco)};
+  requestAnimationFrame(laco)})();
+// camada do brilho por cima de uma caveira desenhada (svg ou canvas), com o formato da caveira
+function holoCobrir(el,mask){if(!el||el.__hl)return;const pai=el.parentElement;if(!pai)return;if(getComputedStyle(pai).position==="static")pai.style.position="relative";
+  const s=document.createElement("span");s.className="hl-cobre";s.style.setProperty("--m",`url('${mask}')`);pai.appendChild(s);el.__hl=s;
+  const ajusta=()=>{const r=el.getBoundingClientRect(),pr=pai.getBoundingClientRect(),cv=el.tagName==="CANVAS",fol=cv?r.height*6/236:0,alt=cv?r.height*224/236:r.height;
+    Object.assign(s.style,{inset:"auto",left:(r.left-pr.left)+"px",top:(r.top-pr.top+fol)+"px",width:r.width+"px",height:alt+"px"})};   // (a caveira da Pagamentos tem uma folga em cima)
+  ajusta();try{new ResizeObserver(ajusta).observe(el)}catch(_){addEventListener("resize",ajusta)}}
+
+// ---- 🏍️ Minha moto (só neste celular: documentos e abastecimentos; nada vai para a planilha, a nuvem ou o comando) ----
+(function(){if(document.getElementById("motoV"))return;const K="moto_"+(D.email||"eu");
+  const ler=()=>{try{return JSON.parse(localStorage.getItem(K)||"{}")}catch(_){return {}}},grava=o=>{try{localStorage.setItem(K,JSON.stringify(o))}catch(_){alert("Não consegui salvar neste celular.")}};
+  let M=ler();M.docs=M.docs||{};M.abs=M.abs||[];
+  const num=v=>{const n=parseFloat(String(v||"").trim().split(".").join("").split(",").join("."));return isFinite(n)?n:NaN};   // aceita 6,29 e 1.234,56
+  const num2=v=>{const t=String(v||"").trim();return t.indexOf(",")>=0?num(t):parseFloat(t)};
+  const R$=v=>"R$ "+Number(v).toFixed(2).split(".").join(","),dec=(v,c)=>Number(v).toFixed(c).split(".").join(",");
+  const br=d=>d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";
+  const hoje=new Date();hoje.setHours(0,0,0,0);const faltam=d=>Math.round((new Date(d+"T00:00:00")-hoje)/864e5);
+  const DOCS=[["cnh","🪪 CNH"],["lic","📄 Licenciamento"],["rev","🔧 Revisão"]];
+  document.head.insertAdjacentHTML("beforeend",`<style>
+    body.aba-moto #app{display:none}body:not(.aba-moto) #motoV{display:none}
+    #motoV .card h2{margin:0 0 6px}.priv{border-color:rgba(76,175,106,.55)!important;background:rgba(76,175,106,.08)!important}
+    .mf{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mf label{font-size:13px;color:#BDB7AA;display:block}
+    .mf input,.mf select{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:10px;border-radius:10px;background:rgba(0,0,0,.4);color:#ECE7DC;border:1px solid rgba(236,231,220,.22);font:inherit;font-size:16px}
+    .mf .inteiro{grid-column:1/-1}.litros{grid-column:1/-1;font-size:15px;color:#E9B949;font-weight:700}
+    .doc{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(236,231,220,.08)}.doc b{flex:1}.doc input{max-width:170px}
+    .doc small{min-width:96px;text-align:right;font-weight:700}
+    .tab-m{width:100%;border-collapse:collapse;font-size:14px}.tab-m th,.tab-m td{padding:8px 4px;border-bottom:1px solid rgba(236,231,220,.08);text-align:right}
+    .tab-m th:first-child,.tab-m td:first-child{text-align:left}.tab-m th{color:#BDB7AA;font-weight:600;font-size:12.5px}
+    .tab-m button{background:none;border:0;color:#8f887d;font-size:15px;padding:2px 4px}
+    .res-m{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 12px}.res-m div{background:rgba(236,231,220,.05);border-radius:12px;padding:10px;text-align:center}
+    .res-m b{display:block;font-size:20px;color:#E9B949}.res-m span{font-size:12px;color:#BDB7AA}
+    .nav-m{position:fixed;left:0;right:0;bottom:0;z-index:50;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;gap:4px;padding:6px 8px calc(8px + env(safe-area-inset-bottom,0px));
+      background:rgba(13,11,9,.94);backdrop-filter:blur(12px);border-top:1px solid rgba(236,231,220,.12)}
+    .nav-m button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:14px;border:0;background:none;color:#BDB7AA;font:inherit;font-size:11.5px;font-weight:700}
+    .nav-m button i{font-style:normal;font-size:22px;line-height:1}
+    .nav-m button[aria-pressed="true"]{background:rgba(236,231,220,.12);color:#ECE7DC}
+    .nav-m .nav-sos{transform:translateY(-14px);background:#c62828;color:#fff;border-radius:50%;width:66px;height:66px;margin:0 auto;justify-content:center;box-shadow:0 0 0 4px rgba(13,11,9,.95),0 6px 18px rgba(198,40,40,.55)}
+    .nav-m .nav-sos i{font-size:24px}.nav-m .nav-sos span{font-size:11px;font-weight:900;letter-spacing:.5px}
+    body{padding-bottom:96px}
+    #app .cart-bts,#app .sos-meu,#app .msg-meu{display:none!important}
+    #msgIco{margin-left:auto;width:44px;height:44px;border-radius:50%;border:1px solid rgba(236,231,220,.25);background:rgba(236,231,220,.06);font-size:20px;flex:none}
+    .tri button{aspect-ratio:auto!important;min-height:0;padding:8px 9px!important;gap:2px!important;border-radius:14px!important}
+    .tri .ti{font-size:16px!important;display:inline}.tri .tt{font-size:10.5px!important}.tri .tp{font-size:12.5px!important;-webkit-line-clamp:1!important}.tri .ts{font-size:11px!important}
+    .aviso-doc{background:rgba(155,17,17,.18);border:1px solid rgba(220,80,80,.6);border-radius:14px;padding:12px 14px;margin:0 0 14px;font-weight:600}</style>`);
+  const v=document.createElement("div");v.id="motoV";v.className="w";document.getElementById("app").after(v);
+  // menu embaixo: Início · Carteirinha · SOS (no centro) · Conquistas · Minha moto (o topo fica enxuto e a caveira sobe)
+  const nav=document.createElement("div");nav.className="nav-m";
+  nav.innerHTML=`<button type="button" data-aba="ini" aria-pressed="true"><i>🏠</i><span>Início</span></button><button type="button" data-ac="cart"><i>🪪</i><span>Carteirinha</span></button>
+    <button type="button" data-ac="sos" class="nav-sos" aria-label="SOS: preciso de ajuda"><i>🆘</i><span>SOS</span></button>
+    <button type="button" data-ac="conq"><i>🏆</i><span>Conquistas</span></button><button type="button" data-aba="moto" aria-pressed="false"><i>🏍️</i><span>Minha moto</span></button>`;
+  document.body.appendChild(nav);
+  const vaiInicio=()=>{const b=nav.querySelector('[data-aba="ini"]');nav.querySelectorAll("[data-aba]").forEach(x=>x.setAttribute("aria-pressed",x===b));document.body.classList.remove("aba-moto")};
+  nav.onclick=e=>{const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.ac==="sos"){if(typeof abrirSOS==="function")abrirSOS();return}
+    if(b.dataset.ac==="cart"){const c=document.getElementById("cartBt");if(c)c.click();return}
+    if(b.dataset.ac==="conq"){vaiInicio();const c=document.getElementById("conqBt"),bx=document.getElementById("conqBox");if(c&&(!bx||bx.hidden))c.click();setTimeout(()=>{if(bx)bx.scrollIntoView({behavior:"smooth",block:"start"})},80);return}
+    nav.querySelectorAll("[data-aba]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    document.body.classList.toggle("aba-moto",b.dataset.aba==="moto");scrollTo(0,0);if(b.dataset.aba==="moto")desenha()};
+  // ✉️ Mensagens: um ícone ao lado do nome
+  {const h=document.querySelector("#app h1");if(h&&!document.getElementById("msgIco")){const m=document.createElement("button");m.id="msgIco";m.type="button";m.setAttribute("aria-label","Mensagens: falar com o comando");m.textContent="✉️";
+    m.onclick=()=>{const o=document.querySelector(".msg-meu");if(o)o.click()};h.appendChild(m)}}
+  function consumo(){const L=[...M.abs].sort((a,b)=>a.km-b.km);L.forEach((a,i)=>{a.kml=i>0&&a.km>L[i-1].km&&a.l>0?(a.km-L[i-1].km)/a.l:null});return L}
+  function desenha(){const L=consumo(),comK=L.filter(a=>a.kml!=null),mes=new Date().toISOString().slice(0,7),doMes=L.filter(a=>a.d.slice(0,7)===mes);
+    const kmT=comK.reduce((s,a,i)=>s,0);const media=comK.length?comK.reduce((s,a)=>s+a.kml*a.l,0)/comK.reduce((s,a)=>s+a.l,0):null;
+    v.innerHTML=`<div class="card priv"><h2>🔒 Só neste celular</h2><p class="nota" style="margin:0">Os dados que você colocar aqui ficam <b>só neste celular</b>. Não vão para a planilha, nem para a nuvem, nem para o comando: <b>ninguém mais tem acesso</b>. Se trocar de celular ou desinstalar o app, use o backup lá embaixo.</p></div>
+    <div class="card"><h2>📄 Documentos</h2><p class="nota" style="margin:0 0 6px">Coloque os vencimentos: o app avisa no Início 30 dias antes.</p>
+      ${DOCS.map(([k,r])=>{const d=M.docs[k]||"",f=d?faltam(d):null,cor=f==null?"#BDB7AA":f<0?"#E26D6B":f<=30?"#E9B949":"#8FD9A3";
+        return `<div class="doc"><b>${r}</b><input type="date" data-doc="${k}" value="${d}"><small style="color:${cor}">${f==null?"–":f<0?"vencido":f===0?"vence hoje":"em "+f+" dias"}</small></div>`}).join("")}</div>
+    <div class="card"><h2>⛽ Novo abastecimento</h2><div class="mf">
+      <label>Data<input type="date" id="abD" value="${new Date().toISOString().slice(0,10)}"></label>
+      <label>Odômetro (km)<input type="text" inputmode="numeric" id="abK" placeholder="Ex.: 23450"></label>
+      <label>Valor total (R$)<input type="text" inputmode="decimal" id="abV" placeholder="Ex.: 85,00"></label>
+      <label>Preço por litro (R$)<input type="text" inputmode="decimal" id="abP" placeholder="Ex.: 6,29"></label>
+      <label class="inteiro">Combustível<select id="abT"><option>Gasolina comum</option><option>Gasolina aditivada</option><option>Gasolina premium</option><option>Etanol</option></select></label>
+      <div class="litros" id="abL">Litros: –</div></div>
+      <div class="qbts" style="margin-top:10px"><button class="qz" id="abS">💾 Registrar abastecimento</button></div></div>
+    <div class="card"><h2>📊 Consumo</h2><div class="res-m"><div><b>${media?dec(media,1):"–"}</b><span>km/l (média)</span></div><div><b>${doMes.length?R$(doMes.reduce((s,a)=>s+a.v,0)):"–"}</b><span>gasto no mês</span></div><div><b>${L.length}</b><span>abastecimentos</span></div></div>
+      ${L.length?`<table class="tab-m"><thead><tr><th>Data</th><th>Valor</th><th>Litros</th><th>km/l</th><th></th></tr></thead><tbody>${[...L].reverse().map(a=>`<tr><td>${br(a.d)}<br><small style="color:#8f887d">${a.km} km · ${a.t||""}</small></td><td>${R$(a.v)}</td><td>${dec(a.l,2)}</td><td>${a.kml==null?'<small style="color:#8f887d">Primeiro registro</small>':"<b>"+dec(a.kml,1)+"</b>"}</td><td><button data-del="${a.id}" aria-label="Apagar">🗑️</button></td></tr>`).join("")}</tbody></table>`:'<p class="nota" style="margin:0">Nenhum abastecimento ainda. O primeiro registro serve de ponto de partida para o km/l.</p>'}</div>
+    <div class="card"><h2>💾 Backup</h2><p class="nota" style="margin:0 0 8px">Guarde uma cópia (por exemplo, mandando para você mesmo no WhatsApp) para não perder os dados ao trocar de celular.</p>
+      <div class="qbts"><button id="bkC">📋 Copiar backup</button><button id="bkR">📥 Restaurar backup</button></div></div>`;
+    const calc=()=>{const vv=num2(v.querySelector("#abV").value),pp=num2(v.querySelector("#abP").value);v.querySelector("#abL").textContent=vv>0&&pp>0?"Litros: "+dec(vv/pp,2)+" L":"Litros: –"};
+    ["#abV","#abP"].forEach(s=>v.querySelector(s).addEventListener("input",calc));
+    v.querySelectorAll("[data-doc]").forEach(i=>i.onchange=()=>{M.docs[i.dataset.doc]=i.value;grava(M);desenha();avisoDocs()});
+    v.querySelector("#abS").onclick=()=>{const d=v.querySelector("#abD").value,km=parseInt(String(v.querySelector("#abK").value).split(".").join(""),10),vv=num2(v.querySelector("#abV").value),pp=num2(v.querySelector("#abP").value);
+      if(!d||!(km>0)||!(vv>0)||!(pp>0)){alert("Preencha a data, o odômetro, o valor total e o preço por litro.");return}
+      const ult=consumo().slice(-1)[0];if(ult&&km<=ult.km&&!confirm(`O odômetro (${km} km) é menor ou igual ao último registro (${ult.km} km). Registrar mesmo assim?`))return;
+      M.abs.push({id:Date.now(),d,km,v:vv,p:pp,l:vv/pp,t:v.querySelector("#abT").value});grava(M);desenha();try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}};
+    v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(!confirm("Apagar este abastecimento?"))return;M.abs=M.abs.filter(a=>String(a.id)!==b.dataset.del);grava(M);desenha()});
+    v.querySelector("#bkC").onclick=async()=>{const t="INSANOS-MOTO:"+btoa(unescape(encodeURIComponent(JSON.stringify(M))));try{await navigator.clipboard.writeText(t);alert("Backup copiado. Cole numa conversa sua no WhatsApp para guardar.")}catch(_){prompt("Copie o backup:",t)}};
+    v.querySelector("#bkR").onclick=()=>{const t=prompt("Cole aqui o backup (começa com INSANOS-MOTO:)");if(!t)return;
+      try{const o=JSON.parse(decodeURIComponent(escape(atob(t.trim().replace("INSANOS-MOTO:","")))));if(!o||typeof o!=="object")throw 0;M={docs:o.docs||{},abs:o.abs||[]};grava(M);desenha();avisoDocs();alert("Backup restaurado.")}
+      catch(_){alert("Esse texto não parece um backup válido.")}}}
+  // aviso no Início: documento vencido ou vencendo em até 30 dias
+  function avisoDocs(){const ant=document.getElementById("avisoDoc");if(ant)ant.remove();
+    const it=DOCS.map(([k,r])=>{const d=M.docs[k];if(!d)return null;const f=faltam(d);return f<=30?`${r}: ${f<0?"vencido desde "+br(d):f===0?"vence hoje":"vence em "+f+" dias ("+br(d)+")"}`:null}).filter(Boolean);
+    if(!it.length)return;const a=document.createElement("div");a.id="avisoDoc";a.className="aviso-doc";a.innerHTML="⚠️ "+it.join("<br>⚠️ ")+`<div style="margin-top:6px;font-size:13px;font-weight:500;opacity:.85">Toque para ver na aba Minha moto.</div>`;
+    a.onclick=()=>nav.querySelector('[data-aba="moto"]').click();const app=document.getElementById("app");app.insertBefore(a,app.children[1]||null)}
+  avisoDocs()})();
+
 // ---- ☀️ bom-dia das 9h: o irmão pode desligar só esse aviso (fica guardado na planilha, aba Preferências) ----
 (function(){const b=document.getElementById("bdTg");if(!b)return;const k="bomdia_off_"+D.email;
   let off=false;try{off=localStorage.getItem(k)==="1"}catch(_){}
