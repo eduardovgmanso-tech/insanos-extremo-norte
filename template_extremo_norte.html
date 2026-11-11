@@ -626,6 +626,7 @@ body.adm[data-view="lancar"] #lancar #insZap:not([hidden]){display:block!importa
 /* a caveira da Pagamentos com o mesmo tamanho e a mesma posição da caveira da Presença (o desenho ocupa 224 dos 236 px da tela, a partir do 6º) */
 #pagView .pag-resumo{margin-top:0!important}
 #pagView .pag-cav canvas{height:316px!important;width:auto!important;max-width:100%;margin-top:-8px}
+.pag-cav .hl-env{margin-top:-8px}.pag-cav .hl-env canvas{margin-top:0!important}   /* a subida fica no envelope: o brilho acompanha a caveira */
 #pagView #pagCavPc{font-size:64px!important;line-height:1!important;margin-top:0}
 @media (max-width:700px){#pagView .pag-cav canvas{height:263px!important;margin-top:-7px}}
 #pagView .pag-kpis{width:100%;flex:0 0 auto!important;align-content:start}
@@ -2762,7 +2763,7 @@ function ajustesLer(){try{return JSON.parse(localStorage.getItem("ajustes_app")|
 function ajustesAplicar(){const a=ajustesLer(),R=document.documentElement;R.classList.toggle("eco",!!a.eco);R.classList.toggle("letra-g",a.letra==="g");R.classList.toggle("letra-gg",a.letra==="gg");
   if(a.eco)document.querySelectorAll("video.fundo-video").forEach(v=>{try{v.pause()}catch(_){}})}
 ajustesAplicar();
-function ajustesAbrir(){const v=document.createElement("div");v.className="fa-veu";
+function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=document.createElement("div");v.className="fa-veu";
   const tela=()=>{const a=ajustesLer();v.innerHTML=`<div class="fa-cx aj-cx" role="dialog" aria-label="Ajustes do app"><h3 style="margin:0 0 4px">⚙️ Ajustes do app</h3>
     <p class="nota" style="margin:0 0 14px">Valem só para este celular.</p>
     <button type="button" class="aj-op" id="ajEco" aria-pressed="${!!a.eco}"><span><b>🔋 Modo economia</b><small>Desliga o vídeo de fundo e os efeitos animados (brilho e sombras das caveiras). Bom para celular mais simples ou para poupar bateria e internet.</small></span><i>${a.eco?"Ligado":"Desligado"}</i></button>

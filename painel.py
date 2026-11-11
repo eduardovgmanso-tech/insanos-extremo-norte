@@ -841,6 +841,9 @@ html.eco .fundo-video{display:none!important}html.eco .hl,html.eco .hl-cobre{dis
 html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none!important}
 html.eco *,html.eco *::before,html.eco *::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
 html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
+.fa-veu{position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center}
+.fa-cx{background:#1b1714;color:#ECE7DC;width:100%;max-width:520px;max-height:88vh;overflow:auto;box-sizing:border-box;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));border-top:3px solid #E9B949}
+.fa-fechar{display:block;width:100%;margin-top:14px;padding:12px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:transparent;color:#ECE7DC;font:inherit;font-weight:700;font-size:15px}
 .aj-op{display:flex;gap:12px;align-items:center;width:100%;text-align:left;padding:12px;border-radius:14px;border:1px solid rgba(236,231,220,.2);background:rgba(236,231,220,.04);color:inherit;font:inherit}
 .aj-op span{flex:1}.aj-op small{display:block;color:#BDB7AA;font-size:12.5px;margin-top:3px;line-height:1.35}.aj-op i{font-style:normal;font-weight:800;font-size:13px;color:#8f887d;white-space:nowrap}
 .aj-op[aria-pressed="true"]{border-color:#4CAF6A;background:rgba(76,175,106,.1)}.aj-op[aria-pressed="true"] i{color:#4CAF6A}
@@ -1205,7 +1208,7 @@ function ajustesLer(){try{return JSON.parse(localStorage.getItem("ajustes_app")|
 function ajustesAplicar(){const a=ajustesLer(),R=document.documentElement;R.classList.toggle("eco",!!a.eco);R.classList.toggle("letra-g",a.letra==="g");R.classList.toggle("letra-gg",a.letra==="gg");
   if(a.eco)document.querySelectorAll("video.fundo-video").forEach(v=>{try{v.pause()}catch(_){}})}
 ajustesAplicar();
-function ajustesAbrir(){const v=document.createElement("div");v.className="fa-veu";
+function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=document.createElement("div");v.className="fa-veu";
   const tela=()=>{const a=ajustesLer();v.innerHTML=`<div class="fa-cx aj-cx" role="dialog" aria-label="Ajustes do app"><h3 style="margin:0 0 4px">⚙️ Ajustes do app</h3>
     <p class="nota" style="margin:0 0 14px">Valem só para este celular.</p>
     <button type="button" class="aj-op" id="ajEco" aria-pressed="${!!a.eco}"><span><b>🔋 Modo economia</b><small>Desliga o vídeo de fundo e os efeitos animados (brilho e sombras das caveiras). Bom para celular mais simples ou para poupar bateria e internet.</small></span><i>${a.eco?"Ligado":"Desligado"}</i></button>
