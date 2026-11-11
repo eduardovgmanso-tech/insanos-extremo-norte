@@ -868,7 +868,9 @@ details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary
 .mens-d[open] summary{margin-bottom:12px}
 .cart .pres{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(236,231,220,.05)}
 .cart .pres .cv{position:relative;width:46px;flex:0 0 46px}.cart .pres .cv img{display:block;width:100%;height:auto;filter:grayscale(1) brightness(.45)}
-.cart .pres .cv img.o{position:absolute;inset:0;filter:sepia(1) saturate(3.2) hue-rotate(2deg) brightness(1.05)}
+.cart .pres .cv .o{position:absolute;inset:0;-webkit-mask:var(--cav) center/contain no-repeat;mask:var(--cav) center/contain no-repeat;
+  background:var(--cav) center/contain no-repeat,linear-gradient(var(--c),var(--c));background-blend-mode:multiply}
+.pres .cv{filter:drop-shadow(var(--sx,0px) var(--sy,0px) 6px var(--g,transparent))}.pres .cv.trofeu{filter:drop-shadow(var(--sx,0px) var(--sy,0px) 7px rgba(233,185,73,.85)) drop-shadow(0 0 16px rgba(233,185,73,.35))}
 .cart .pres b{font-size:28px;line-height:1;color:#E9B949}.cart .pres span{display:block;font-size:12px;color:#BDB7AA}
 .qbts a.qz{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;color:#fff}
 .cart-bts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-2px 0 12px}
@@ -1279,7 +1281,7 @@ function cartAbrir(){const ent=D.ent?D.ent.slice(8,10)+"/"+D.ent.slice(5,7)+"/"+
   const v=document.createElement("div");v.className="cart-veu";v.innerHTML=`<div class="cart"><div class="topo"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
     <div class="meio">${PIN?`<img class="pin" src="pin-${PIN[0]}.png" alt="${PIN[1]}">`:""}<div><h3>${es(D.n)}</h3><div class="c">${es(D.c||"")}</div>
       <div class="d">${ent?"Insanos M.C. desde "+ent:""}${PIN?" · "+PIN[1]:""}</div></div></div>
-    ${vp!=null?`<div class="pres"><div class="cv"><img src="${CAV}" alt=""><img class="o" src="${CAV}" alt="" style="clip-path:inset(${100-vp}% 0 0 0)"></div><div><b>${vp}%</b><span>de presença nos eventos em ${D.ano}${D.pres&&D.pres[1]?` · ${D.pres[0]} de ${D.pres[1]}`:""}</span></div></div>`:""}
+    ${vp!=null?`<div class="pres"><div class="cv${vp>=90?" trofeu":""}" style="--g:${corGlow(vp)}"><img src="${CAV}" alt=""><span class="o" style="--cav:url('${CAV}');--c:${cor(vp)[0]};clip-path:inset(${100-vp}% 0 0 0)"></span></div><div><b style="color:${cor(vp)[1]}">${vp}%</b><span>de presença nos eventos em ${D.ano}${D.pres&&D.pres[1]?` · ${D.pres[0]} de ${D.pres[1]}`:""}</span></div></div>`:""}
     <div class="qr"><canvas width="220" height="220"></canvas><p>Código de identificação do irmão. Quem ler vê o nome, o cargo, a divisão e desde quando é Insanos.</p></div>
     <button class="fechar">Fechar</button></div>`;document.body.appendChild(v);
   v.onclick=e=>{if(e.target===v||e.target.classList.contains("fechar"))v.remove()};
