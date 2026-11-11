@@ -285,7 +285,12 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .lanc-just[hidden]{display:none}
 .ez-info{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 12px;padding:10px 12px;border-radius:12px;background:rgba(233,185,73,.08);border:1px solid rgba(233,185,73,.3);font-size:14px}
 .ez-info[hidden]{display:none}.ez-info b{color:#E9B949}.ez-info .end,.ez-info .obs{flex-basis:100%;color:var(--osso2);font-size:13px}
-.q3 .q3-emo{font-size:24px;line-height:1}
+.q3 .q3-emo{font-size:24px;line-height:1}.q3{position:relative}.q3-pt{position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:#4CAF6A;box-shadow:0 0 0 2px #111}
+.sair-link{display:block;margin:6px 0 0 auto;padding:4px 8px;border:0;background:none;color:#8f887d;font:inherit;font-size:12.5px;text-decoration:underline;cursor:pointer}
+.enq-f{display:block;font-size:13px;color:var(--osso2);margin-bottom:8px}.enq-f textarea,.enq-f input{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:10px;border-radius:10px;background:rgba(0,0,0,.4);color:var(--osso);border:1px solid rgba(236,231,220,.22);font:inherit;font-size:15px}
+.enq-op{margin-bottom:12px}.enq-l{display:flex;justify-content:space-between;gap:10px;font-size:15px}.enq-l span{color:#E9B949;font-weight:700;white-space:nowrap}
+.enq-b{height:10px;border-radius:6px;background:rgba(236,231,220,.1);margin:6px 0 4px;overflow:hidden}.enq-b i{display:block;height:100%;background:#E9B949;border-radius:6px}
+.enq-op small{color:var(--osso2);font-size:12.5px}
 .bug-cx textarea{width:100%;box-sizing:border-box;border-radius:12px;padding:10px;background:rgba(0,0,0,.4);color:var(--osso);border:1px solid rgba(236,231,220,.25);font:inherit;font-size:14.5px}
 .bug-img{display:block;margin-top:10px;padding:10px;border-radius:12px;border:1px dashed rgba(233,185,73,.6);text-align:center;color:#E9B949;font-weight:600;cursor:pointer}
 #bugPrev{display:block;max-width:100%;max-height:180px;margin:10px auto 0;border-radius:10px}#bugPrev[hidden]{display:none}
@@ -663,6 +668,13 @@ body:not(.individual) #secQuadro{display:none!important}
 #izLido b{color:#8FD9A3}
 .aniv-alerta{background:linear-gradient(90deg,rgba(217,178,106,.22),rgba(217,178,106,.08));border:1px solid rgba(217,178,106,.75);border-radius:12px;padding:12px 16px;margin:0 0 14px;color:#F0D9A8;font-size:15px;line-height:1.5}
 .aniv-alerta[hidden]{display:none}
+body.tema-aniv .fundo-video{filter:sepia(.85) saturate(2.3) hue-rotate(-8deg) brightness(.95)}
+body.tema-aniv::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(120% 55% at 50% 0%,rgba(233,185,73,.16),transparent 70%)}
+body.tema-aniv .painel,body.tema-aniv .card,body.tema-aniv .q3,body.tema-aniv .tri button{border-color:rgba(233,185,73,.55)!important}
+body.tema-aniv h1,body.tema-aniv .painel h2,body.tema-aniv .card h2{color:#F1CF6E}
+.aniv-faixa,body.tema-aniv .aniv-alerta{background:linear-gradient(90deg,#B8892A,#F1CF6E)!important;color:#1a1206!important;border:1px solid #F1CF6E!important;border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:15.5px;font-weight:600;box-shadow:0 6px 24px rgba(233,185,73,.35)}
+.aniv-faixa b,body.tema-aniv .aniv-alerta b{color:#1a1206!important}
+.aniv-faixa button{display:block;width:100%;margin-top:10px;padding:11px;border-radius:12px;border:0;background:#1a1206;color:#F1CF6E;font:inherit;font-weight:800}
 .push-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px}.push-bar[hidden]{display:none}.push-bar .nota{margin:0}.aniv-alerta b{color:#fff}.aniv-alerta p{margin:2px 0}
 .manut{background:rgba(217,178,106,.16);border:1px solid rgba(217,178,106,.6);color:#F0D9A8;border-radius:10px;padding:10px 14px;font-size:14px;line-height:1.45;margin:0 0 14px}
 body.individual .manut{display:none}
@@ -1006,6 +1018,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
       <h2>🔔 Notificações neste aparelho</h2>
       <p class="sub" id="pushStatus">Verificando…</p>
       <div class="lw-bts"><button type="button" class="btn" id="pushAtivar2">🔔 Ativar</button><button type="button" class="btn lw-limpar" id="pushDesativar">Desativar</button></div>
+      <button type="button" class="sair-link" id="bdTg2" style="margin:8px 0 0">🔕 Não receber o bom-dia das 9h</button>
     </div>
     <div class="cad-bloco">
       <h2>👥 Integrantes: afastar, reativar ou excluir</h2>
@@ -2552,6 +2565,13 @@ $("fCargoOp").addEventListener("change",ev=>{st.cargos=[...$("fCargoOp").querySe
   if(st.cargos.length&&st.nome&&!M.some(m=>m.n===st.nome&&noCargo(m)))st.nome="";if(typeof ez!=="undefined")ez.importado=false;
   $("fCargoBt").textContent=st.cargos.length?cargoRot():"Todos os cargos";montarFiltros();cargoLista(true);render()});
 document.addEventListener("click",()=>{if($("fCargoOp"))cargoLista(false)});
+// ☀️ bom-dia das 9h: desligar só esse aviso (aba Preferências da planilha)
+if($("bdTg2")){const b=$("bdTg2");let em="";try{em=(sessionStorage.getItem("painel_email")||"").toLowerCase()}catch(_){}const k="bomdia_off_"+em;
+  let off=false;try{off=localStorage.getItem(k)==="1"}catch(_){}const rot=()=>{b.textContent=off?"🔔 Voltar a receber o bom-dia das 9h":"🔕 Não receber o bom-dia das 9h"};rot();
+  b.onclick=async()=>{const q=typeof sosQuem==="function"?sosQuem():null;if(!q||!window.SOS_URL){alert("Não consegui agora. Tente de novo em instantes.");return}
+    try{await fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"bomdia",email:q.email,s:q.s,ativo:off})});
+      off=!off;try{localStorage.setItem(k,off?"1":"0")}catch(_){}rot();alert(off?"🔕 Pronto: você não recebe mais o bom-dia (os outros avisos continuam).":"🔔 Pronto: o bom-dia volta amanhã, às 9h.")}
+    catch(_){alert("Não consegui agora. Tente de novo em instantes.")}}}
 // Top 5: um quadro só, com os botões Mais presentes / Menos presentes
 if($("topSel"))$("topSel").onclick=e=>{const b=e.target.closest("[data-top]");if(!b)return;
   $("topSel").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));
@@ -2620,8 +2640,8 @@ function alertaAniversarios(){const el=$("anivAlerta");if(!el||MODO!=="adm")retu
   const dm=d=>`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
   el.innerHTML=itens.map(x=>x.dias===1
     ?`<p>🎂 <b>Amanhã (${dm(x.prox)}) é aniversário de ${esc(x.m.n)}</b>: faz ${x.faz} anos. Hora de preparar o fly!</p>`
-    :`<p>🎉 <b>Hoje é aniversário de ${esc(x.m.n)}</b>: ${x.faz} anos.</p>`).join("");
-  el.hidden=false}
+    :`<p>🎉 <b>Hoje é aniversário de ${esc(x.m.n)}</b>: ${x.faz} anos. 🎂 Mande os parabéns!</p>`).join("");
+  el.hidden=false;document.body.classList.toggle("tema-aniv",itens.some(x=>x.dias===0))}   // aniversário de irmão hoje: o app fica dourado
 function proximosAniversarios(){alertaAniversarios();
   if($("pushBtn")&&!$("pushBtn").onclick){$("pushBtn").onclick=pushAtivar;$("pushAtivar2").onclick=pushAtivar;$("pushDesativar").onclick=pushDesativar;pushTela()}
   if(MODO==="individual")return;
@@ -2694,6 +2714,30 @@ function bugAbrir(){const resp=String(DADOS.resp||"").trim(),eu=(()=>{try{const 
     if(arq&&navigator.canShare&&navigator.canShare({files:[arq]})){try{await navigator.share({files:[arq],text:msg});fecha();return}catch(e){if(e&&e.name==="AbortError")return}}
     if(arq)alert("Este aparelho não compartilha a imagem direto. Vou abrir o WhatsApp com o texto: anexe o print por lá.");
     window.open((fone?`https://api.whatsapp.com/send/?phone=${fone}&text=`:"https://api.whatsapp.com/send/?text=")+encodeURIComponent(msg),"_blank");fecha()}}
+// ---- 📊 enquete do comando: criar, acompanhar (só o comando vê o resultado) e encerrar ----
+function enqAbrir(){const E=DADOS.enq,v=document.createElement("div");v.className="fa-veu";
+  const res=()=>{const tot=Object.values(E.res||{}).reduce((a,x)=>a+x.length,0),mx=Math.max(1,...Object.values(E.res||{}).map(x=>x.length));
+    return `<p class="nota" style="margin:0 0 12px">${E.aberta?"🟢 Aberta":"⚪ Encerrada"} · criada ${esc(E.criada||"")}${E.por?" por "+esc(E.por):""} · <b>${tot}</b> de ${E.total||M_FULL.length} votaram</p>
+      ${E.ops.map(o=>{const n=(E.res[o]||[]);return `<div class="enq-op"><div class="enq-l"><b>${esc(o)}</b><span>${n.length} voto${n.length===1?"":"s"}</span></div>
+        <div class="enq-b"><i style="width:${Math.round(n.length*100/mx)}%"></i></div>${n.length?`<small>${n.map(esc).join(", ")}</small>`:""}</div>`}).join("")}
+      <p class="nota" style="margin:10px 0 0;font-size:12.5px">Só o comando vê o resultado. A contagem atualiza em 1 a 3 minutos depois de cada voto.</p>`};
+  const form=`<label class="enq-f">Pergunta<textarea id="enqP" rows="2" maxlength="200" placeholder="Ex.: Bonde dia 30 ou dia 7?"></textarea></label>
+    ${[1,2,3,4].map(i=>`<label class="enq-f">Opção ${i}${i>2?" (opcional)":""}<input type="text" id="enqO${i}" maxlength="60" placeholder="${i===1?"Ex.: Dia 30":i===2?"Ex.: Dia 7":""}"></label>`).join("")}
+    <button type="button" class="btn zap" id="enqEnviar" style="width:100%;margin-top:6px">📲 Enviar para os irmãos</button>
+    <p class="nota" style="margin:8px 0 0;font-size:12.5px">Os irmãos recebem uma notificação e votam pelo app. Só o comando vê o resultado.</p>`;
+  const tela=modo=>{v.innerHTML=`<div class="fa-cx enq-cx" role="dialog" aria-label="Enquete"><h3 style="margin:0 0 10px">📊 ${modo==="nova"?"Nova enquete":esc(E.p)}</h3>
+    ${modo==="nova"?form:res()}
+    ${modo!=="nova"?`<div class="lw-bts" style="margin-top:12px">${E.aberta?'<button type="button" class="btn" id="enqFim">🔚 Encerrar</button>':""}<button type="button" class="btn" id="enqNova">➕ Nova enquete</button></div>`:""}
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+    if(modo==="nova")v.querySelector("#enqEnviar").onclick=async()=>{const p=v.querySelector("#enqP").value.trim(),ops=[1,2,3,4].map(i=>v.querySelector("#enqO"+i).value.trim()).filter(Boolean);
+      if(!p||ops.length<2){alert("Escreva a pergunta e pelo menos 2 opções.");return}
+      if(E&&E.aberta&&!confirm("A enquete aberta será encerrada. Continuar?"))return;
+      if(await nuvemEnviar({tipo:"enquete_nova",id:"E"+Date.now(),pergunta:p,opcoes:ops},"Enquete enviada! Em uns 3 minutos ela aparece no app dos irmãos, com a notificação."))v.remove()};
+    else{const f=v.querySelector("#enqFim");if(f)f.onclick=async()=>{if(!confirm("Encerrar a enquete? Os irmãos não poderão mais votar."))return;
+        if(await nuvemEnviar({tipo:"enquete_fim",id:E.id},"Enquete encerrada. Em uns 3 minutos ela sai do app dos irmãos."))v.remove()};
+      v.querySelector("#enqNova").onclick=()=>tela("nova")}};
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
+  document.body.appendChild(v);tela(E&&E.ops?"res":"nova")}
 // ---- 🚪 sair: agradece a visita e volta para a tela de entrada ----
 function sairApp(){const v=document.createElement("div");v.className="fa-veu";v.innerHTML=`<div class="fa-cx" style="text-align:center;padding:26px 20px">
     <div style="font-size:44px;line-height:1">🤝</div><h3 style="margin:10px 0 6px">Obrigado pela visita, irmão!</h3><p class="nota" style="margin:0">Até a próxima. Insanos sempre. 💀</p></div>`;
@@ -2707,12 +2751,16 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
     <button type="button" class="q3" data-q="gestao">${ico("dash18")}<span class="q3-2l">Gestão e Notificações</span></button>
     <button type="button" class="q3 sos" data-q="sos"><b>SOS</b><span>Preciso de ajuda</span></button>
     <button type="button" class="q3" data-q="bug"><b class="q3-emo">🐞</b><span class="q3-2l">Avisar um problema</span></button>
-    <button type="button" class="q3" data-q="sair"><b class="q3-emo">🚪</b><span>Sair</span></button>`;
+    <button type="button" class="q3" data-q="enq"><b class="q3-emo">📊</b><span>Enquete</span>${DADOS.enq&&DADOS.enq.aberta?'<i class="q3-pt" aria-label="enquete aberta"></i>':""}</button>`;
+
   dir.prepend(q);
+  q.insertAdjacentHTML("afterend",`<button type="button" class="sair-link" id="sairLink">Sair</button>`);   // o Sair, pequeno e discreto
+  document.getElementById("sairLink").onclick=sairApp;
   q.onclick=e=>{const b=e.target.closest("[data-q]");if(!b)return;const k=b.dataset.q;
     if(k==="sos"){if(window.abrirSOS)abrirSOS();return}
     if(k==="bug"){bugAbrir();return}
     if(k==="sair"){sairApp();return}
+    if(k==="enq"){enqAbrir();return}
     if(k==="clube")folhaAtalhos("📚 Clube",[{ico:ico("site18"),t:"Sistema Insanos",d:"Entrar no sistema do motoclube",href:href("site18")},
       {ico:ico("doc18"),t:"RDI",d:"Regulamento",href:href("doc18")},{ico:ico("man18"),t:"Manual do integrante",d:"Abrir o manual",href:href("man18")}]);
     if(k==="gestao"){const it=[{ico:ico("dash18"),t:"Dashboard",d:"Cards e comparativo entre meses",fn:()=>irPara("dash")}];

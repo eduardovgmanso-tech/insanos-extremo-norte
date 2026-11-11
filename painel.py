@@ -577,9 +577,142 @@ MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu p
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
 INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
+ENQ = {}               # enquete do comando (abas Enquetes e Votos): a última; a contagem só vai para o painel do comando
 JUST = {}              # motivos das faltas (aba Justificativas): (data ISO, evento em minúsculas) -> {irmão: motivo}
 ZAP_CTX = {}           # o que a mensagem do evento para o WhatsApp precisa (integrantes, entrada de cada um na divisão)
+HOJE_EVS = []          # eventos de hoje (nome, horário): o bom-dia das 9h cita
 ZAP_PAG = ""           # mensagem pronta da situação dos pagamentos (vai dentro do aviso de pagamento novo: abre direto no WhatsApp)
+
+CLIMA_GEO, CLIMA_PREV = {}, {}   # nesta rodada: endereço -> coordenadas, e (lugar, data) -> previsão
+def lugar_evento(data_iso, nome):
+    """O endereço do evento (aba Eventos: endereço ou local), ou o da sede; e o horário, se houver."""
+    inf = INFO_EV.get((str(data_iso)[:10], str(nome).strip().lower()), {})
+    end = (inf.get("endereco") or inf.get("local") or DIV.get("sede_endereco") or "").strip()
+    return end, str(inf.get("hora") or "")
+
+def clima_evento(data_iso, hora="", endereco=""):
+    """Previsão para o dia e a hora do evento (Open-Meteo, gratuito; só para os próximos 15 dias): "☀️ 24°C, sem chuva"."""
+    import urllib.request, urllib.parse, datetime as _dt, re as _r
+    try:
+        dia = _dt.date.fromisoformat(str(data_iso)[:10])
+        if not endereco or not (0 <= (dia - _dt.date.today()).days <= 15):
+            return ""
+        if endereco not in CLIMA_GEO:
+            u = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode({"format": "json", "limit": 1, "countrycodes": "br", "q": endereco})
+            req = urllib.request.Request(u, headers={"User-Agent": "PainelInsanos/1.0 (painel da divisao)"})
+            r = json.loads(urllib.request.urlopen(req, timeout=8).read().decode("utf-8"))
+            if not r:   # endereço não achado: tenta só a cidade (depois do último hífen ou vírgula)
+                cid = _r.split(r"[-,]", endereco)[-1].strip() or "São Paulo"
+                req = urllib.request.Request("https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode({"format": "json", "limit": 1, "countrycodes": "br", "q": cid}),
+                                             headers={"User-Agent": "PainelInsanos/1.0 (painel da divisao)"})
+                r = json.loads(urllib.request.urlopen(req, timeout=8).read().decode("utf-8"))
+            CLIMA_GEO[endereco] = (float(r[0]["lat"]), float(r[0]["lon"])) if r else None
+        geo = CLIMA_GEO.get(endereco)
+        if not geo:
+            return ""
+        k = (geo, dia.isoformat())
+        if k not in CLIMA_PREV:
+            u = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode({"latitude": geo[0], "longitude": geo[1],
+                "hourly": "temperature_2m,precipitation_probability,weathercode", "timezone": "America/Sao_Paulo",
+                "start_date": dia.isoformat(), "end_date": dia.isoformat()})
+            CLIMA_PREV[k] = json.loads(urllib.request.urlopen(u, timeout=8).read().decode("utf-8")).get("hourly") or {}
+        hh = CLIMA_PREV[k]
+        m = _r.match(r"\s*(\d{1,2})", str(hora or ""))
+        h = min(23, int(m.group(1))) if m else 12
+        t = hh.get("temperature_2m", [None] * 24)[h]; pr = (hh.get("precipitation_probability") or [0] * 24)[h] or 0
+        c = (hh.get("weathercode") or [0] * 24)[h] or 0
+        if t is None:
+            return ""
+        ico = "☀️" if c == 0 else "🌤️" if c in (1, 2) else "☁️" if c == 3 else "🌫️" if c in (45, 48) else "⛈️" if c >= 95 else "🌦️" if c in (80, 81, 82) else "🌧️" if c >= 51 else "☁️"
+        chuva = f"chance alta de chuva ({pr}%)" if pr >= 60 else f"pode chover ({pr}%)" if pr >= 30 else "sem chuva"
+        return f"{ico} {round(t)}°C, {chuva}"
+    except Exception as e:
+        print(f"Aviso: previsão do tempo indisponível ({type(e).__name__}).")
+        return ""
+
+FRASES_BOMDIA = [
+    "A estrada não espera: acelera com fé e chega com os irmãos.",
+    "Quem tem irmão do lado não anda sozinho em nenhuma estrada.",
+    "Cada dia é uma nova estrada. Faz valer cada quilômetro.",
+    "Respeito, lealdade e irmandade: o resto a gente conquista.",
+    "Coragem não é não ter medo, é seguir em frente mesmo com ele.",
+    "O vento no rosto é de graça. A irmandade, a gente constrói todo dia.",
+    "Faz hoje o que o teu eu de amanhã vai agradecer.",
+    "Grandes viagens começam com um simples ligar do motor.",
+    "Gente de palavra vale mais que qualquer moto zero.",
+    "A vida é curta demais pra rodar devagar nos sonhos.",
+    "Família não é só sangue: é quem divide a estrada com você.",
+    "Disciplina é fazer o que precisa ser feito, mesmo sem vontade.",
+    "Não existe estrada ruim pra quem viaja com os irmãos certos.",
+    "Seja a razão de alguém sorrir hoje.",
+    "Força nos braços, fé no coração e respeito em tudo.",
+    "Quem planta lealdade colhe irmandade.",
+    "O caminho se faz rodando. Bora pra cima!",
+    "Hoje é um ótimo dia pra ser uma versão melhor de você.",
+    "Nenhuma curva dura pra sempre. Segura firme e segue.",
+    "A humildade abre portas que a força nunca abriria.",
+    "Trabalha em silêncio e deixa o resultado fazer o barulho.",
+    "Um irmão de verdade aparece na hora que precisa.",
+    "Sonho grande, pé no chão e a mão no acelerador.",
+    "Quem tem propósito não se perde no caminho.",
+    "Cuida da tua saúde: a estrada precisa de você inteiro.",
+    "O respeito a gente não pede: a gente conquista.",
+    "Gratidão por mais um dia de vida, de estrada e de irmandade.",
+    "Dias difíceis fazem pilotos fortes.",
+    "A união faz a força, e a irmandade faz a diferença.",
+    "Seja firme nos princípios e leve no coração.",
+    "Quem desiste não sente o vento da chegada.",
+    "Mais um dia pra honrar o colete que você veste.",
+    "Pequenos passos todo dia levam a grandes destinos.",
+    "Atitude é o motor que move os sonhos.",
+    "O melhor da viagem são as pessoas que vão com a gente.",
+    "Hoje, faz alguém se sentir parte da família.",
+    "Paciência na estrada, sabedoria na vida.",
+    "Não espera o dia perfeito: faz o dia ser perfeito.",
+    "Quem anda com os bons nunca anda sozinho.",
+    "Bom dia, guerreiro. Hoje é dia de vencer.",
+]
+
+def bom_dia(eventos_hoje=None):
+    """O bom-dia das 9h: a previsão do dia na cidade da sede (Open-Meteo), com a chuva por período, e uma frase do dia."""
+    import urllib.request, urllib.parse, datetime as _dt
+    hoje = _dt.date.today()
+    frase = FRASES_BOMDIA[hoje.toordinal() % len(FRASES_BOMDIA)]   # muda todo dia, sem repetir em dias seguidos
+    clima, ico, cidade = "", "☀️", ""
+    try:
+        end = (DIV.get("sede_endereco") or DIV.get("sede_local") or "São Paulo").strip()
+        u = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode({"format": "json", "limit": 1, "countrycodes": "br", "addressdetails": 1, "q": end})
+        r = json.loads(urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "PainelInsanos/1.0 (painel da divisao)"}), timeout=8).read().decode("utf-8"))
+        if not r:
+            r = json.loads(urllib.request.urlopen(urllib.request.Request("https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
+                {"format": "json", "limit": 1, "countrycodes": "br", "addressdetails": 1, "q": "São Paulo"}), headers={"User-Agent": "PainelInsanos/1.0 (painel da divisao)"}), timeout=8).read().decode("utf-8"))
+        lat, lon = float(r[0]["lat"]), float(r[0]["lon"])
+        a = r[0].get("address", {})
+        cidade = a.get("city") or a.get("town") or a.get("municipality") or "São Paulo"
+        u = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode({"latitude": lat, "longitude": lon, "timezone": "America/Sao_Paulo",
+            "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode", "hourly": "precipitation_probability",
+            "start_date": hoje.isoformat(), "end_date": hoje.isoformat()})
+        w = json.loads(urllib.request.urlopen(u, timeout=8).read().decode("utf-8"))
+        dd, hh = w.get("daily", {}), (w.get("hourly", {}).get("precipitation_probability") or [0] * 24)
+        tmin, tmax = round(dd["temperature_2m_min"][0]), round(dd["temperature_2m_max"][0])
+        pmax, cod = int(dd.get("precipitation_probability_max", [0])[0] or 0), int(dd.get("weathercode", [0])[0] or 0)
+        ico = "☀️" if cod == 0 else "🌤️" if cod in (1, 2) else "☁️" if cod == 3 else "🌫️" if cod in (45, 48) else "⛈️" if cod >= 95 else "🌦️" if cod in (80, 81, 82) else "🌧️" if cod >= 51 else "☁️"
+        per = [n for n, (a_, b_) in (("de manhã", (6, 12)), ("à tarde", (12, 18)), ("à noite", (18, 24))) if max((hh[a_:b_] or [0])) >= 50]
+        if pmax >= 50:
+            quando = (" e ".join(per) if len(per) <= 2 else "o dia todo") if per else "em algum momento do dia"
+            clima = f"{tmin}° a {tmax}°C, com chance de chuva {quando} ({pmax}%). Leva a capa de chuva! 🧥"
+            ico = "🌧️" if ico in ("☀️", "🌤️", "☁️") else ico
+        elif pmax >= 30:
+            clima = f"{tmin}° a {tmax}°C, pode chover ({pmax}%). Fica de olho no céu. 👀"
+        else:
+            clima = f"{tmin}° a {tmax}°C, sem chuva. " + ("Dia perfeito pra rodar! 🏍️ Hidrata, irmão." if tmax >= 28 else "Bom dia pra rodar! 🏍️")
+    except Exception as e:
+        print(f"Aviso: previsão do bom-dia indisponível ({type(e).__name__}).")
+    corpo = (f"Hoje em {cidade}: {clima} " if clima else "")
+    if eventos_hoje:
+        corpo += "Hoje tem " + " e ".join(f"{n}{' às ' + h if h else ''}" for n, h in eventos_hoje) + ". "
+    corpo += f"“{frase}” 💀"
+    return f"{ico} Bom dia, irmão!", corpo
 
 def _zap_formatar(txt):
     """Igual ao app: numeração "01 ▸" nas linhas da lista e as linhas de traços viram uma faixa ═ do tamanho do texto."""
@@ -776,6 +909,7 @@ document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt
 <div id="conqBox" hidden></div>
 <button class="sos-meu" onclick="abrirSOS()">🆘 SOS · Preciso de ajuda</button>
 <button class="msg-meu" onclick="abrirMensagens({modo:'irmao',comando:D.cmd||[]})">✉️ Mensagens · falar com o comando</button>
+${D.enq&&D.enq.ops?`<div class="card" id="enqC" style="border-color:rgba(233,185,73,.55)"><h2 style="margin:0 0 4px">📊 Enquete do comando</h2><p style="margin:0 0 10px;font-weight:600">${es(D.enq.p)}</p><div id="enqOps" class="qbts" style="flex-wrap:wrap"></div><p class="nota" id="enqNota" style="margin:8px 0 0;font-size:12.5px"></p></div>`:""}
 <div class="tri" id="tri"></div>
 ${(D.prox||[]).length&&D.ru?`<details class="card mens-d" id="eventos"><summary><span><b>🗓️ Próximos eventos</b><small id="proxRes">${D.prox.length} evento${D.prox.length>1?"s":""}</small></span><i>›</i></summary><div id="proxL"></div>
   <p class="nota" style="margin-top:8px">A sua resposta vai para a lista da divisão (atualiza em até 30 minutos). Pode mudar de ideia até o dia do evento.</p></details>`:""}
@@ -804,6 +938,7 @@ ${D.mens&&D.mens.st?mensQuadro():""}
   <div class="qbts"><button class="qz" onclick="tutAbrir()">Ver como instalar</button></div></div>
 <div class="card" id="avisos"><h2>🔔 Avisos no celular</h2><p class="nota" id="avSt" style="margin:0 0 10px">Receba lembretes das listas e da agenda da divisão, só para você.</p>
   <div class="qbts"><button id="avAt" class="qz">🔔 Ativar avisos</button><button id="avDes" hidden>Desativar</button></div>
+  <div class="qbts" style="margin-top:8px"><button id="bdTg" style="font-size:13px">🔕 Não receber o bom-dia</button></div>
   <details style="margin-top:12px"><summary>🔊 Deixar o alerta do SOS bem alto (Android)</summary>
     <ol class="nota" style="margin:8px 0 0;padding-left:18px;line-height:1.5">
       <li>Abra as <b>Configurações</b> do celular › <b>Apps</b> (ou Aplicativos).</li>
@@ -868,9 +1003,11 @@ function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;l
     if(r){r.textContent=`${D.prox.length} evento${D.prox.length>1?"s":""}`+(sem?` · ${sem} sem a sua resposta`:" · todos respondidos ✓");r.style.color=sem?"#E9B949":""}}
   el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
     const txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"Ainda não respondeu";
-    return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b>${e.hora||e.local?`<small style="width:100%;padding-left:54px;color:#E9B949;font-weight:600">${[e.hora&&"🕗 "+es(e.hora),e.local&&"📍 "+es(e.local)].filter(Boolean).join(" · ")}</small>`:""}<small class="nota" style="width:100%;padding-left:54px">${txt}</small>
-      <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button><button data-ag="${k}">📅 Agenda</button></div></div>`}).join("");
+    return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b>${e.clima?`<small style="width:100%;padding-left:54px;color:#BDB7AA">Previsão: ${es(e.clima)}</small>`:""}${e.hora||e.local?`<small style="width:100%;padding-left:54px;color:#E9B949;font-weight:600">${[e.hora&&"🕗 "+es(e.hora),e.local&&"📍 "+es(e.local)].filter(Boolean).join(" · ")}</small>`:""}<small class="nota" style="width:100%;padding-left:54px">${txt}</small>
+      <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button><button data-ag="${k}">📅 Agenda</button>${e.mapa?`<button data-mp="${k}">🗺️ Maps</button><button data-wz="${k}">🚙 Waze</button>`:""}</div></div>`}).join("");
   el.querySelectorAll("[data-ag]").forEach(b=>b.onclick=()=>agendaAdd(D.prox[+b.dataset.ag]));
+el.querySelectorAll("[data-mp]").forEach(b=>b.onclick=()=>window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(D.prox[+b.dataset.mp].mapa),"_blank"));
+el.querySelectorAll("[data-wz]").forEach(b=>b.onclick=()=>window.open("https://waze.com/ul?navigate=yes&q="+encodeURIComponent(D.prox[+b.dataset.wz].mapa),"_blank"));
   el.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const e=D.prox[+b.dataset.k],r=b.dataset.r;
     try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
       loc[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(loc))}catch(_){}proxDesenha();
@@ -894,6 +1031,20 @@ proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("ev
   const hoje=new Date();hoje.setHours(0,0,0,0);
   const dias=md=>{const [mm,dd]=md.split("-").map(Number);let d=new Date(hoje.getFullYear(),mm-1,dd);if(d<hoje)d=new Date(hoje.getFullYear()+1,mm-1,dd);return Math.round((d-hoje)/864e5)};
   const L=(D.anivs||[]).map(a=>({...a,d:dias(a.md)})).sort((a,b)=>a.d-b.d).slice(0,5);
+  {const h=L.filter(a=>a.d===0);   // aniversário de irmão hoje: o app fica dourado, com a faixa de comemoração
+    if(h.length){document.head.insertAdjacentHTML("beforeend",`<style>body.tema-aniv .fundo-video{filter:sepia(.85) saturate(2.3) hue-rotate(-8deg) brightness(.95)}
+body.tema-aniv::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(120% 55% at 50% 0%,rgba(233,185,73,.16),transparent 70%)}
+body.tema-aniv .painel,body.tema-aniv .card,body.tema-aniv .q3,body.tema-aniv .tri button{border-color:rgba(233,185,73,.55)!important}
+body.tema-aniv h1,body.tema-aniv .painel h2,body.tema-aniv .card h2{color:#F1CF6E}
+.aniv-faixa,body.tema-aniv .aniv-alerta{background:linear-gradient(90deg,#B8892A,#F1CF6E)!important;color:#1a1206!important;border:1px solid #F1CF6E!important;border-radius:14px;padding:12px 14px;margin:0 0 14px;font-size:15.5px;font-weight:600;box-shadow:0 6px 24px rgba(233,185,73,.35)}
+.aniv-faixa b,body.tema-aniv .aniv-alerta b{color:#1a1206!important}
+.aniv-faixa button{display:block;width:100%;margin-top:10px;padding:11px;border-radius:12px;border:0;background:#1a1206;color:#F1CF6E;font:inherit;font-weight:800}</style>`);document.body.classList.add("tema-aniv");
+      const eu=h.find(a=>a.n===D.n),out=h.filter(a=>a.n!==D.n),fx=document.createElement("div");fx.className="aniv-faixa";
+      fx.innerHTML=(eu?`🎂 <b>Feliz aniversário, ${es(D.n)}!</b> Todo o Insanos M.C. te deseja um ano de muita saúde, estrada e irmandade. 💀`:"")+
+        (out.length?`${eu?"<br><br>":""}🎉 <b>Hoje é aniversário de ${out.map(a=>es(a.n)).join(" e ")}!</b>${out.some(a=>a.tel)?'<button type="button" id="anivFxBt">🎉 Mandar os parabéns</button>':""}`:"");
+      const alvo=document.getElementById("enqC")||document.getElementById("tri")||el.closest(".card");if(alvo)alvo.before(fx);
+      const fb=document.getElementById("anivFxBt");if(fb)fb.onclick=()=>{const tb=document.querySelector('#tri [data-tri="anivC"]'),d=document.getElementById("anivC");
+        if(tb&&!d.open)tb.click();else if(d)d.open=true;setTimeout(()=>{const pb=document.querySelector("#anivL [data-pb]");if(pb)pb.click()},120)}}}
   el.innerHTML=L.map((a,k)=>{const eu=a.n===D.n,dm=a.md.slice(3,5)+"/"+a.md.slice(0,2);
     const qd=a.d===0?(eu?"🎉 Hoje é o seu dia!":"🎉 É hoje!"):a.d===1?"amanhã":`em ${a.d} dias`;
     return `<div class="ev" style="flex-wrap:wrap${a.d===0?";background:rgba(233,185,73,.10);border-radius:12px;padding:10px":""}"><span>${dm}</span><b style="flex:1;font-weight:600">${es(a.n)}${eu?" (você)":""}</b>
@@ -917,6 +1068,26 @@ proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("ev
       if(q&&window.SOS_URL){try{await Promise.race([fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},
         body:JSON.stringify({tipo:"parabens",email:q.email,s:q.s,para:a.n,texto:t})}),new Promise(r=>setTimeout(r,3000))])}catch(_){}}
       fecha();location.href=`https://api.whatsapp.com/send/?phone=${a.tel}&text=${encodeURIComponent(t)}`}}})();
+// ---- ☀️ bom-dia das 9h: o irmão pode desligar só esse aviso (fica guardado na planilha, aba Preferências) ----
+(function(){const b=document.getElementById("bdTg");if(!b)return;const k="bomdia_off_"+D.email;
+  let off=false;try{off=localStorage.getItem(k)==="1"}catch(_){}
+  const rot=()=>{b.textContent=off?"🔔 Voltar a receber o bom-dia":"🔕 Não receber o bom-dia"};rot();
+  b.onclick=async()=>{const q=typeof sosQuem==="function"?sosQuem():null;if(!q||!window.SOS_URL){alert("Não consegui agora. Tente de novo em instantes.");return}
+    b.disabled=true;try{await fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"bomdia",email:q.email,s:q.s,ativo:off})});
+      off=!off;try{localStorage.setItem(k,off?"1":"0")}catch(_){}rot();alert(off?"🔕 Pronto: você não recebe mais o bom-dia (os outros avisos continuam).":"🔔 Pronto: o bom-dia volta amanhã, às 9h.")}
+    catch(_){alert("Não consegui agora. Tente de novo em instantes.")}b.disabled=false}})();
+// ---- 📊 enquete do comando: o irmão vota com um toque (pode trocar enquanto estiver aberta; o resultado só o comando vê) ----
+(function(){const box=document.getElementById("enqOps");if(!box||!D.enq)return;const E=D.enq,k="enq_"+E.id+"_"+D.email;
+  let meu=E.meu||"";try{meu=localStorage.getItem(k)||meu}catch(_){}
+  const desenha=()=>{box.innerHTML=E.ops.map((o,i)=>`<button data-eo="${i}" class="${o===meu?"qz":""}" style="flex:1 1 40%">${o===meu?"✓ ":""}${es(o)}</button>`).join("");
+    document.getElementById("enqNota").textContent=meu?"✓ Voto registrado. Dá para trocar enquanto a enquete estiver aberta.":"Toque na sua opção. O resultado só o comando vê."};
+  desenha();
+  box.onclick=async e=>{const b=e.target.closest("[data-eo]");if(!b)return;const o=E.ops[+b.dataset.eo];if(o===meu)return;
+    const q=typeof sosQuem==="function"?sosQuem():null;if(!q||!window.SOS_URL){alert("Não consegui enviar agora. Tente de novo em instantes.");return}
+    b.disabled=true;
+    try{await fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"voto",email:q.email,s:q.s,id:E.id,opcao:o})});
+      meu=o;try{localStorage.setItem(k,o)}catch(_){}desenha();try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}}
+    catch(_){b.disabled=false;alert("Não consegui enviar agora. Tente de novo em instantes.")}}})();
 // ---- os 3 quadrados (eventos, aniversários, mensalidade): prévia; tocando, abre o bloco completo logo abaixo ----
 (function(){const tri=document.getElementById("tri");if(!tri)return;
   document.head.insertAdjacentHTML("beforeend",`<style>
@@ -1124,9 +1295,13 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
                  "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
                  "anivs": anivs_lista,
+                 "enq": ({"id": ENQ["id"], "p": ENQ["p"], "ops": ENQ["ops"], "meu": ENQ["votos"].get(email.strip().lower(), ("", ""))[1]}
+                         if ENQ and ENQ.get("aberta") else None),
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
                            **({k: INFO_EV[(e["d"], e["e"].strip().lower())][k] for k in ("hora", "local", "endereco")}
                               if (e["d"], e["e"].strip().lower()) in INFO_EV else {}),
+                           "clima": clima_evento(e["d"], lugar_evento(e["d"], e["e"])[1], lugar_evento(e["d"], e["e"])[0]),
+                           "mapa": lugar_evento(e["d"], e["e"])[0],
                            "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
                           for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()],
                  "insp": (lambda ui: {"d": ui["d"], "e": ui["e"], "tk": token_rsvp(email, ui["d"], ui["e"])}
@@ -1376,56 +1551,68 @@ window.reinstAviso=function(R){try{
 </script>"""
 
 SELECT_MODULO = r"""<style>
-.selm-veu{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.08)}
-.selm{position:fixed;z-index:10001;min-width:180px;max-width:calc(100vw - 16px);max-height:min(60vh,420px);overflow:auto;-webkit-overflow-scrolling:touch;
-  border-radius:16px;background:rgba(58,54,50,.62);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);
-  box-shadow:0 18px 50px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.12);color:#F2EEE6;font-family:inherit;
-  transform-origin:var(--ox,20px) var(--oy,0px);animation:selmIn .2s cubic-bezier(.2,.9,.3,1.2) both}
-.selm.fora{animation:selmOut .14s ease-in both}
-@keyframes selmIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
-@keyframes selmOut{to{opacity:0;transform:scale(.92)}}
-.selm button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 18px 12px 14px;border:0;background:transparent;color:inherit;font:inherit;font-size:16px;font-weight:600;cursor:pointer}
-.selm button+button{box-shadow:inset 0 1px 0 rgba(255,255,255,.09)}
-.selm button i{width:16px;flex:0 0 16px;font-style:normal;font-weight:800}
-.selm button:active{background:rgba(255,255,255,.12)}
-.selm button[disabled]{opacity:.4}
-.selm .grp{padding:10px 16px 4px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:rgba(242,238,230,.6);font-weight:700}
-@media (prefers-reduced-motion:reduce){.selm,.selm.fora{animation:none}}
+.selm-veu{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center;animation:selmVeu .18s ease both}
+.selm{width:100%;max-width:560px;max-height:82vh;display:flex;flex-direction:column;background:#1b1714;color:#ECE7DC;border-radius:22px 22px 0 0;border-top:3px solid #E9B949;
+  padding:10px 0 calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -12px 40px rgba(0,0,0,.55);animation:selmSobe .24s cubic-bezier(.2,.9,.3,1) both;font-family:inherit}
+.selm-veu.fora{animation:selmVeuFora .16s ease both}.selm-veu.fora .selm{animation:selmDesce .16s ease-in both}
+@keyframes selmVeu{from{background:rgba(0,0,0,0)}}@keyframes selmVeuFora{to{background:rgba(0,0,0,0)}}
+@keyframes selmSobe{from{transform:translateY(100%)}to{transform:none}}@keyframes selmDesce{to{transform:translateY(100%)}}
+.selm .alca{width:44px;height:5px;border-radius:3px;background:rgba(236,231,220,.3);margin:0 auto 10px;flex:none}
+.selm h3{margin:0 18px 10px;font-size:18px;flex:none}
+.selm-busca{flex:none;margin:0 16px 8px;padding:11px 14px;border-radius:12px;background:rgba(0,0,0,.45);border:1px solid rgba(236,231,220,.2);color:#ECE7DC;font:inherit;font-size:16px}
+.selm-l{overflow:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto}
+.selm-l button{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;padding:13px 18px;border:0;border-bottom:1px solid rgba(236,231,220,.07);background:transparent;color:inherit;font:inherit;font-size:16px;line-height:1.35}
+.selm-l button i{width:16px;flex:0 0 16px;font-style:normal;font-weight:800;color:#E9B949}
+.selm-l button .dt{color:#E9B949;font-weight:700;min-width:46px;flex:none}
+.selm-l button.on{background:rgba(233,185,73,.12);font-weight:700}.selm-l button:active{background:rgba(255,255,255,.08)}
+.selm-l button[disabled]{opacity:.4}.selm-l button[hidden],.selm-l .grp[hidden]{display:none}
+.selm-l .grp{padding:12px 18px 4px;font-size:12px;letter-spacing:.06em;color:#E9B949;font-weight:800}
+.selm-fechar{flex:none;margin:10px 16px 0;padding:12px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:none;color:#ECE7DC;font:inherit;font-weight:600}
+@media (prefers-reduced-motion:reduce){.selm,.selm-veu,.selm-veu.fora,.selm-veu.fora .selm{animation:none}}
 </style>
 <script>
-// listas de escolha no Android: em vez da janela padrão do navegador, um menu de vidro fosco que sai do próprio campo
-// (como o do iPhone, que continua com o menu do sistema). No computador, também fica o menu do sistema.
+// listas de escolha: em todo aparelho (Android, iPhone e computador), uma folha que sobe do pé da tela, com o título,
+// o ✓ na opção atual e, nas listas longas, um campo de busca; eventos separados por mês.
 (function(){
-  const ua=navigator.userAgent;if(/iPhone|iPad|iPod/.test(ua)||!/Android/.test(ua))return;
   let aberto=null;
-  const fecha=()=>{if(!aberto)return;const {veu,m}=aberto;aberto=null;m.classList.add("fora");setTimeout(()=>{veu.remove();m.remove()},140)};
+  const fecha=()=>{if(!aberto)return;const v=aberto;aberto=null;v.classList.add("fora");setTimeout(()=>v.remove(),170)};
+  const ACENTOS=new RegExp("["+String.fromCharCode(0x300)+"-"+String.fromCharCode(0x36f)+"]","g");
+  const tira=t=>{try{return String(t).normalize("NFD").replace(ACENTOS,"").toLowerCase()}catch(_){return String(t).toLowerCase()}};
+  const ESC=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const MES=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+  const titulo=sel=>{const l=sel.closest("label");if(l)for(const n of l.childNodes)if(n.nodeType===3&&n.textContent.trim())return n.textContent.trim();
+    return sel.getAttribute("aria-label")||sel.title||"Escolha uma opção"};
   function abre(sel){
     if(aberto)fecha();
-    const r=sel.getBoundingClientRect(),veu=document.createElement("div"),m=document.createElement("div");
-    veu.className="selm-veu";m.className="selm";m.setAttribute("role","listbox");
-    let html="";[...sel.children].forEach(el=>{
-      const item=o=>`<button type="button" role="option" data-v="${String(o.value).replace(/"/g,"&quot;")}"${o.disabled?" disabled":""} aria-selected="${o.selected}"><i>${o.selected?"✓":""}</i><span>${o.textContent.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</span></button>`;
-      if(el.tagName==="OPTGROUP"){html+=`<div class="grp">${el.label}</div>`+[...el.children].map(item).join("")}else if(el.tagName==="OPTION")html+=item(el)});
-    m.innerHTML=html;document.body.appendChild(veu);document.body.appendChild(m);
-    const vw=innerWidth,vh=innerHeight,left=8;   // sempre na largura da tela (as caixas lado a lado abriam a lista pela metade)
-    m.style.width=(vw-16)+"px";m.style.minWidth=(vw-16)+"px";m.style.left=left+"px";
-    const H=m.offsetHeight,emb=vh-r.bottom-10,cima=r.top-10;
-    if(emb>=H||emb>=cima){m.style.top=(r.bottom+6)+"px";m.style.maxHeight=Math.max(160,emb-6)+"px";m.style.setProperty("--oy","0px")}
-    else{m.style.bottom=(vh-r.top+6)+"px";m.style.maxHeight=Math.max(160,cima-6)+"px";m.style.setProperty("--oy","100%")}
-    m.style.setProperty("--ox",Math.max(10,Math.min(r.left+r.width/2-left,40))+"px");
-    const atual=m.querySelector('[aria-selected="true"]');if(atual)atual.scrollIntoView({block:"nearest"});
-    const t0=Date.now();veu.addEventListener("click",()=>{if(Date.now()-t0>350)fecha()});   // o fim do toque que abriu não fecha
-    m.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(!b||b.disabled)return;
-      if(sel.value!==b.dataset.v){sel.value=b.dataset.v;sel.dispatchEvent(new Event("input",{bubbles:true}));sel.dispatchEvent(new Event("change",{bubbles:true}))}
+    const ops=[...sel.options];let html="",gAnt=null;
+    ops.forEach((o,k)=>{const val=String(o.value),t=o.textContent;let g=null;
+      if(o.parentElement&&o.parentElement.tagName==="OPTGROUP")g=o.parentElement.label;
+      else if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(val))g=MES[+val.slice(5,7)-1]+" "+val.slice(0,4);
+      if(g&&g!==gAnt){html+=`<div class="grp">${ESC(g)}</div>`;gAnt=g}
+      let dt="",resto=t;if(t.length>8&&/^[0-9]{2}.[0-9]{2}$/.test(t.slice(0,5))&&t.slice(5,8)===" · "){dt=t.slice(0,5);resto=t.slice(8)}
+      html+=`<button type="button" data-k="${k}" data-busca="${ESC(tira(t))}"${o.disabled?" disabled":""} class="${o.selected?"on":""}" role="option" aria-selected="${o.selected}"><i>${o.selected?"✓":""}</i>${dt?`<b class="dt">${ESC(dt)}</b>`:""}<span>${ESC(resto)}</span></button>`});
+    const v=document.createElement("div");v.className="selm-veu";
+    v.innerHTML=`<div class="selm" role="dialog" aria-label="${ESC(titulo(sel))}"><div class="alca"></div><h3>${ESC(titulo(sel))}</h3>${ops.length>8?`<input type="search" class="selm-busca" placeholder="🔎 Buscar…" aria-label="Buscar">`:""}<div class="selm-l" role="listbox">${html}</div><button type="button" class="selm-fechar">Fechar</button></div>`;
+    document.body.appendChild(v);aberto=v;
+    const L=v.querySelector(".selm-l"),on=L.querySelector(".on");if(on)on.scrollIntoView({block:"center"});
+    const t0=Date.now();
+    v.addEventListener("click",ev=>{if(ev.target===v){if(Date.now()-t0>350)fecha();return}
+      if(ev.target.closest(".selm-fechar")){fecha();return}
+      const b=ev.target.closest("button[data-k]");if(!b||b.disabled)return;const k=+b.dataset.k;
+      if(sel.selectedIndex!==k){sel.selectedIndex=k;sel.dispatchEvent(new Event("input",{bubbles:true}));sel.dispatchEvent(new Event("change",{bubbles:true}))}
       try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}fecha()});
-    aberto={veu,m}}
-  const alvo=ev=>{const s=ev.target&&ev.target.closest&&ev.target.closest("select");return s&&!s.multiple&&!s.disabled&&s.size<=1?s:null};
-  // o começo do toque só impede a janela padrão; o menu abre no fim do toque (clique), para o mesmo toque não fechá-lo
+    const bu=v.querySelector(".selm-busca");
+    if(bu)bu.addEventListener("input",()=>{const q=tira(bu.value.trim());
+      L.querySelectorAll("button[data-k]").forEach(b=>b.hidden=!!q&&!b.dataset.busca.includes(q));
+      L.querySelectorAll(".grp").forEach(gr=>{let n=gr.nextElementSibling,vis=false;while(n&&!n.classList.contains("grp")){if(!n.hidden)vis=true;n=n.nextElementSibling}gr.hidden=!vis})})}
+  const alvo=ev=>{const s=ev.target&&ev.target.closest&&ev.target.closest("select");return s&&!s.multiple&&!s.disabled&&s.size<=1&&!s.dataset.nativo?s:null};
+  // o começo do toque só impede a janela padrão; a folha abre no fim do toque (clique), para o mesmo toque não fechá-la
   document.addEventListener("pointerdown",ev=>{if(alvo(ev))ev.preventDefault()},true);
   document.addEventListener("mousedown",ev=>{if(alvo(ev))ev.preventDefault()},true);
   document.addEventListener("click",ev=>{const s=alvo(ev);if(!s)return;ev.preventDefault();s.blur();abre(s)},true);
-  document.addEventListener("keydown",ev=>{if(ev.key==="Escape")fecha()});
-  addEventListener("resize",fecha);addEventListener("popstate",fecha);
+  document.addEventListener("keydown",ev=>{if(ev.key==="Escape"){fecha();return}
+    const s=ev.target&&ev.target.tagName==="SELECT"?alvo(ev):null;if(s&&(ev.key==="Enter"||ev.key===" "||ev.key==="ArrowDown")){ev.preventDefault();abre(s)}});
+  addEventListener("popstate",fecha);
 })();
 </script>"""
 
@@ -2788,7 +2975,7 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
         em = str(email).strip().lower()
         if so_para and em != str(so_para).strip().lower():
             continue            # aviso individual (ou de teste): só para aquele e-mail
-        if excluir and em == str(excluir).strip().lower():
+        if excluir and em in ({str(x).strip().lower() for x in excluir} if isinstance(excluir, (list, set, tuple)) else {str(excluir).strip().lower()}):
             continue            # ex.: quem pediu o SOS não recebe o próprio alerta
         if not so_para and not todos and ADM_EMAILS and em not in ADM_EMAILS:
             continue            # aviso geral: só para o comando (os irmãos recebem só os lembretes deles); o SOS vai para todos
@@ -3465,6 +3652,26 @@ def main():
                 INFO_EV[(dj, str(ej).strip().lower())] = inf_ev   # (nome próprio: "info" é o dos integrantes)
     except Exception as e:
         print(f"Aviso: informações dos eventos não lidas ({type(e).__name__}: {e}).")
+    # enquete do comando: a última da aba Enquetes, com os votos da aba Votos (um por irmão; vale o último)
+    global ENQ
+    ENQ = {}
+    try:
+        if "Enquetes" in wb.sheetnames:
+            lin_e = [r for r in wb["Enquetes"].iter_rows(min_row=2, max_col=6, values_only=True) if r and r[0]]
+            if lin_e:
+                r = lin_e[-1]
+                try:
+                    ops_e = [str(x) for x in json.loads(r[4] or "[]")]
+                except Exception:
+                    ops_e = []
+                ENQ = {"id": str(r[0]), "criada": str(r[1] or ""), "por": str(r[2] or ""), "p": str(r[3] or ""), "ops": ops_e,
+                       "aberta": str(r[5] or "").strip().lower() == "aberta", "votos": {}}
+                if "Votos" in wb.sheetnames:
+                    for vv in wb["Votos"].iter_rows(min_row=2, max_col=5, values_only=True):
+                        if vv and str(vv[1] or "") == ENQ["id"] and vv[2]:
+                            ENQ["votos"][str(vv[2]).strip().lower()] = (str(vv[3] or "").strip(), str(vv[4] or "").strip())
+    except Exception as e:
+        print(f"Aviso: enquete não lida ({type(e).__name__}: {e}).")
     pgto = list(wb["PGTO"].iter_rows(min_row=2, max_row=250, max_col=10, values_only=True)) if "PGTO" in wb.sheetnames else []
     msg_pag = [r[0] for r in wb["Pagamentos"].iter_rows(min_row=1, max_row=80, min_col=3, max_col=3, values_only=True)] \
         if "Pagamentos" in wb.sheetnames else []
@@ -3767,7 +3974,12 @@ def main():
         ZAP_PAG = zap_pagamentos(pag, membros)
     except Exception as e:
         ZAP_PAG = ""; print(f"Aviso: mensagem dos pagamentos para o WhatsApp não montada ({type(e).__name__}: {e}).")
-    global ZAP_CTX
+    global ZAP_CTX, HOJE_EVS
+    try:
+        _hj = datetime.date.today().isoformat()
+        HOJE_EVS = [(e["e"], str(INFO_EV.get((e["d"], e["e"].strip().lower()), {}).get("hora") or "")) for e in eventos if e["d"] == _hj]
+    except Exception:
+        HOJE_EVS = []
     try:
         _ent = {}
         for e in eventos + eventos_ins:
@@ -3785,10 +3997,22 @@ def main():
         if k_ in INFO_EV: x["info"] = INFO_EV[k_]
         return x
     eventos_adm = [_ev_adm(e) for e in eventos]
-    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    enq_adm = None
+    if ENQ:
+        nomes_ = {m["n"].lower(): m["n"] for m in membros}
+        res_ = {o: [] for o in ENQ["ops"]}
+        for em_, (ap_, op_) in ENQ["votos"].items():
+            nm_ = nomes_.get(ap_.lower()) or nomes_.get(str(EMAIL_APELIDO.get(em_, "")).lower()) or ap_ or em_.split("@")[0]
+            res_.setdefault(op_, []).append(nm_)
+        enq_adm = {k: ENQ[k] for k in ("id", "criada", "por", "p", "ops", "aberta")}
+        _por = str(ENQ.get("por") or "").strip().lower()
+        _ap = str(EMAIL_APELIDO.get(_por, "") or (_por if "@" not in _por else _por.split("@")[0]))
+        enq_adm["por"] = nomes_.get(_ap.lower(), _ap)   # o apelido de quem criou
+        enq_adm.update({"res": res_, "total": len(membros)})
+    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "enq": enq_adm, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]

@@ -5,10 +5,11 @@ Painel Insanos na nuvem (GitHub Actions).
 Nada de dados pessoais fica no repositório: a planilha temporária existe só durante a execução.
 """
 import os, sys, json, datetime, unicodedata, re, base64
+import urllib.parse
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
-ABAS_OPC = ["Eventos", "Justificativas"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
+ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
 COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17]}   # colunas de data (0 = A): B, J e R
 
 def _serial_para_data(v):
@@ -156,6 +157,36 @@ def gravar_info_evento(api, pid, d, quem=""):
     api.spreadsheets().values().clear(spreadsheetId=pid, range=f"'{aba}'!A1:J3000").execute()
     api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW",
                                        body={"values": [cab] + outros + [linha]}).execute()
+
+def aplicar_enquete(api, pid, d, quem=""):
+    """Enquete do comando (aba Enquetes, criada sozinha): uma linha por enquete; a nova encerra a que estava aberta.
+    enquete_fim: encerra a enquete pelo id."""
+    aba = _aba_real(api, pid, "Enquetes")
+    if not aba:
+        _estrutura(api, pid, [{"addSheet": {"properties": {"title": "Enquetes"}}}]); aba = "Enquetes"
+    v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:F500").execute().get("values", [])
+    cab = ["ID", "Criada", "Por", "Pergunta", "Opções", "Situação"]
+    linhas = [list(r) + [""] * (6 - len(r)) for r in v[1:] if r]
+    if d.get("tipo") == "enquete_fim":
+        for r in linhas:
+            if str(r[0]) == str(d.get("id")):
+                r[5] = "encerrada"
+        res = "enquete encerrada"
+    else:
+        ops = [str(x).strip()[:60] for x in (d.get("opcoes") or []) if str(x).strip()][:4]
+        perg = str(d.get("pergunta") or "").strip()[:200]
+        if not perg or len(ops) < 2:
+            return "enquete sem pergunta ou com menos de 2 opções"
+        for r in linhas:
+            if r[5] == "aberta":
+                r[5] = "encerrada"
+        idn = str(d.get("id") or "E" + datetime.datetime.now().strftime("%Y%m%d%H%M%S"))[:40]
+        linhas.append([idn, datetime.datetime.now().strftime("%d/%m/%Y %H:%M"), str(quem or "").strip().lower(), perg, json.dumps(ops, ensure_ascii=False), "aberta"])
+        ENQ_NOVA.append(perg)
+        res = "enquete criada"
+    api.spreadsheets().values().clear(spreadsheetId=pid, range=f"'{aba}'!A1:F500").execute()
+    api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW", body={"values": [cab] + linhas[-200:]}).execute()
+    return res
 
 def aplicar_evento(api, pid, d):
     """Lançar evento / Insights / Salvar no Excel: data + nome + marcações na aba (Presenca ou Insights)."""
@@ -588,6 +619,7 @@ def _mes_k(v):
 
 BOLETOS_DISPONIVEIS = []   # meses cujos boletos acabaram de entrar na coluna J (nesta rodada)
 AVISO_BOLETO_MANUAL = []   # botão "📲 Avisar quem não pagou" (tela Pagamentos): aviso na hora
+ENQ_NOVA = []              # enquete nova do comando: avisa os irmãos depois de publicar o painel (a enquete já aparece no app)
 VERIFICAR_AGORA = []       # botão "🔄 Verificar agora" (tela Pagamentos): verifica os boletos nesta rodada
 
 def aplicar_boletos(api, pid, d):
@@ -1230,12 +1262,20 @@ def enviar_lembretes(g):
         # eventos sem confirmação: 9h, 13h e 19h, até o dia do evento
         for ev in p.get("ev", []):
             emoji, icone = _tipo_aviso({"tipo": "lancamento_presenca", "aba": "Presenca", "evento": ev["nome"]})
+            try:   # previsão do tempo (até 15 dias antes) e o endereço para o Como chegar
+                end_, hr_ = g.lugar_evento(ev["d"], ev["nome"])
+                clima_ = g.clima_evento(ev["d"], hr_, end_)
+            except Exception:
+                end_, hr_, clima_ = "", "", ""
+            prev = f" Previsão: {clima_}." if clima_ else ""
             if ev["d"] == hoje.isoformat():
-                tit, corpo = f"{emoji} {ev['nome']} é hoje", f"Fala, {ap}! Hoje tem {ev['nome']}. Se ainda não confirmou, dá um toque no grupo. Contamos com você! 🤝"
+                tit, corpo = f"{emoji} {ev['nome']} é hoje", f"Fala, {ap}! Hoje tem {ev['nome']}{' às ' + hr_ if hr_ else ''}. Se ainda não confirmou, dá um toque no grupo. Contamos com você! 🤝{prev}"
+                mapa = ("https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(end_)) if end_ else None
+                manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email,
+                      **({"link": mapa, "link_rot": "🗺️ Como chegar"} if mapa else {"rsvp": {"d": ev["d"], "e": ev["nome"]}}))
             else:
-                tit, corpo = f"{emoji} {ev['nome']} · {br(ev['d'])}", f"Fala, {ap}! A lista da {ev['nome']} está aberta. Confirma a sua presença no grupo? Contamos com você! 🤝"
-            manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo.replace("Confirma a sua presença no grupo?", "Você vai? Responde aqui embaixo."),
-                  "lembrete-ev", icone=icone, so_para=email, rsvp={"d": ev["d"], "e": ev["nome"]})
+                tit, corpo = f"{emoji} {ev['nome']} · {br(ev['d'])}", f"Fala, {ap}! A lista da {ev['nome']} está aberta. Você vai? Responde aqui embaixo. Contamos com você! 🤝{prev}"
+                manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email, rsvp={"d": ev["d"], "e": ev["nome"]})
         # mensalidade: 9h, de 3 dias antes até o dia do vencimento (só quem ainda não aparece como pago)
         if slot == "m" and venc and not p.get("pago"):
             k = (venc - hoje).days
@@ -1316,6 +1356,8 @@ def processar_fila(api, pid):
             elif tp == "verificar_pagamentos":
                 VERIFICAR_AGORA.append(str(row[1]).strip().lower() or "?")   # guarda quem pediu (para o aviso ao comando)
                 res, sit = "verificação dos boletos pedida pela tela Pagamentos", "feito"
+            elif tp in ("enquete_nova", "enquete_fim"):
+                res, sit = aplicar_enquete(api, pid, d, row[1]), "feito"
             elif tp == "boletos_aviso":
                 AVISO_BOLETO_MANUAL.append(1)
                 res, sit = "aviso de boleto disponível: enviado depois de publicar o painel", "feito"
@@ -1821,6 +1863,31 @@ def main():
             enviar_boleto_disponivel(g)
         except Exception as e:
             print(f"Aviso: aviso de boleto disponível falhou ({type(e).__name__}: {e}).")
+        if evento == "schedule" and datetime.datetime.now().hour >= 9:   # ☀️ bom-dia: uma vez por dia, a partir das 9h, para todos
+            try:
+                env_bd = _json_ler("lembretes_enviados.json", {})
+                k_bd = f"{datetime.date.today().isoformat()}|bomdia"
+                if k_bd not in env_bd:
+                    fora = []   # quem desligou o bom-dia (aba Preferências, gravada pelo Apps Script)
+                    try:
+                        if _aba_real(api, planilha_id, "Preferencias"):
+                            fora = [str(r[0]).strip().lower() for r in _ler(api, planilha_id, "'Preferencias'!A2:B1000") if len(r) > 1 and str(r[1]).strip().upper() == "SIM"]
+                    except Exception:
+                        pass
+                    tit_bd, corpo_bd = g.bom_dia(getattr(g, "HOJE_EVS", []))
+                    g.notificar(tit_bd, corpo_bd, "bomdia", icone="notif-evento.png", todos=True, excluir=fora)
+                    env_bd[k_bd] = datetime.datetime.now().isoformat(timespec="minutes")
+                    _json_gravar("lembretes_enviados.json", env_bd)
+                    print(f"Bom-dia enviado (fora: {len(fora)}).")
+            except Exception as e:
+                print(f"Aviso: bom-dia não enviado ({type(e).__name__}: {e}).")
+        if ENQ_NOVA:   # enquete nova do comando: todos os celulares cadastrados (a enquete já está no app)
+            try:
+                g.notificar("📊 Enquete do comando", ENQ_NOVA[-1] + " Toque para votar.", "enquete", icone="notif-importante.png", todos=True)
+                print("Aviso da enquete nova enviado.")
+            except Exception as e:
+                print(f"Aviso: enquete não avisada ({type(e).__name__}: {e}).")
+            ENQ_NOVA.clear()
         if evento == "schedule":
             try:
                 enviar_lembretes(g)
