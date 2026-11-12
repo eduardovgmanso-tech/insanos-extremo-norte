@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Instalar componentes
-        run: pip install --quiet openpyxl cryptography google-auth google-api-python-client pywebpush
+        run: pip install --quiet openpyxl cryptography google-auth google-api-python-client pywebpush pillow
       - name: Gerar e publicar o painel
         env:
           TZ: America/Sao_Paulo
