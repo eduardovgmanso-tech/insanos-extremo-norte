@@ -294,7 +294,7 @@ body.individual .filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}
 .bug-cx textarea{width:100%;box-sizing:border-box;border-radius:12px;padding:10px;background:rgba(0,0,0,.4);color:var(--osso);border:1px solid rgba(236,231,220,.25);font:inherit;font-size:14.5px}
 .bug-img{display:block;margin-top:10px;padding:10px;border-radius:12px;border:1px dashed rgba(233,185,73,.6);text-align:center;color:#E9B949;font-weight:600;cursor:pointer}
 #bugPrev{display:block;max-width:100%;max-height:180px;margin:10px auto 0;border-radius:10px}#bugPrev[hidden]{display:none}
-#lEv{font-size:14.5px!important;text-overflow:ellipsis}
+
 .hl,.hl-cobre{position:absolute;inset:0;pointer-events:none;z-index:2;-webkit-mask:var(--m,var(--cav)) center/contain no-repeat;mask:var(--m,var(--cav)) center/contain no-repeat;
   background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,0) 30%,rgba(200,200,200,.55) 40%,rgba(255,255,255,.95) 48%,rgba(150,150,150,.6) 54%,rgba(235,235,235,.8) 60%,rgba(255,255,255,0) 70%,transparent 80%);
   background-size:300% 300%;background-position:var(--hx,50%) var(--hy,50%);mix-blend-mode:soft-light;opacity:.9}
@@ -329,6 +329,7 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 #lwTipos[hidden]{display:none!important}.lw-tipo-sel{display:block;font-size:13px;color:var(--osso2);margin:10px 0 12px}.lw-tipo-sel select{display:block;width:100%;margin-top:4px}
 .lw-filtro{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.lw-filtro button{padding:7px 11px;border-radius:999px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-size:13px;font-weight:600}
 .lw-filtro button span{opacity:.7;font-weight:800;margin-left:2px}.lw-filtro button[aria-pressed="true"]{background:#ECE7DC;color:#111}
+.ver-todos{display:block;margin:0 0 10px auto;padding:7px 12px;border-radius:999px;border:1px solid rgba(233,185,73,.6);background:rgba(233,185,73,.12);color:#F1CF6E;font:inherit;font-size:13px;font-weight:700}.ver-todos[hidden]{display:none}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
@@ -897,7 +898,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
     <section class="painel so-geral" id="secInt">
       <div class="topo-painel"><h2>Por integrante</h2>
         <div class="ordem" role="group" aria-label="Ordenar lista"><button type="button" data-ord="hier" aria-pressed="true">Hierarquia</button><button type="button" data-ord="pres" aria-pressed="false">Mais presentes</button></div></div>
-      <p class="sub">Cada coluna é um integrante: verde são presenças, vermelho são faltas. Clique numa coluna para destacar o integrante.</p>
+      <p class="sub">Cada coluna é um integrante: verde são presenças, vermelho são faltas. Toque numa coluna para destacar o integrante; toque num espaço vazio para voltar a todos.</p>
       <div class="legenda"><span><i style="background:var(--presente)"></i>Presente</span><span><i style="background:var(--sangue)"></i>Ausente</span></div>
       <div class="colunas" id="listaMembros"></div>
     </section>
@@ -1198,6 +1199,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
         <label class="inteiro">Evento<select id="lEv"></select></label>
         <label>Nome do evento<input type="text" id="lNome" maxlength="80" placeholder="Ex.: Reunião mensal"></label>
         <label>Data do evento<input type="date" id="lData"></label>
+        <label class="inteiro">Assinatura<select id="lAssin"></select></label>
       </div>
       <div class="lanc-info" id="lInfo" hidden><div class="lanc-g">LISTA DO EVENTO</div><div class="lw-tipos" role="tablist" id="lTipos"></div><div class="lw-campos" id="lInfoCampos"></div></div>
       <div class="lanc-acoes" style="margin-top:14px">
@@ -1435,7 +1437,7 @@ function izCarregar(){const e=iz.k==null?null:(EV_SETS.ins||[])[iz.k];iz.marca={
   $("izNum").value=e?e.e:"";$("izData").value=e?e.d:new Date().toISOString().slice(0,10);izPeriodo();izListaUI();izAtualiza()}
 function izMontar(){if(!$("insZap")||MODO!=="adm")return;
   const evs=izEventos();
-  $("izEv").innerHTML=`<option value="novo">➕ Novo ou alterar um insight anterior</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");
+  $("izEv").innerHTML=`<option value="novo">➕ Novo ou alterar insight</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");
   if(evs.length){$("izEv").value=String(evs[0].k);iz.k=evs[0].k}else{$("izEv").value="novo";iz.k=null}
   const cmd=[...M_FULL].filter(m=>grupoDe(m)==="Comando").sort((a,b)=>a.o-b.o);
   const sub=cmd.find(m=>/^sub/i.test(String(m.c||"").trim()));
@@ -1627,7 +1629,15 @@ function estaticoJS(m,evs,r){
   const pos=t.pos?t.pos+"º":"–",posL=t.pos?`entre ${t.total} integrantes`:"sem posição",med=t.media!=null?` · média da divisão ${t.media}%`:"";
   const rot={"1":"Presente","0":"Ausente","null":"Sem registro","-":"Não conta"},cl={"1":"s1","0":"s0","null":"sn","-":"sn"};
   const lin=[...evs].reverse().map(e=>`<div class="ev"><div>${esc(e.e)}<small>${e.d.slice(8)}/${e.d.slice(5,7)}</small></div><span class="status ${cl[e.p[0]]}">${rot[e.p[0]]}</span></div>`).join("");
-  return `<noscript><style>.js{display:none!important}</style><section class="painel estatico"><div class="contato on" style="padding:0 0 12px;border:0;background:none"><div class="quem">${esc(m.n)}<small>Nº ${esc(m.num)} · ${esc(m.c)}${m.nasc?" · "+esc(nascIdade(m)):""}</small></div></div><div class="kpis"><div class="kpi"><div class="v">${pc}</div><div class="l">de adesão</div></div><div class="kpi"><div class="v">${pos}</div><div class="l">${posL}${med}</div></div><div class="kpi ok"><div class="v">${p}</div><div class="l">presenças</div></div><div class="kpi falta"><div class="v">${a}</div><div class="l">faltas</div></div></div>${extraEst(evs,r)}<h2 style="margin-top:20px">Por evento</h2>${lin}</section></noscript>`;
+  return `<noscript><style>.js{display:none!important}/* escala única de texto (o Tamanho da letra dos Ajustes aumenta tudo na mesma proporção) */
+:root{--fs-campo:16px;--fs-rot:13.5px;--fs-nota:13px;--fs-btn:15px;--fs-h2:21px}
+.painel input:not([type=checkbox]):not([type=radio]):not([type=range]),.painel select,.painel textarea,.lw-jtx,.lanc-just,.card input:not([type=checkbox]):not([type=radio]),.card select,.card textarea,.fa-cx input:not([type=checkbox]),.fa-cx select,.fa-cx textarea{font-size:var(--fs-campo)!important}
+select{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+.painel label,.card label,.fa-cx label{font-size:var(--fs-rot)}
+.painel .nota,.painel p.sub,.card .nota,.fa-cx .nota{font-size:var(--fs-nota)}
+.painel h2,.card h2{font-size:var(--fs-h2)}
+.btn,.qbts button{font-size:var(--fs-btn)}
+</style><section class="painel estatico"><div class="contato on" style="padding:0 0 12px;border:0;background:none"><div class="quem">${esc(m.n)}<small>Nº ${esc(m.num)} · ${esc(m.c)}${m.nasc?" · "+esc(nascIdade(m)):""}</small></div></div><div class="kpis"><div class="kpi"><div class="v">${pc}</div><div class="l">de adesão</div></div><div class="kpi"><div class="v">${pos}</div><div class="l">${posL}${med}</div></div><div class="kpi ok"><div class="v">${p}</div><div class="l">presenças</div></div><div class="kpi falta"><div class="v">${a}</div><div class="l">faltas</div></div></div>${extraEst(evs,r)}<h2 style="margin-top:20px">Por evento</h2>${lin}</section></noscript>`;
 }
 function extraEst(evs,r){
   const t=r.todos||{},ms=Object.keys(r).filter(k=>k!=="todos").sort();
@@ -2549,6 +2559,8 @@ function render(){
   document.querySelectorAll(".ordem button[data-ord]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ord===ordem));   // (os botões do Top 5 cuidam de si)
   const maxM=Math.max(1,...ord.map(s=>s.p+s.a));
   $("listaMembros").classList.toggle("foco",!!sel);
+  {let vt=document.getElementById("verTodos");if(!vt){vt=document.createElement("button");vt.type="button";vt.id="verTodos";vt.className="ver-todos";vt.setAttribute("data-ver-todos","1");$("listaMembros").before(vt)}
+    vt.hidden=!sel||MODO==="individual";if(sel)vt.textContent=`✕ Ver todos (agora: ${sel.n})`}
   $("listaMembros").innerHTML=ord.length?ord.map(s=>coluna({ativa:st.nome===s.n,attr:`data-nome="${esc(s.n)}"`,
       tit:`${s.n} · Nº ${s.num}${anivIdade(s)?" · "+anivIdade(s):""} · ${s.p} presenças, ${s.a} faltas`,pc:s.pc,t:s.p+s.a,max:maxM,p:s.p,a:s.a,rot:s.n,sub2:anivIdade(s)})).join("")
     :`<div class="vazio">Nenhum integrante com esses filtros. Limpe o cargo.</div>`;
@@ -2652,6 +2664,8 @@ document.addEventListener("click",ev=>{
   const o=ev.target.closest("[data-ord]");if(o){ordem=o.dataset.ord;render();return}
   const n=ev.target.closest("[data-nome]"),d=ev.target.closest("[data-data]");
   if(n&&MODO!=="individual"){st.nome=st.nome===n.dataset.nome?"":n.dataset.nome;if(st.nome)st.cargos=[];render()}
+  else if(st.nome&&MODO!=="individual"&&(ev.target.closest("[data-ver-todos]")||(()=>{const s=ev.target.closest("section.painel");return s&&(s.querySelector("#listaMembros")||s.querySelector("#topMais"))&&!ev.target.closest("button,select,input,a,summary,[data-ord],[data-top]")})())){
+    st.nome="";if($("fNome"))$("fNome").value="";render()}   // tocou num espaço vazio do gráfico (ou no "Ver todos"): volta para todos
   else if(d){st.data=st.data===d.dataset.data?"":d.dataset.data;if(st.data)st.mes="";render()}
 });
 document.addEventListener("keydown",ev=>{if(ev.key==="Enter"&&(ev.target.classList.contains("linha")||ev.target.classList.contains("top")||ev.target.classList.contains("col")))ev.target.click()});
@@ -4097,11 +4111,16 @@ function lancZapPresenca(){const sv={anal:ANAL,marca:ez.marca,j:ez.j,tit:$("ezTi
   try{ANAL="pres";ez.marca={};M_FULL.forEach(m=>{const v=lanc[m.n];ez.marca[m.n]=v==="Sim"?1:v==="Staff"?"S":v==="Não"?0:v==="-"?"-":null});
     ez.j={};Object.entries(lancJust).forEach(([n,x])=>{x=String(x||"").trim();if(x&&lanc[n]==="Não")ez.j[n]=x});
     $("ezTit").value=$("lNome").value||"Evento";$("ezData").value=$("lData").value;$("ezObs").value="";
-    if(!$("ezAssin").value){const o=[...$("ezAssin").options].find(o=>o.value);if(o)$("ezAssin").value=([...M].find(m=>grupoDe(m)==="Comando"&&/^sub/i.test(String(m.c||"").trim()))||{}).n||o.value}
+    $("ezAssin").value=($("lAssin")&&$("lAssin").value)||lancSubN()||$("ezAssin").value;   // a assinatura escolhida no Lançar
     txt=ezTexto()}
   finally{ANAL=sv.anal;ez.marca=sv.marca;ez.j=sv.j;$("ezTit").value=sv.tit;$("ezData").value=sv.data;$("ezObs").value=sv.obs;$("ezAssin").value=sv.assin}
   return txt}
-function lancCamposUI(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);const tp=LW_TIPOS[lancInfo.tipo]&&lancInfo.tipo!=="original"?lancInfo.tipo:"reuniao";lancInfo.tipo=tp;
+function lancAssinOps(){const s=$("lAssin");if(!s||s.options.length)return;const cmd=[...M].filter(m=>grupoDe(m)==="Comando").sort((a,b)=>a.o-b.o);
+  s.innerHTML=`<option value="">Assinatura (escolha alguém do Comando)</option>`+cmd.map(m=>`<option value="${esc(m.n)}">${esc(cargoBase(m.c))} (${esc(m.n)})</option>`).join("");
+  s.addEventListener("change",()=>{if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);lancInfo.f=lancInfo.f||{};lancInfo.f.assin=s.value;lancZapAtualiza()})}
+function lancSubN(){const s=[...M].find(m=>grupoDe(m)==="Comando"&&/^sub/i.test(String(m.c||"").trim()));return s?s.n:""}
+function lancCamposUI(){if(!lancInfo)lancInfo=lancInfoPadrao($("lNome").value);
+  lancAssinOps();if($("lAssin")){lancInfo.f=lancInfo.f||{};if(!lancInfo.f.assin)lancInfo.f.assin=lancSubN();$("lAssin").value=lancInfo.f.assin}const tp=LW_TIPOS[lancInfo.tipo]&&lancInfo.tipo!=="original"?lancInfo.tipo:"reuniao";lancInfo.tipo=tp;
   const f=lancInfo.f=lancInfo.f||{};
   $("lTipos").innerHTML=Object.entries(LW_TIPOS).filter(([k])=>k!=="original").map(([k,x])=>`<button type="button" role="tab" data-lt="${k}" aria-selected="${k===tp}">${x.nome}</button>`).join("");
   $("lInfoCampos").innerHTML=LW_TIPOS[tp].campos.filter(([k])=>k!=="data").map(([k,r,,inteiro,tipo])=>tipo==="base"?lwCampoBase(f):tipo==="sede"?lwCampoSede(f):tipo==="assin"?lwCampoAssin(f):
@@ -4129,7 +4148,7 @@ function lwInfoAtual(){const f=Object.assign({},lw.f[lw.tipo]||{});let L={};try{
     endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:!!lw.mapas,f}}   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
 function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
-  s.innerHTML=`<option value="novo">➕ Novo ou alterar um evento anterior</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
+  s.innerHTML=`<option value="novo">➕ Novo ou alterar evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
   s.onchange=()=>{const k=s.value,e=k==="novo"?null:(EV_SETS.pres||[])[+k];
     const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
     Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});

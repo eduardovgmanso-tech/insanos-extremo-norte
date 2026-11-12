@@ -837,6 +837,15 @@ MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta na
 h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margin:0 0 14px}
 .card{border:1px solid var(--linha);border-radius:16px;background:#161412;padding:16px;margin:12px 0}.card h2{font-size:17px;margin:0 0 12px}
 .cavs{display:flex;justify-content:space-around;gap:10px;text-align:center}
+/* escala única de texto (o Tamanho da letra dos Ajustes aumenta tudo na mesma proporção) */
+:root{--fs-campo:16px;--fs-rot:13.5px;--fs-nota:13px;--fs-btn:15px;--fs-h2:21px}
+.painel input:not([type=checkbox]):not([type=radio]):not([type=range]),.painel select,.painel textarea,.lw-jtx,.lanc-just,.card input:not([type=checkbox]):not([type=radio]),.card select,.card textarea,.fa-cx input:not([type=checkbox]),.fa-cx select,.fa-cx textarea{font-size:var(--fs-campo)!important}
+select{text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+.painel label,.card label,.fa-cx label{font-size:var(--fs-rot)}
+.painel .nota,.painel p.sub,.card .nota,.fa-cx .nota{font-size:var(--fs-nota)}
+.painel h2,.card h2{font-size:var(--fs-h2)}
+.btn,.qbts button{font-size:var(--fs-btn)}
+
 html.eco .fundo-video{display:none!important}html.eco .hl,html.eco .hl-cobre{display:none!important}
 html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none!important}
 html.eco *,html.eco *::before,html.eco *::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
@@ -940,7 +949,7 @@ ${(D.anivs||[]).length?`<details class="card mens-d" id="anivC"><summary><span><
 ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p class="nota" id="insTx" style="margin:0 0 10px">Ainda não consta a sua resposta. Já respondeu no grupo? Toque abaixo para marcar.</p>
   <div class="qbts"><button class="qz" id="insBt">✅ Já respondi</button></div></div>`:""}
 ${D.mens&&D.mens.st?mensQuadro():""}
-<div class="card" id="adesaoCard"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h2 id="adTit" style="flex:1;margin:0">Minha adesão em ${D.ano}</h2><select id="perSel" aria-label="Período" style="max-width:46%;padding:7px 9px;border-radius:10px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:inherit;font:inherit;font-size:13.5px"><option value="">Ano todo (${D.ano})</option>${[...D.meses].reverse().map(m=>`<option value="${m.ym}">${MESES_N[+m.ym.slice(5)-1]}/${m.ym.slice(0,4)}</option>`).join("")}</select></div><div class="cavs" id="adCavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
+<div class="card" id="adesaoCard"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h2 id="adTit" style="flex:1;margin:0">Minha adesão em ${D.ano}</h2><select id="perSel" aria-label="Período" style="max-width:46%;padding:7px 9px;border-radius:10px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:inherit;font:inherit"><option value="">Ano todo (${D.ano})</option>${[...D.meses].reverse().map(m=>`<option value="${m.ym}">${MESES_N[+m.ym.slice(5)-1]}/${m.ym.slice(0,4)}</option>`).join("")}</select></div><div class="cavs" id="adCavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
 <div class="card"><h2>Minha posição (presença) <span class="nota" style="font-weight:500">· no ano</span></h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
 <div class="card"><h2>Comparação</h2>
   <div class="cmp"><p>Presença</p>${bar("Eu",vp)}${bar("Média "+es(D.g),D.mf[0])}${bar("Média da divisão",D.md[0])}</div>
