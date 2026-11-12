@@ -3424,7 +3424,7 @@ def arquivos_app():
                                 "url": inicio + "#eventos", "icons": [{"src": "atalho-eventos.png", "sizes": "192x192", "type": "image/png"}]},
                                {"name": "Minha moto", "short_name": "Minha moto", "description": "Documentos e abastecimentos",
                                 "url": inicio + "#moto", "icons": [{"src": "atalho-moto.png", "sizes": "192x192", "type": "image/png"}]},
-                               {"name": "Lançar (comando)", "short_name": "Lançar", "description": "Lançar um evento ou insight",
+                               {"name": "Lançar/Alterar (comando)", "short_name": "Lançar/Alterar", "description": "Lançar ou alterar um evento ou insight",
                                 "url": inicio + "#lancar", "icons": [{"src": "atalho-lancar.png", "sizes": "192x192", "type": "image/png"}]},
                                {"name": "Lista (comando)", "short_name": "Lista", "description": "Montar a lista do WhatsApp",
                                 "url": inicio + "#lista", "icons": [{"src": "atalho-lista.png", "sizes": "192x192", "type": "image/png"}]}]},

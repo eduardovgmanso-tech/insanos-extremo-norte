@@ -315,6 +315,20 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 .aj-letras button[data-l="g"]{font-size:17px}.aj-letras button[data-l="gg"]{font-size:19px}.aj-letras button[aria-pressed="true"]{background:#ECE7DC;color:#111}
 
 .q-links{display:flex;justify-content:flex-end;gap:14px;margin:6px 0 0}.q-links .sair-link{margin:0}
+.fa-cx{border-radius:22px 22px 0 0!important;border-top:3px solid #E9B949!important;padding-top:10px!important;animation:faSobe .24s cubic-bezier(.2,.9,.3,1) both}
+.fa-cx::before{content:"";display:block;width:44px;height:5px;border-radius:3px;background:rgba(236,231,220,.3);margin:0 auto 12px}
+@keyframes faSobe{from{transform:translateY(100%)}to{transform:none}}
+.fa-cx h3{margin:0 2px 6px!important;font-size:18px!important}
+.fa-it{border:0!important;border-radius:0!important;background:transparent!important;margin:0!important;padding:14px 4px!important;border-bottom:1px solid rgba(236,231,220,.08)!important}
+.fa-it:active{background:rgba(255,255,255,.06)!important}.fa-it b{font-size:16px}
+.fa-ico{font-size:24px}
+@media (prefers-reduced-motion:reduce){.fa-cx{animation:none}}
+
+#lancar .painel{background:none!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;padding:0!important;margin:16px 0 0!important}   /* a Lista do insight sem o quadro a mais */
+.lateral button[data-v="lancar"] span{font-size:11px;line-height:1.1}
+#lwTipos[hidden]{display:none!important}.lw-tipo-sel{display:block;font-size:13px;color:var(--osso2);margin:10px 0 12px}.lw-tipo-sel select{display:block;width:100%;margin-top:4px}
+.lw-filtro{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.lw-filtro button{padding:7px 11px;border-radius:999px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-size:13px;font-weight:600}
+.lw-filtro button span{opacity:.7;font-weight:800;margin-left:2px}.lw-filtro button[aria-pressed="true"]{background:#ECE7DC;color:#111}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
@@ -938,7 +952,8 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
 
   <section class="painel js so-adm" id="listasView">
     <div class="pag-cab"><div><h2 style="margin:0">Lista Whatsapp</h2><p class="sub" style="margin:4px 0 0">Monte a lista, marque quem vai e copie para o grupo do WhatsApp.</p></div></div>
-    <div class="lw-tipos" role="tablist" id="lwTipos"></div>
+    <label class="lw-tipo-sel">Tipo de lista<select id="lwTipoSel"></select></label>
+    <div class="lw-tipos" role="tablist" id="lwTipos" hidden></div>
     <div class="iz-zap lw-fly-ler">
       <div class="lw-fly-bts"><button type="button" class="btn zap" id="lwFotoFly">📲 Ler do WhatsApp</button><button type="button" class="btn" id="lwLerFly">🖼️ Galeria</button></div>
       <input type="file" id="lwFlyArq" accept="image/*" hidden><input type="file" id="lwFlyCam" accept="image/*" capture="environment" hidden>
@@ -1171,7 +1186,7 @@ footer{color:var(--cinza);font-size:12px;margin-top:22px}
   </section>
 
   <section class="painel js so-adm" id="lancar" style="margin-top:22px">
-    <div class="lanc-escolha"><span>O que você vai lançar?</span>
+    <div class="lanc-escolha"><span>O que você vai lançar ou alterar?</span>
       <div class="lw-tipos" role="tablist" id="lancTipos">
         <button type="button" role="tab" data-lt="evento" aria-selected="true">📅 Evento</button>
         <button type="button" role="tab" data-lt="insight" aria-selected="false">💬 Insight</button>
@@ -1420,7 +1435,7 @@ function izCarregar(){const e=iz.k==null?null:(EV_SETS.ins||[])[iz.k];iz.marca={
   $("izNum").value=e?e.e:"";$("izData").value=e?e.d:new Date().toISOString().slice(0,10);izPeriodo();izListaUI();izAtualiza()}
 function izMontar(){if(!$("insZap")||MODO!=="adm")return;
   const evs=izEventos();
-  $("izEv").innerHTML=`<option value="novo">➕ Novo insight</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");
+  $("izEv").innerHTML=`<option value="novo">➕ Novo ou alterar um insight anterior</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");
   if(evs.length){$("izEv").value=String(evs[0].k);iz.k=evs[0].k}else{$("izEv").value="novo";iz.k=null}
   const cmd=[...M_FULL].filter(m=>grupoDe(m)==="Comando").sort((a,b)=>a.o-b.o);
   const sub=cmd.find(m=>/^sub/i.test(String(m.c||"").trim()));
@@ -2724,7 +2739,7 @@ function montarMenu(){
   nav.innerHTML=`<div class="marca"><img alt="" src="${LOGO}"><div><b>Extremo Norte</b><small>Painel ADM</small></div></div>
     <button type="button" data-v="painel" aria-current="page">${ICO.painel}<span>Presença</span></button>
     <button type="button" data-v="pag">${ICO.pag}<span>Pagamentos</span>${abertos?`<span class="qt">${abertos}</span>`:""}</button>
-    <button type="button" data-v="lancar">${ICO.lancar}<span>Lançar</span></button>
+    <button type="button" data-v="lancar">${ICO.lancar}<span>Lançar/<br>Alterar</span></button>
     <button type="button" data-v="listas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 12h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Lista</span></button>
     <button type="button" data-mais><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>Mais</span></button>`;
   document.body.prepend(nav);
@@ -3279,6 +3294,9 @@ function montarListas(){
   $("lwTipos").onclick=ev=>{const b=ev.target.closest("[data-lwt]");if(!b)return;lw.tipo=b.dataset.lwt;lw.marca=lwMarcasCarregar(lw.tipo);lw.just=lwJustCarregar(lw.tipo);
     $("lwTipos").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",x===b));lwCampos();lwListaUI();lwAtualiza()};
   lwCampos();lwListaUI();lwAtualiza();
+  {const s=$("lwTipoSel");s.innerHTML=Object.entries(LW_TIPOS).map(([k,x])=>`<option value="${k}">${esc(x.nome)}</option>`).join("");s.value=lw.tipo;
+    s.onchange=()=>{const b=$("lwTipos").querySelector(`[data-lwt="${s.value}"]`);if(b)b.click()};
+    $("lwTipos").addEventListener("click",()=>setTimeout(()=>{s.value=lw.tipo},0))}   // quando o fly troca o tipo sozinho, o filtro acompanha
   document.getElementById("listasView").addEventListener("click",ev=>{
     const b=ev.target.closest(".lw-seg button");
     if(b){lw.marca[b.dataset.n]=lw.marca[b.dataset.n]===b.dataset.v?"":b.dataset.v;lwListaUI();lwAtualiza();return}
@@ -3286,14 +3304,14 @@ function montarListas(){
   });
   $("lwLista").addEventListener("input",ev=>{const el=ev.target,n=el.dataset.jn;if(!n)return;lw.just=lw.just||{};const j=lw.just[n]=lw.just[n]||{op:"",txt:""};
     if(el.classList.contains("lw-jtx")){const v=el.value.trim();j.op=!v?"":LW_JUST.includes(v)?v:"livre";j.txt=j.op==="livre"?v:"";
-      el.closest(".lw-l").classList.toggle("falta",!lwJustTexto(n));lwAtualiza();if(LW_JUST.includes(v))lwListaUI();return}   // escolheu uma das opções: desce para "Não vão"
+      el.closest(".lw-l").classList.toggle("falta",!lwJustTexto(n));lwAtualiza();return}
     if(el.classList.contains("lw-jsel")){j.op=el.value;const li=el.parentNode.querySelector(".lw-jlivre");li.hidden=el.value!=="livre";if(el.value==="livre")li.focus()}
     else j.txt=el.value;
     el.closest(".lw-l").classList.toggle("falta",!lwJustTexto(n));lwAtualiza();
     // justificativa escolhida na lista: agora sim desce para "Não vão"
     if(el.classList.contains("lw-jsel")&&el.value&&el.value!=="livre")lwListaUI()});
   $("lwLista").addEventListener("change",ev=>{const el=ev.target;
-    if(el.classList&&el.classList.contains("lw-jtx")){if(el.value.trim())lwListaUI();return}   // terminou de escrever o motivo: desce para "Não vão"
+    if(el.classList&&el.classList.contains("lw-jtx"))return;
     if(el.classList.contains("lw-jlivre")&&el.value.trim())lwListaUI()});
   $("lwLimparTudo").onclick=()=>{
     if(!confirm("Limpar TODAS as listas (Reunião, Evento/Bonde, Ação Social, PUB e Copiar Original)? Os campos voltam ao padrão e todas as marcações ✅/❌ e justificativas são apagadas."))return;
@@ -3600,14 +3618,17 @@ function lwListaUI(){if(!document.getElementById("lwJustOp"))document.body.inser
       return `<div class="lw-l ${nao&&!lwJustTexto(m.n)?"falta":""}"><div class="lw-lin"><span title="${esc(lwNome(m))}">${esc(lwNome(m))}</span>
       <div class="seg lw-seg">${marcas.map(v=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="${lw.marca[m.n]===v}" style="${lw.marca[m.n]===v?(v==="❌"?"background:var(--sangue)":"background:var(--presente)"):""}">${v}</button>`).join("")}</div></div>
       ${nao?`<div class="lw-just"><input type="text" class="lw-jtx" data-jn="${esc(m.n)}" list="lwJustOp" maxlength="80" value="${esc(lwJustTexto(m.n))}" placeholder="Justificativa (toque para ver as opções)" aria-label="Justificativa de ${esc(m.n)}"></div>`:""}</div>`};
-  // só na tela: três blocos (falta responder / vão / não vão), cada um na ordem da hierarquia. O texto do WhatsApp não muda.
-  const blocos=[["falta","FALTA RESPONDER",ord.filter(m=>!lw.marca[m.n])],
-                ["vao","VÃO ✅",ord.filter(m=>String(lw.marca[m.n]||"").startsWith("✅"))],
-                ["nao","NÃO VÃO ❌",ord.filter(m=>lw.marca[m.n]==="❌"&&lwJustTexto(m.n))]];
-  // quem marcou ❌ mas ainda não tem justificativa continua em "Falta responder"
-  blocos[0][2]=ord.filter(m=>!lw.marca[m.n]||(lw.marca[m.n]==="❌"&&!lwJustTexto(m.n)));
-  $("lwLista").innerHTML=blocos.map(([k,tit,ms])=>`<div class="lw-bloco lw-b-${k}"><div class="lanc-g">${tit} <span>(${ms.length})</span></div>
-    <div class="lw-col">${ms.length?ms.map(linha).join(""):`<div class="lw-vazio">Ninguém aqui ainda.</div>`}</div></div>`).join("")}
+  // cada irmão fica sempre no mesmo lugar (ordem da hierarquia, por grupo): marcar só muda a cor do botão.
+  // O filtro (Todos / Sem resposta / Vão / Não vão) só mostra ou esconde, sem mudar a ordem. O texto do WhatsApp não muda.
+  const est=m=>{const v=String(lw.marca[m.n]||"");return !v?"sem":v.startsWith("✅")?"vao":"nao"};
+  const cont={todos:ord.length,sem:0,vao:0,nao:0};ord.forEach(m=>cont[est(m)]++);
+  const F=window.__lwFiltro||"todos";
+  let fb=document.getElementById("lwFiltro");if(!fb){fb=document.createElement("div");fb.id="lwFiltro";fb.className="lw-filtro";$("lwLista").before(fb);
+    fb.onclick=e=>{const b=e.target.closest("[data-f]");if(!b)return;window.__lwFiltro=b.dataset.f;lwListaUI()}}
+  fb.innerHTML=[["todos","Todos"],["sem","Sem resposta"],["vao","Vão ✅"],["nao","Não vão ❌"]].map(([k,r])=>`<button type="button" data-f="${k}" aria-pressed="${F===k}">${r} <span>${cont[k]}</span></button>`).join("");
+  const grupos=blocosPorGrau(ord).map(b=>[grupoDe(b[0]),b.filter(m=>F==="todos"||est(m)===F)]).filter(([,ms])=>ms.length);
+  $("lwLista").innerHTML=grupos.length?grupos.map(([g,ms])=>`<div class="lw-bloco"><div class="lanc-g">${esc(g.toUpperCase())}</div><div class="lw-col">${ms.map(linha).join("")}</div></div>`).join("")
+    :`<div class="lw-vazio">Ninguém nesse filtro.</div>`}
 // número curto na lista corrida: "01. VI .Queijo" -> "1. VI .Queijo" e "13.  X.Souza" -> "13. X.Souza"
 const lwNomeCurto=m=>lwNome(m).replace(/^0(\d)\./,"$1.").replace(/ {2,}/g," ");
 function lwTexto(){const T=LW_TIPOS[lw.tipo],f={...lw.f[lw.tipo]};if(f.data)f.data=lwBR(f.data);
