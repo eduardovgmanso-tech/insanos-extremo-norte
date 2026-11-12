@@ -476,7 +476,9 @@ document.getElementById("sosConfSim").onclick=async()=>{const q=sosQuem();if(!q|
   document.getElementById("sosConf").style.display="none";
   const m=document.getElementById("sosMsg");m.textContent="📍 Pegando a sua localização…";document.querySelectorAll(".sosT").forEach(x=>x.disabled=true);
   const l=await sosPend.gps;sosPend=null;const quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-  const monta=quem=>`🆘 *SOS · Insanos M.C.*\n${quem?`*${quem}*`:"Um irmão"} (Divisão ${document.title.split(" - ")[0]}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`+(window.fichaZap?fichaZap(q.email):"");
+  let sosB="",sosBlob=null;const monta=quem=>sosMontaTexto({quem,div:document.title.split(" - ")[0],nome,l,quando,bairro:sosB,email:q.email});
+  const extra=l?sosBairro(l.lat,l.lng).then(async b=>{sosB=b;sosTexto=monta(localStorage.getItem("sos_nome")||"");sosBlob=await sosMapaBlob(l.lat,l.lng,localStorage.getItem("sos_nome")||"",b);window.__sosBlob=sosBlob;
+    if(sosBlob){const pv=document.getElementById("sosMapaPv");if(pv){pv.src=URL.createObjectURL(sosBlob);pv.style.display="block"}}}):Promise.resolve();   // o bairro e o mapa chegam em seguida
   sosTexto=monta(localStorage.getItem("sos_nome")||"");
   try{await navigator.clipboard.writeText(sosTexto)}catch(_){}
   m.textContent="Enviando o alerta para os irmãos…";
@@ -484,8 +486,9 @@ document.getElementById("sosConfSim").onclick=async()=>{const q=sosQuem();if(!q|
     if(j.ok&&j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}sosTexto=monta(j.nome);try{await navigator.clipboard.writeText(sosTexto)}catch(_){}}
     m.innerHTML=j.ok?"✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:":"⚠️ "+(j.erro||"Não consegui enviar o alerta.")+" Mande nos grupos:"}
   catch(e){m.innerHTML="⚠️ Não consegui enviar o alerta (sem internet?). <b>Mande nos grupos:</b>"}
+  if(!document.getElementById("sosMapaPv"))document.getElementById("sosAcoes").insertAdjacentHTML("beforebegin",`<img id="sosMapaPv" alt="Mapa do SOS" style="display:none;width:100%;max-width:340px;margin:10px auto;border-radius:12px">`);
   document.getElementById("sosAcoes").style.display="flex";document.querySelectorAll(".sosT").forEach(x=>x.disabled=false)};
-document.getElementById("sosZap").onclick=async()=>{if(navigator.share){try{await navigator.share({text:sosTexto});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(sosTexto),"_blank")};
+document.getElementById("sosZap").onclick=()=>sosEnviarZap(sosTexto,window.__sosBlob);   // a imagem do mapa vai junto com o texto
 document.getElementById("sosCopiar").onclick=async()=>{try{await navigator.clipboard.writeText(sosTexto);document.getElementById("sosCopiar").textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(sosTexto)}};
 // ficha de emergência (guardada só neste celular): vai junto com o SOS, se o irmão deixou marcado
 if(!window.fichaSOS)window.fichaSOS=function(em){try{const o=JSON.parse(localStorage.getItem("moto_"+em)||"{}").emg;if(!o||o.enviar===false)return "";
@@ -494,6 +497,31 @@ if(!window.fichaSOS)window.fichaSOS=function(em){try{const o=JSON.parse(localSto
 window.fichaZap=function(em){try{const j=(window.fichaSOS?fichaSOS(em):"");if(!j)return "";const f=JSON.parse(j),N=String.fromCharCode(10),L=[];
     if(f.sangue)L.push("🩸 Tipo sanguíneo: "+f.sangue);if(f.alerg)L.push("⚠️ Alergia: "+f.alerg);if(f.rem)L.push("💊 Remédios: "+f.rem);if(f.obs)L.push("ℹ️ "+f.obs);if(f.plano)L.push("🏥 Plano: "+f.plano);
     (f.c||[]).forEach(c=>L.push("📞 Contato: "+(c.n||"")+(c.p?" ("+c.p+")":"")+" · "+c.t));return L.length?N+N+"🩺 *Ficha de emergência*"+N+L.join(N):""}catch(_){return ""}};
+// ---- mensagem do SOS para o WhatsApp: espaçada, com o bairro e a imagem do mapa (tudo com limite de tempo: o SOS nunca espera) ----
+window.sosMontaTexto=function(o){const N=String.fromCharCode(10),L=[];
+  L.push("🆘 *SOS · "+(o.quem||"Um irmão")+" precisa de ajuda*");L.push("Insanos M.C. · Divisão "+(o.div||""));L.push("");
+  L.push("*"+o.nome+"*");L.push("🕒 "+o.quando);L.push("");
+  if(o.l){L.push("📍 *"+(o.bairro||"Localização")+"*");L.push("https://maps.google.com/?q="+o.l.lat+","+o.l.lng)}else L.push("📍 (sem localização)");
+  L.push("");L.push("Quem estiver perto, por favor, dê um apoio! 🤝");
+  return L.join(N)+(window.fichaZap?fichaZap(o.email):"")};
+window.sosBairro=function(lat,lng){return new Promise(ok=>{let fim=false;const t=setTimeout(()=>{fim=true;ok("")},3500);
+  fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=pt-BR&lat="+lat+"&lon="+lng).then(r=>r.json()).then(j=>{if(fim)return;clearTimeout(t);const a=(j&&j.address)||{};
+    ok([a.suburb||a.neighbourhood||a.quarter||a.city_district||a.village||"",a.city||a.town||a.municipality||""].filter(Boolean).join(", "))}).catch(()=>{if(!fim){clearTimeout(t);ok("")}})})};
+window.sosMapaBlob=function(lat,lng,quem,bairro){return new Promise(ok=>{let fim=false;const t=setTimeout(()=>{fim=true;ok(null)},6000);
+  const W=1080,H=1080,z=16,n=Math.pow(2,z),px=(lng+180)/360*256*n,rl=lat*Math.PI/180,py=(1-Math.log(Math.tan(rl)+1/Math.cos(rl))/Math.PI)/2*256*n;
+  const x0=px-W/2,y0=py-H/2,c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");g.fillStyle="#e8e4dc";g.fillRect(0,0,W,H);
+  const ts=[];for(let tx=Math.floor(x0/256);tx<=Math.floor((x0+W)/256);tx++)for(let ty=Math.floor(y0/256);ty<=Math.floor((y0+H)/256);ty++)ts.push([tx,ty]);
+  let carregou=0;Promise.all(ts.map(([tx,ty])=>new Promise(r=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>{g.drawImage(im,tx*256-x0,ty*256-y0);carregou++;r()};im.onerror=()=>r();
+    im.src="https://tile.openstreetmap.org/"+z+"/"+tx+"/"+ty+".png"}))).then(()=>{if(fim)return;clearTimeout(t);if(!carregou){ok(null);return}
+    const cx=W/2,cy=H/2-20;g.fillStyle="rgba(229,72,77,.22)";g.beginPath();g.arc(cx,cy,90,0,7);g.fill();g.fillStyle="rgba(229,72,77,.35)";g.beginPath();g.arc(cx,cy,52,0,7);g.fill();
+    g.fillStyle="#C62828";g.strokeStyle="#fff";g.lineWidth=10;g.beginPath();g.arc(cx,cy,30,0,7);g.fill();g.stroke();
+    g.fillStyle="rgba(15,12,10,.86)";g.fillRect(0,H-190,W,190);g.fillStyle="#fff";g.font="800 54px Inter, Roboto, Arial, sans-serif";g.fillText("🆘 SOS · "+(quem||"Um irmão"),40,H-112);
+    g.fillStyle="#F1CF6E";g.font="600 40px Inter, Roboto, Arial, sans-serif";g.fillText("📍 "+(bairro||"Localização do pedido de ajuda"),40,H-52);
+    g.fillStyle="rgba(255,255,255,.85)";g.font="500 22px Arial, sans-serif";g.textAlign="right";g.fillText("© OpenStreetMap",W-16,H-200);g.textAlign="left";
+    try{c.toBlob(b=>ok(b),"image/png")}catch(_){ok(null)}})})};
+window.sosEnviarZap=async function(tx,blob){if(blob&&navigator.canShare){const f=new File([blob],"sos-mapa.png",{type:"image/png"});
+    if(navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}}
+  if(navigator.share){try{await navigator.share({text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
 // ---- resposta ao SOS (aberta pela notificação): distância exata, "Estou indo" com aviso, grupos e rota
 (function(){const h=location.hash;if(!h.startsWith("#sos="))return;let S=null;
   try{const b=h.slice(5).split("&")[0].replace(/-/g,"+").replace(/_/g,"/");S=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b+"=".repeat((4-b.length%4)%4)),c=>c.charCodeAt(0))))}catch(e){return}
@@ -1813,6 +1841,32 @@ SOS_MODULO = r"""<style>
   if(!window.fichaZap)window.fichaZap=function(em){try{const j=(window.fichaSOS?fichaSOS(em):"");if(!j)return "";const f=JSON.parse(j),N=String.fromCharCode(10),L=[];
     if(f.sangue)L.push("🩸 Tipo sanguíneo: "+f.sangue);if(f.alerg)L.push("⚠️ Alergia: "+f.alerg);if(f.rem)L.push("💊 Remédios: "+f.rem);if(f.obs)L.push("ℹ️ "+f.obs);if(f.plano)L.push("🏥 Plano: "+f.plano);
     (f.c||[]).forEach(c=>L.push("📞 Contato: "+(c.n||"")+(c.p?" ("+c.p+")":"")+" · "+c.t));return L.length?N+N+"🩺 *Ficha de emergência*"+N+L.join(N):""}catch(_){return ""}};
+  if(!window.sosMontaTexto){// ---- mensagem do SOS para o WhatsApp: espaçada, com o bairro e a imagem do mapa (tudo com limite de tempo: o SOS nunca espera) ----
+window.sosMontaTexto=function(o){const N=String.fromCharCode(10),L=[];
+  L.push("🆘 *SOS · "+(o.quem||"Um irmão")+" precisa de ajuda*");L.push("Insanos M.C. · Divisão "+(o.div||""));L.push("");
+  L.push("*"+o.nome+"*");L.push("🕒 "+o.quando);L.push("");
+  if(o.l){L.push("📍 *"+(o.bairro||"Localização")+"*");L.push("https://maps.google.com/?q="+o.l.lat+","+o.l.lng)}else L.push("📍 (sem localização)");
+  L.push("");L.push("Quem estiver perto, por favor, dê um apoio! 🤝");
+  return L.join(N)+(window.fichaZap?fichaZap(o.email):"")};
+window.sosBairro=function(lat,lng){return new Promise(ok=>{let fim=false;const t=setTimeout(()=>{fim=true;ok("")},3500);
+  fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=pt-BR&lat="+lat+"&lon="+lng).then(r=>r.json()).then(j=>{if(fim)return;clearTimeout(t);const a=(j&&j.address)||{};
+    ok([a.suburb||a.neighbourhood||a.quarter||a.city_district||a.village||"",a.city||a.town||a.municipality||""].filter(Boolean).join(", "))}).catch(()=>{if(!fim){clearTimeout(t);ok("")}})})};
+window.sosMapaBlob=function(lat,lng,quem,bairro){return new Promise(ok=>{let fim=false;const t=setTimeout(()=>{fim=true;ok(null)},6000);
+  const W=1080,H=1080,z=16,n=Math.pow(2,z),px=(lng+180)/360*256*n,rl=lat*Math.PI/180,py=(1-Math.log(Math.tan(rl)+1/Math.cos(rl))/Math.PI)/2*256*n;
+  const x0=px-W/2,y0=py-H/2,c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");g.fillStyle="#e8e4dc";g.fillRect(0,0,W,H);
+  const ts=[];for(let tx=Math.floor(x0/256);tx<=Math.floor((x0+W)/256);tx++)for(let ty=Math.floor(y0/256);ty<=Math.floor((y0+H)/256);ty++)ts.push([tx,ty]);
+  let carregou=0;Promise.all(ts.map(([tx,ty])=>new Promise(r=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>{g.drawImage(im,tx*256-x0,ty*256-y0);carregou++;r()};im.onerror=()=>r();
+    im.src="https://tile.openstreetmap.org/"+z+"/"+tx+"/"+ty+".png"}))).then(()=>{if(fim)return;clearTimeout(t);if(!carregou){ok(null);return}
+    const cx=W/2,cy=H/2-20;g.fillStyle="rgba(229,72,77,.22)";g.beginPath();g.arc(cx,cy,90,0,7);g.fill();g.fillStyle="rgba(229,72,77,.35)";g.beginPath();g.arc(cx,cy,52,0,7);g.fill();
+    g.fillStyle="#C62828";g.strokeStyle="#fff";g.lineWidth=10;g.beginPath();g.arc(cx,cy,30,0,7);g.fill();g.stroke();
+    g.fillStyle="rgba(15,12,10,.86)";g.fillRect(0,H-190,W,190);g.fillStyle="#fff";g.font="800 54px Inter, Roboto, Arial, sans-serif";g.fillText("🆘 SOS · "+(quem||"Um irmão"),40,H-112);
+    g.fillStyle="#F1CF6E";g.font="600 40px Inter, Roboto, Arial, sans-serif";g.fillText("📍 "+(bairro||"Localização do pedido de ajuda"),40,H-52);
+    g.fillStyle="rgba(255,255,255,.85)";g.font="500 22px Arial, sans-serif";g.textAlign="right";g.fillText("© OpenStreetMap",W-16,H-200);g.textAlign="left";
+    try{c.toBlob(b=>ok(b),"image/png")}catch(_){ok(null)}})})};
+window.sosEnviarZap=async function(tx,blob){if(blob&&navigator.canShare){const f=new File([blob],"sos-mapa.png",{type:"image/png"});
+    if(navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}}
+  if(navigator.share){try{await navigator.share({text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
+}
   window.abrirSOS=function(){
     const url=window.SOS_URL||"",q=quem();
     if(!url||!q){abre(`<h3>🆘 SOS</h3><p>Para usar o SOS por aqui, entre uma vez no app com o seu e-mail e o código que chega no e-mail, neste celular.</p>${tel}<button class="sosm-b" data-f>Fechar</button>`).querySelector("[data-f]").onclick=fecha;return}
@@ -1824,15 +1878,17 @@ SOS_MODULO = r"""<style>
       c.querySelector("[data-s]").onclick=async()=>{const m=abre(`<h3>🆘 SOS</h3><p data-m>📍 Pegando a sua localização…</p>`).querySelector("[data-m]");
         const l=await pg,quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
         let nomeIrmao=localStorage.getItem("sos_nome")||"";
-        const monta=n=>`🆘 *SOS · Insanos M.C.*\n${n?`*${n}*`:"Um irmão"} (Divisão ${window.SOS_DIV||""}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`+(window.fichaZap?fichaZap(q.email):"");
+        let bairro="",blob=null;const monta=n=>sosMontaTexto({quem:n,div:window.SOS_DIV||"",nome,l,quando,bairro,email:q.email});
         let tx=monta(nomeIrmao);m.textContent="Enviando o alerta para os irmãos…";let ok=false;
         try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null,ficha:(window.fichaSOS?fichaSOS(q.email):"")})});
           const j=await r.json();ok=!!j.ok;if(j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}tx=monta(j.nome)}if(!ok)m.textContent="⚠️ "+(j.erro||"Não consegui enviar o alerta.")}
         catch(e){m.textContent="⚠️ Não consegui enviar o alerta (sem internet?)."}
         try{await navigator.clipboard.writeText(tx)}catch(_){}
         const box=m.parentNode;if(ok)m.innerHTML="✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:";else m.innerHTML+=" <b>Mande nos grupos:</b>";
-        box.insertAdjacentHTML("beforeend",`<button class="sosm-b verde" data-z>📤 Mandar nos grupos (WhatsApp)</button><button class="sosm-b" data-c>📋 Copiar a mensagem</button>${tel}<button class="sosm-b" data-f>Fechar</button>`);
-        box.querySelector("[data-z]").onclick=async()=>{if(navigator.share){try{await navigator.share({text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
+        box.insertAdjacentHTML("beforeend",`<img data-pv alt="Mapa do SOS" style="display:none;width:100%;border-radius:12px;margin:8px 0"><button class="sosm-b verde" data-z>📤 Mandar nos grupos (WhatsApp)</button><button class="sosm-b" data-c>📋 Copiar a mensagem</button>${tel}<button class="sosm-b" data-f>Fechar</button>`);
+        if(l)sosBairro(l.lat,l.lng).then(async b=>{bairro=b;tx=monta(localStorage.getItem("sos_nome")||nomeIrmao);blob=await sosMapaBlob(l.lat,l.lng,localStorage.getItem("sos_nome")||nomeIrmao,b);
+          const pv=box.querySelector("[data-pv]");if(blob&&pv){pv.src=URL.createObjectURL(blob);pv.style.display="block"}});   // o bairro e o mapa chegam em seguida
+        box.querySelector("[data-z]").onclick=()=>sosEnviarZap(tx,blob);
         box.querySelector("[data-c]").onclick=async e=>{try{await navigator.clipboard.writeText(tx);e.target.textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(tx)}};
         box.querySelector("[data-f]").onclick=fecha}})};
 })();
