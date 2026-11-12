@@ -889,8 +889,22 @@ def processar_sos(api, pid, g, repeticao=None):
     repeticao={"id": ..., "n": 2 ou 3}: manda de novo o alerta daquele SOS (ninguém confirmou que está indo)."""
     if "SOS" not in _ids(api, pid):
         return 0
-    v = _ler(api, pid, "'SOS'!A1:J600")
-    linhas = [(i, list(r) + [""] * 10) for i, r in enumerate(v[1:], start=2)]
+    v = _ler(api, pid, "'SOS'!A1:K600")
+    linhas = [(i, list(r) + [""] * 11) for i, r in enumerate(v[1:], start=2)]
+    def ficha(r):   # a ficha de emergência (coluna K): vai na notificação e na tela do SOS
+        try:
+            f = json.loads(str(r[10] or "") or "{}")
+            return f if isinstance(f, dict) else {}
+        except Exception:
+            return {}
+    def ficha_txt(f):
+        p = []
+        if f.get("sangue"): p.append(f"🩸 {f['sangue']}")
+        if f.get("alerg"): p.append(f"⚠️ Alergia: {f['alerg']}")
+        if f.get("rem"): p.append(f"💊 {f['rem']}")
+        c = (f.get("c") or [{}])[0]
+        if c.get("t"): p.append(f"📞 {c.get('n') or 'Contato'}{' (' + c['p'] + ')' if c.get('p') else ''}: {c['t']}")
+        return " · ".join(p)
     sos = {r[2]: r for _, r in linhas if str(r[1]) == "SOS"}
     if repeticao:      # repetição do alerta: não muda nada na aba, só manda de novo
         r = sos.get(repeticao["id"])
@@ -899,9 +913,9 @@ def processar_sos(api, pid, g, repeticao=None):
             lat, lng = _num(r[6]), _num(r[7])
             mh = re.search(r"(\d{1,2}):(\d{2})", str(r[0]))
             hora = f"{int(mh.group(1)):02d}:{mh.group(2)}" if mh else ""
-            dados = {"id": repeticao["id"], "lat": lat, "lng": lng, "n": str(r[4]), "t": nome_tipo, "e": emo, "q": hora}
+            dados = {"id": repeticao["id"], "lat": lat, "lng": lng, "n": str(r[4]), "t": nome_tipo, "e": emo, "q": hora, **({"f": ficha(r)} if ficha(r) else {})}
             url = "adm.html#sos=" + base64.urlsafe_b64encode(json.dumps(dados, ensure_ascii=False).encode()).decode().rstrip("=")
-            g.notificar(f"🆘 SOS ({repeticao['n']}º aviso) · {r[4]} ainda precisa de ajuda", f"{emo} {nome_tipo} · desde as {hora} · ninguém confirmou ainda",
+            g.notificar(f"🆘 SOS ({repeticao['n']}º aviso) · {r[4]} ainda precisa de ajuda", f"{emo} {nome_tipo} · desde as {hora} · ninguém confirmou ainda" + (("\n" + ficha_txt(ficha(r))) if ficha(r) else ""),
                         f"sos-{repeticao['id']}", icone="notif-aviso.png", todos=True, excluir=str(r[3]).strip().lower(), extra={"sos": dados, "url": url})
             print(f"SOS {repeticao['id']}: {repeticao['n']}º aviso enviado (ninguém confirmou ainda).")
             return 1
@@ -917,9 +931,10 @@ def processar_sos(api, pid, g, repeticao=None):
                 lat, lng = _num(r[6]), _num(r[7])      # a planilha em português guarda com vírgula: o mapa precisa de ponto
                 mh = re.search(r"(\d{1,2}):(\d{2})", str(r[0]))           # a hora do pedido (registrada na aba SOS)
                 hora = f"{int(mh.group(1)):02d}:{mh.group(2)}" if mh else datetime.datetime.now().strftime("%H:%M")
-                dados = {"id": sid, "lat": lat, "lng": lng, "n": ap, "t": nome_tipo, "e": emo, "q": hora}
+                fi = ficha(r)
+                dados = {"id": sid, "lat": lat, "lng": lng, "n": ap, "t": nome_tipo, "e": emo, "q": hora, **({"f": fi} if fi else {})}
                 url = "adm.html#sos=" + base64.urlsafe_b64encode(json.dumps(dados, ensure_ascii=False).encode()).decode().rstrip("=")
-                corpo = f"{emo} {nome_tipo} · {dados['q']}" + ("" if lat is not None else " · sem localização")
+                corpo = f"{emo} {nome_tipo} · {dados['q']}" + ("" if lat is not None else " · sem localização") + (("\n" + ficha_txt(fi)) if fi else "")
                 g.notificar(f"🆘 SOS · {ap} precisa de ajuda", corpo, f"sos-{sid}", icone="notif-aviso.png",
                             todos=True, excluir=email, extra={"sos": dados, "url": url})
                 print(f"SOS de {ap} enviado para todos os irmãos.")

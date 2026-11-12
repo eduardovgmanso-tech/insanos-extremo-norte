@@ -476,23 +476,34 @@ document.getElementById("sosConfSim").onclick=async()=>{const q=sosQuem();if(!q|
   document.getElementById("sosConf").style.display="none";
   const m=document.getElementById("sosMsg");m.textContent="📍 Pegando a sua localização…";document.querySelectorAll(".sosT").forEach(x=>x.disabled=true);
   const l=await sosPend.gps;sosPend=null;const quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
-  const monta=quem=>`🆘 *SOS · Insanos M.C.*\n${quem?`*${quem}*`:"Um irmão"} (Divisão ${document.title.split(" - ")[0]}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`;
+  const monta=quem=>`🆘 *SOS · Insanos M.C.*\n${quem?`*${quem}*`:"Um irmão"} (Divisão ${document.title.split(" - ")[0]}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`+(window.fichaZap?fichaZap(q.email):"");
   sosTexto=monta(localStorage.getItem("sos_nome")||"");
   try{await navigator.clipboard.writeText(sosTexto)}catch(_){}
   m.textContent="Enviando o alerta para os irmãos…";
-  try{const j=await otpPost({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null});
+  try{const j=await otpPost({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null,ficha:(window.fichaSOS?fichaSOS(q.email):"")});
     if(j.ok&&j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}sosTexto=monta(j.nome);try{await navigator.clipboard.writeText(sosTexto)}catch(_){}}
     m.innerHTML=j.ok?"✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:":"⚠️ "+(j.erro||"Não consegui enviar o alerta.")+" Mande nos grupos:"}
   catch(e){m.innerHTML="⚠️ Não consegui enviar o alerta (sem internet?). <b>Mande nos grupos:</b>"}
   document.getElementById("sosAcoes").style.display="flex";document.querySelectorAll(".sosT").forEach(x=>x.disabled=false)};
 document.getElementById("sosZap").onclick=async()=>{if(navigator.share){try{await navigator.share({text:sosTexto});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(sosTexto),"_blank")};
 document.getElementById("sosCopiar").onclick=async()=>{try{await navigator.clipboard.writeText(sosTexto);document.getElementById("sosCopiar").textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(sosTexto)}};
+// ficha de emergência (guardada só neste celular): vai junto com o SOS, se o irmão deixou marcado
+if(!window.fichaSOS)window.fichaSOS=function(em){try{const o=JSON.parse(localStorage.getItem("moto_"+em)||"{}").emg;if(!o||o.enviar===false)return "";
+  const f={};["sangue","alerg","rem","obs","plano"].forEach(k=>{if(o[k])f[k]=String(o[k]).slice(0,120)});const c=(o.enviarCt===false?[]:(o.c||[])).filter(x=>x&&x.t).slice(0,2).map(x=>({n:String(x.n||"").slice(0,40),p:String(x.p||"").slice(0,20),t:String(x.t).slice(0,20)}));if(c.length)f.c=c;
+  return Object.keys(f).length?JSON.stringify(f):""}catch(_){return ""}};
+window.fichaZap=function(em){try{const j=(window.fichaSOS?fichaSOS(em):"");if(!j)return "";const f=JSON.parse(j),N=String.fromCharCode(10),L=[];
+    if(f.sangue)L.push("🩸 Tipo sanguíneo: "+f.sangue);if(f.alerg)L.push("⚠️ Alergia: "+f.alerg);if(f.rem)L.push("💊 Remédios: "+f.rem);if(f.obs)L.push("ℹ️ "+f.obs);if(f.plano)L.push("🏥 Plano: "+f.plano);
+    (f.c||[]).forEach(c=>L.push("📞 Contato: "+(c.n||"")+(c.p?" ("+c.p+")":"")+" · "+c.t));return L.length?N+N+"🩺 *Ficha de emergência*"+N+L.join(N):""}catch(_){return ""}};
 // ---- resposta ao SOS (aberta pela notificação): distância exata, "Estou indo" com aviso, grupos e rota
 (function(){const h=location.hash;if(!h.startsWith("#sos="))return;let S=null;
   try{const b=h.slice(5).split("&")[0].replace(/-/g,"+").replace(/_/g,"/");S=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b+"=".repeat((4-b.length%4)%4)),c=>c.charCodeAt(0))))}catch(e){return}
   const box=document.getElementById("sosResp");box.hidden=false;sosB.hidden=true;
   ["cpf","b","bioB"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");
   document.getElementById("srTit").textContent=`🆘 SOS · ${S.n} precisa de ajuda`;document.getElementById("srSub").textContent=`${S.e||"🆘"} ${S.t} · ${S.q}`;
+  if(S.f&&typeof S.f==="object"){const F=S.f,e2=t=>String(t||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),L=(r,t,al)=>t?`<div style="margin:6px 0;padding:8px 10px;border-radius:10px;background:${al?"rgba(179,38,30,.3);border:1px solid #E5484D":"rgba(255,255,255,.06)"}"><small style="display:block;opacity:.75;font-weight:700">${r}</small><b style="font-size:17px">${e2(t)}</b></div>`:"";
+    document.getElementById("srSub").insertAdjacentHTML("afterend",`<div id="srFicha" style="margin:12px 0;text-align:left"><div style="font-weight:900;color:#ffb4ae;margin-bottom:4px">🩺 Ficha de emergência de ${e2(S.n)}</div>
+      ${L("🩸 Tipo sanguíneo",F.sangue)}${L("⚠️ Alergias",F.alerg,1)}${L("💊 Remédios de uso contínuo",F.rem)}${L("ℹ️ Outras informações",F.obs)}${L("🏥 Plano de saúde",F.plano)}
+      ${(F.c||[]).map(c=>`<a href="tel:${e2(String(c.t).replace(/[^0-9+]/g,""))}" style="display:block;margin:8px 0;padding:12px;border-radius:12px;background:#1E8E3E;color:#fff;text-align:center;font-weight:800;text-decoration:none">📞 Ligar para ${e2(c.n||"o contato")}${c.p?" ("+e2(c.p)+")":""} · ${e2(c.t)}</a>`).join("")}</div>`)}
   const tem=S.lat!==""&&S.lat!=null,rota=tem?`https://www.google.com/maps/dir/?api=1&destination=${S.lat}%2C${S.lng}&travelmode=driving`:"";
   // "Ver no mapa": o mapa aparece aqui mesmo (sem abrir o site ou o app do Google Maps, que às vezes se perde)
   const mostraMapa=()=>{if(!tem)return;const f=document.getElementById("srMapaF");if(!f.src)f.src=`https://maps.google.com/maps?q=${S.lat}%2C${S.lng}&z=16&hl=pt-BR&output=embed`;
@@ -837,12 +848,24 @@ MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta na
 h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margin:0 0 14px}
 .card{border:1px solid var(--linha);border-radius:16px;background:#161412;padding:16px;margin:12px 0}.card h2{font-size:17px;margin:0 0 12px}
 .cavs{display:flex;justify-content:space-around;gap:10px;text-align:center}
+.ficha-tela{position:fixed;inset:0;z-index:10050;background:#0b0908;overflow:auto;color:#fff;font-family:inherit}
+.ficha-cx{max-width:560px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top,0px)) 18px calc(24px + env(safe-area-inset-bottom,0px))}
+.ficha-top{background:#B3261E;color:#fff;font-weight:900;letter-spacing:.06em;text-align:center;padding:12px;border-radius:14px;font-size:18px}
+.ficha-cx h2{font-size:30px;margin:16px 0 12px;text-align:center}
+.ficha-sg,.ficha-al,.ficha-i{border-radius:14px;padding:12px 14px;margin-bottom:10px;background:rgba(255,255,255,.06)}
+.ficha-sg span,.ficha-al span,.ficha-i span{display:block;font-size:14px;color:#BDB7AA;font-weight:700;margin-bottom:3px}
+.ficha-sg b{font-size:44px;color:#fff}.ficha-al{background:rgba(179,38,30,.25);border:2px solid #E5484D}.ficha-al span{color:#ffb4ae}.ficha-al b,.ficha-i b{font-size:22px;line-height:1.3}
+.ficha-lig{display:block;text-decoration:none;text-align:center;background:#1E8E3E;color:#fff;font-weight:800;font-size:20px;padding:14px;border-radius:14px;margin:10px 0}.ficha-lig small{display:block;font-size:15px;font-weight:600;opacity:.9}
+.ficha-x{display:block;width:100%;margin-top:14px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.3);background:none;color:#fff;font:inherit;font-weight:700;font-size:17px}
+
 .hist{position:relative;padding-left:6px}.hist::before{content:"";position:absolute;left:22px;top:8px;bottom:8px;width:2px;background:rgba(233,185,73,.35)}
 .hi{position:relative;display:flex;gap:12px;align-items:flex-start;padding:7px 0}.hi i{font-style:normal;width:34px;height:34px;flex:none;border-radius:50%;background:#1b1714;border:1px solid rgba(233,185,73,.55);display:flex;align-items:center;justify-content:center;font-size:17px;z-index:1}
 .hi b{display:block;font-size:15px}.hi small{display:block;color:#BDB7AA;font-size:13px;margin-top:2px}.hi.fut{opacity:.55}.hi.fut i{border-style:dashed}
 .cart .compart{display:block;width:100%;margin-top:12px;padding:12px;border-radius:12px;border:0;background:#E9B949;color:#1a1206;font:inherit;font-weight:800;font-size:15px}
 .foto-bt{width:54px;height:54px;border-radius:50%;border:2px dashed rgba(236,231,220,.4);background:rgba(236,231,220,.06);padding:0;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;color:#ECE7DC;font-size:20px;line-height:1;margin-left:8px;vertical-align:middle}
 .foto-bt.tem{border:2px solid #E9B949}.foto-bt img{width:100%;height:100%;object-fit:cover;display:block}.foto-bt span{display:flex;flex-direction:column;align-items:center}.foto-bt small{font-size:12px;font-weight:800;margin-top:-2px}
+.cart .moto-f{position:relative;margin:12px 0 0;border-radius:14px;overflow:hidden;height:120px;border:1px solid rgba(233,185,73,.45)}.cart .moto-f img{width:100%;height:100%;object-fit:cover;display:block}
+.cart .moto-f span{position:absolute;left:0;right:0;bottom:0;padding:16px 10px 6px;background:linear-gradient(transparent,rgba(0,0,0,.75));font-size:13px;font-weight:700;color:#ECE7DC}
 .cart .meio .foto{width:86px;height:86px;border-radius:50%;object-fit:cover;border:2px solid #E9B949;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.5)}
 .cart .fundos{display:flex;gap:8px;justify-content:center;margin:12px 0 4px;flex-wrap:wrap}.cart .fundos button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(236,231,220,.3);padding:0}
 .cart .fundos button[aria-pressed="true"]{border-color:#E9B949;box-shadow:0 0 0 2px rgba(233,185,73,.35)}.cart .fundos-t{text-align:center;font-size:12.5px;color:#BDB7AA;margin-top:10px}
@@ -1144,7 +1167,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
   const R$=v=>"R$ "+Number(v).toFixed(2).split(".").join(","),dec=(v,c)=>Number(v).toFixed(c).split(".").join(",");
   const br=d=>d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";
   const hoje=new Date();hoje.setHours(0,0,0,0);const faltam=d=>Math.round((new Date(d+"T00:00:00")-hoje)/864e5);
-  const DOCS=[["cnh","🪪 CNH"],["lic","📄 Licenciamento"],["rev","🔧 Revisão"]];
+  const DOCS=[["cnh","🪪 CNH"],["lic","📄 Licenciamento"]];
   document.head.insertAdjacentHTML("beforeend",`<style>
     body.aba-moto #app{display:none}body:not(.aba-moto) #motoV{display:none}
     #motoV .card h2{margin:0 0 6px}.priv{border-color:rgba(76,175,106,.55)!important;background:rgba(76,175,106,.08)!important}
@@ -1171,6 +1194,18 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
 #msgIco{margin-left:auto;width:44px;height:44px;border-radius:50%;border:1px solid rgba(236,231,220,.25);background:rgba(236,231,220,.06);font-size:20px;flex:none}
     .tri button{aspect-ratio:auto!important;min-height:0;padding:8px 9px!important;gap:2px!important;border-radius:14px!important}
     .tri .ti{font-size:16px!important;display:inline}.tri .tt{font-size:10.5px!important}.tri .tp{font-size:12.5px!important;-webkit-line-clamp:1!important}.tri .ts{font-size:11px!important}
+    .bols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 14px}
+    .priv-l{margin:0 0 12px;font-size:12.5px;color:#8f887d}.priv-l summary{cursor:pointer;list-style:none;text-align:center}.priv-l summary::-webkit-details-marker{display:none}.priv-l p{margin:6px 0 0;color:#BDB7AA;line-height:1.4}
+    .emg-env{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:13.5px;color:#BDB7AA}.emg-env input{width:20px;height:20px;flex:none;margin-top:1px}
+    .bol{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px 10px;border-radius:20px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.05);color:inherit;font:inherit;text-align:center}
+    .bol i{font-style:normal;font-size:24px;width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(233,185,73,.12);border:1px solid rgba(233,185,73,.4)}
+    .bol b{font-size:12.5px}.bol small{font-size:11px;color:#BDB7AA;line-height:1.25}.bol small.al{color:#E9B949;font-weight:700}
+    .bol em{position:absolute;top:10px;right:14px;width:11px;height:11px;border-radius:50%;background:#E5484D;box-shadow:0 0 0 2px #1b1714}
+    .bol.on{border-color:#E9B949;background:rgba(233,185,73,.1)}
+    .moto-ft{border-radius:16px;overflow:hidden;aspect-ratio:16/9;background:rgba(236,231,220,.05);border:1px dashed rgba(236,231,220,.3);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .moto-ft img{width:100%;height:100%;object-fit:cover;display:block}.moto-ft span{display:flex;flex-direction:column;align-items:center;font-size:30px;gap:6px}.moto-ft small{font-size:13.5px;color:#BDB7AA}
+    .man{padding:12px 0;border-bottom:1px solid rgba(236,231,220,.08)}.man-t{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}.man-t small{font-weight:700;font-size:13px;text-align:right}.man-p{display:block;color:#8f887d;font-size:12.5px;margin-top:4px}
+    .nav-m button{position:relative}.nav-bdg{position:absolute;top:2px;right:calc(50% - 26px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5484D;color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;box-shadow:0 0 0 2px rgba(13,11,9,.95)}.nav-bdg[hidden]{display:none}
     .aviso-doc{background:rgba(155,17,17,.18);border:1px solid rgba(220,80,80,.6);border-radius:14px;padding:12px 14px;margin:0 0 14px;font-weight:600}</style>`);
   const v=document.createElement("div");v.id="motoV";v.className="w";document.getElementById("app").after(v);
   // menu embaixo: Início · Carteirinha · SOS (no centro) · Conquistas · Minha moto (o topo fica enxuto e a caveira sobe)
@@ -1198,42 +1233,94 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     if(tb&&d&&!d.open)tb.click();else if(d){d.open=true;d.scrollIntoView({behavior:"smooth"})}};
   setTimeout(atalho,250);addEventListener("hashchange",atalho);
   function consumo(){const L=[...M.abs].sort((a,b)=>a.km-b.km);L.forEach((a,i)=>{a.kml=i>0&&a.km>L[i-1].km&&a.l>0?(a.km-L[i-1].km)/a.l:null});return L}
+  // ---- a aba em três bolinhas: Documentos, Abastecimento e Manutenção (por km) ----
+  const MAN=[["rev","🔧 Revisão"],["oleo","🛢️ Troca de óleo"],["pneu","🛞 Pneus"],["rel","⛓️ Relação / corrente"]];
+  let aberta=null;
+  const kmAt=()=>M.abs.length?Math.max(...M.abs.map(a=>a.km)):null;
+  const prox=k=>{const m=M.man||{};if(k==="rev")return +m.rev_km||null;const u=+m[k+"_ult"],n=+m[k+"_int"];return u>0&&n>0?u+n:null};
+  const falta=k=>{const p=prox(k),a=kmAt();return p&&a!=null?p-a:null};
+  const nKm=n=>Number(n).toLocaleString("pt-BR");
+  function atualizaBadge(){let n=0;DOCS.forEach(([k])=>{const d=M.docs[k];if(d&&faltam(d)<=30)n++});MAN.forEach(([k])=>{const f=falta(k);if(f!=null&&f<=300)n++});
+    const b=nav.querySelector('[data-aba="moto"]');if(!b)return;let s=b.querySelector(".nav-bdg");if(!s){s=document.createElement("b");s.className="nav-bdg";b.appendChild(s)}
+    s.textContent=n;s.hidden=!n;b.setAttribute("aria-label","Minha moto"+(n?`: ${n} ${n===1?"item precisa":"itens precisam"} de atenção`:""));return n}
   function desenha(){const L=consumo(),comK=L.filter(a=>a.kml!=null),mes=new Date().toISOString().slice(0,7),doMes=L.filter(a=>a.d.slice(0,7)===mes);
-    const kmT=comK.reduce((s,a,i)=>s,0);const media=comK.length?comK.reduce((s,a)=>s+a.kml*a.l,0)/comK.reduce((s,a)=>s+a.l,0):null;
-    v.innerHTML=`<div class="card priv"><h2>🔒 Só neste celular</h2><p class="nota" style="margin:0">Os dados que você colocar aqui ficam <b>só neste celular</b>. Não vão para a planilha, nem para a nuvem, nem para o comando: <b>ninguém mais tem acesso</b>. Se trocar de celular ou desinstalar o app, use o backup lá embaixo.</p></div>
-    <div class="card"><h2>📄 Documentos</h2><p class="nota" style="margin:0 0 6px">Coloque os vencimentos: o app avisa no Início 30 dias antes.</p>
-      ${DOCS.map(([k,r])=>{const d=M.docs[k]||"",f=d?faltam(d):null,cor=f==null?"#BDB7AA":f<0?"#E26D6B":f<=30?"#E9B949":"#8FD9A3";
-        return `<div class="doc"><b>${r}</b><input type="date" data-doc="${k}" value="${d}"><small style="color:${cor}">${f==null?"–":f<0?"vencido":f===0?"vence hoje":"em "+f+" dias"}</small></div>`}).join("")}</div>
-    <div class="card"><h2>⛽ Novo abastecimento</h2><div class="mf">
+    const media=comK.length?comK.reduce((s,a)=>s+a.kml*a.l,0)/comK.reduce((s,a)=>s+a.l,0):null;M.man=M.man||{};M.moto=M.moto||{};
+    const docAl=DOCS.filter(([k])=>M.docs[k]&&faltam(M.docs[k])<=30).length,docOk=DOCS.filter(([k])=>M.docs[k]).length;
+    M.emg=M.emg||{};const E=M.emg,emgOk=!!(E.sangue||E.alerg||(E.c||[]).some(c=>c&&c.t));
+    const fs=MAN.map(([k])=>falta(k)).filter(f=>f!=null),manMin=fs.length?Math.min(...fs):null,manAl=fs.filter(f=>f<=300).length,ka=kmAt(),mf=motoFotoLer();
+    const bol=(id,ic,r,st,al)=>`<button type="button" class="bol${aberta===id?" on":""}" data-bol="${id}" aria-expanded="${aberta===id}"><i>${ic}</i><b>${r}</b><small${al?' class="al"':""}>${st}</small>${al?'<em></em>':""}</button>`;
+    v.innerHTML=`<details class="priv-l"><summary>🔒 Só neste celular · ninguém mais vê</summary><p>Tudo o que você coloca aqui fica <b>só neste celular</b>: não vai para a planilha, nem para a nuvem, nem para o comando. A única exceção é a <b>ficha de emergência</b>, que vai junto com o SOS se você deixar marcado. Se trocar de celular ou desinstalar o app, use o 💾 backup lá embaixo.</p></details>
+    <div class="card moto-c"><div class="moto-ft" id="motoFt">${mf?`<img src="${mf}" alt="A minha moto">`:`<span>📸<small>Pôr a foto da moto</small></span>`}</div>
+      <div class="mf" style="margin-top:12px"><label>Modelo<input type="text" id="mtMod" maxlength="40" placeholder="Ex.: Harley-Davidson Fat Boy" value="${es(M.moto.modelo||"")}"></label>
+      <label>Ano<input type="text" inputmode="numeric" id="mtAno" maxlength="4" placeholder="Ex.: 2019" value="${es(M.moto.ano||"")}"></label></div>
+      ${mf?'<div class="qbts" style="margin-top:8px"><button type="button" id="mtTroca">🖼️ Trocar a foto</button><button type="button" id="mtRem">🗑️ Remover</button></div>':""}
+      <p class="nota" style="margin:8px 0 0">A foto da moto aparece também na sua carteirinha.</p></div>
+    <div class="bols">${bol("doc","📄","Documentos",docAl?`⚠️ ${docAl} vence logo`:docOk?"Em dia":"Cadastrar",docAl)}${bol("abs","⛽","Abastecimento",media?dec(media,1)+" km/l":L.length?L.length+" registro":"Registrar",0)}${bol("man","🔧","Manutenção",manMin==null?(ka==null?"Abasteça 1ª vez":"Cadastrar"):manMin<0?`⚠️ passou ${nKm(-manMin)} km`:`faltam ${nKm(manMin)} km`,manAl)}${bol("emg","🆘","Emergência",emgOk?"Ficha pronta":"Preencher",0)}</div>
+    <div id="bolC"></div>
+    <div class="card"><h2>💾 Backup</h2><p class="nota" style="margin:0 0 8px">Guarde uma cópia (por exemplo, mandando para você mesmo no WhatsApp) para não perder os dados ao trocar de celular.</p>
+      <div class="qbts"><button id="bkC">📋 Copiar backup</button><button id="bkR">📥 Restaurar backup</button></div></div>
+    <input type="file" accept="image/*" hidden id="mtIn">`;
+    const C=v.querySelector("#bolC");
+    if(aberta==="doc")C.innerHTML=`<div class="card"><h2>📄 Documentos</h2><p class="nota" style="margin:0 0 6px">Coloque os vencimentos: o ícone da Minha moto avisa 30 dias antes.</p>
+      ${DOCS.map(([k,r])=>{const d=M.docs[k]||"",f=d?faltam(d):null,cr=f==null?"#BDB7AA":f<0?"#E26D6B":f<=30?"#E9B949":"#8FD9A3";
+        return `<div class="doc"><b>${r}</b><input type="date" data-doc="${k}" value="${d}"><small style="color:${cr}">${f==null?"–":f<0?"vencido":f===0?"vence hoje":"em "+f+" dias"}</small></div>`}).join("")}</div>`;
+    if(aberta==="abs")C.innerHTML=`<div class="card"><h2>⛽ Novo abastecimento</h2><div class="mf">
       <label>Data<input type="date" id="abD" value="${new Date().toISOString().slice(0,10)}"></label>
-      <label>Odômetro (km)<input type="text" inputmode="numeric" id="abK" placeholder="Ex.: 23450"></label>
+      <label>Odômetro (km)<input type="text" inputmode="numeric" id="abK" placeholder="${ka!=null?"Último: "+nKm(ka):"Ex.: 23450"}"></label>
       <label>Valor total (R$)<input type="text" inputmode="decimal" id="abV" placeholder="Ex.: 85,00"></label>
       <label>Preço por litro (R$)<input type="text" inputmode="decimal" id="abP" placeholder="Ex.: 6,29"></label>
       <label class="inteiro">Combustível<select id="abT"><option>Gasolina comum</option><option>Gasolina aditivada</option><option>Gasolina premium</option><option>Etanol</option></select></label>
       <div class="litros" id="abL">Litros: –</div></div>
       <div class="qbts" style="margin-top:10px"><button class="qz" id="abS">💾 Registrar abastecimento</button></div></div>
-    <div class="card"><h2>📊 Consumo</h2><div class="res-m"><div><b>${media?dec(media,1):"–"}</b><span>km/l (média)</span></div><div><b>${doMes.length?R$(doMes.reduce((s,a)=>s+a.v,0)):"–"}</b><span>gasto no mês</span></div><div><b>${L.length}</b><span>abastecimentos</span></div></div>
-      ${L.length?`<table class="tab-m"><thead><tr><th>Data</th><th>Valor</th><th>Litros</th><th>km/l</th><th></th></tr></thead><tbody>${[...L].reverse().map(a=>`<tr><td>${br(a.d)}<br><small style="color:#8f887d">${a.km} km · ${a.t||""}</small></td><td>${R$(a.v)}</td><td>${dec(a.l,2)}</td><td>${a.kml==null?'<small style="color:#8f887d">Primeiro registro</small>':"<b>"+dec(a.kml,1)+"</b>"}</td><td><button data-del="${a.id}" aria-label="Apagar">🗑️</button></td></tr>`).join("")}</tbody></table>`:'<p class="nota" style="margin:0">Nenhum abastecimento ainda. O primeiro registro serve de ponto de partida para o km/l.</p>'}</div>
-    <div class="card"><h2>💾 Backup</h2><p class="nota" style="margin:0 0 8px">Guarde uma cópia (por exemplo, mandando para você mesmo no WhatsApp) para não perder os dados ao trocar de celular.</p>
-      <div class="qbts"><button id="bkC">📋 Copiar backup</button><button id="bkR">📥 Restaurar backup</button></div></div>`;
-    const calc=()=>{const vv=num2(v.querySelector("#abV").value),pp=num2(v.querySelector("#abP").value);v.querySelector("#abL").textContent=vv>0&&pp>0?"Litros: "+dec(vv/pp,2)+" L":"Litros: –"};
-    ["#abV","#abP"].forEach(s=>v.querySelector(s).addEventListener("input",calc));
-    v.querySelectorAll("[data-doc]").forEach(i=>i.onchange=()=>{M.docs[i.dataset.doc]=i.value;grava(M);desenha();avisoDocs()});
-    v.querySelector("#abS").onclick=()=>{const d=v.querySelector("#abD").value,km=parseInt(String(v.querySelector("#abK").value).split(".").join(""),10),vv=num2(v.querySelector("#abV").value),pp=num2(v.querySelector("#abP").value);
-      if(!d||!(km>0)||!(vv>0)||!(pp>0)){alert("Preencha a data, o odômetro, o valor total e o preço por litro.");return}
-      const ult=consumo().slice(-1)[0];if(ult&&km<=ult.km&&!confirm(`O odômetro (${km} km) é menor ou igual ao último registro (${ult.km} km). Registrar mesmo assim?`))return;
-      M.abs.push({id:Date.now(),d,km,v:vv,p:pp,l:vv/pp,t:v.querySelector("#abT").value});grava(M);desenha();try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}};
-    v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(!confirm("Apagar este abastecimento?"))return;M.abs=M.abs.filter(a=>String(a.id)!==b.dataset.del);grava(M);desenha()});
-    v.querySelector("#bkC").onclick=async()=>{const t="INSANOS-MOTO:"+btoa(unescape(encodeURIComponent(JSON.stringify({...M,foto:fotoLer(),fundo:fundoLer(),cartimg:cartImgLer()}))));try{await navigator.clipboard.writeText(t);alert("Backup copiado. Cole numa conversa sua no WhatsApp para guardar.")}catch(_){prompt("Copie o backup:",t)}};
+      <div class="card"><h2>📊 Consumo</h2><div class="res-m"><div><b>${media?dec(media,1):"–"}</b><span>km/l (média)</span></div><div><b>${doMes.length?R$(doMes.reduce((s,a)=>s+a.v,0)):"–"}</b><span>gasto no mês</span></div><div><b>${L.length}</b><span>abastecimentos</span></div></div>
+      ${L.length?`<table class="tab-m"><thead><tr><th>Data</th><th>Valor</th><th>Litros</th><th>km/l</th><th></th></tr></thead><tbody>${[...L].reverse().map(a=>`<tr><td>${br(a.d)}<br><small style="color:#8f887d">${nKm(a.km)} km · ${a.t||""}</small></td><td>${R$(a.v)}</td><td>${dec(a.l,2)}</td><td>${a.kml==null?'<small style="color:#8f887d">Primeiro registro</small>':"<b>"+dec(a.kml,1)+"</b>"}</td><td><button data-del="${a.id}" aria-label="Apagar">🗑️</button></td></tr>`).join("")}</tbody></table>`:'<p class="nota" style="margin:0">Nenhum abastecimento ainda. O primeiro registro serve de ponto de partida para o km/l.</p>'}</div>`;
+    if(aberta==="emg"){const c=E.c||[],ct=k=>`<div class="mf"><label class="inteiro">Contato ${k+1}${k?" (opcional)":""}<input type="text" data-emc="${k}n" maxlength="40" placeholder="Nome" value="${es((c[k]||{}).n||"")}"></label>
+        <label>Parentesco<input type="text" data-emc="${k}p" maxlength="20" placeholder="Ex.: esposa" value="${es((c[k]||{}).p||"")}"></label><label>Telefone<input type="tel" data-emc="${k}t" maxlength="20" placeholder="(11) 99999-0000" value="${es((c[k]||{}).t||"")}"></label></div>`;
+      C.innerHTML=`<div class="card"><h2>🆘 Ficha de emergência</h2><p class="nota" style="margin:0 0 10px">Para quem for te socorrer. Mostre em tela cheia ou deixe ir junto com o SOS.</p>
+      <div class="mf"><label>Tipo sanguíneo<select data-emg="sangue">${["","A+","A−","B+","B−","AB+","AB−","O+","O−","Não sei"].map(x=>`<option value="${x}"${(E.sangue||"")===x?" selected":""}>${x||"Escolha…"}</option>`).join("")}</select></label>
+        <label>Plano de saúde<input type="text" data-emg="plano" maxlength="60" placeholder="Ex.: Unimed" value="${es(E.plano||"")}"></label>
+        <label class="inteiro">⚠️ Alergias<input type="text" data-emg="alerg" maxlength="120" placeholder="Ex.: Dipirona" value="${es(E.alerg||"")}"></label>
+        <label class="inteiro">💊 Remédios de uso contínuo<input type="text" data-emg="rem" maxlength="120" placeholder="Ex.: Losartana" value="${es(E.rem||"")}"></label>
+        <label class="inteiro">ℹ️ Outras informações<input type="text" data-emg="obs" maxlength="120" placeholder="Ex.: diabético, usa marca-passo" value="${es(E.obs||"")}"></label></div>
+      <h3 style="margin:14px 0 6px;font-size:16px">📞 Contatos de emergência</h3>${ct(0)}${ct(1)}
+      <label class="emg-env"><input type="checkbox" id="emgEnv"${E.enviar===false?"":" checked"}> <span>Enviar a ficha junto com o <b>SOS</b>: vai na notificação dos irmãos e na <b>mensagem do WhatsApp</b> (tipo sanguíneo, alergias, remédios e plano)</span></label>
+      <label class="emg-env"><input type="checkbox" id="emgCt"${E.enviarCt===false?"":" checked"}> <span>Incluir o <b>contato de emergência</b> (nome e telefone). Desmarcando, o contato não vai, e o resto da ficha continua indo</span></label>
+      <div class="qbts" style="margin-top:12px"><button class="qz" id="emgVer">🩺 Ver a ficha em tela cheia</button></div></div>`}
+    if(aberta==="man")C.innerHTML=`<div class="card"><h2>🔧 Manutenção</h2><p class="nota" style="margin:0 0 10px">Tudo por km. O app usa o odômetro do último abastecimento${ka!=null?` (<b>${nKm(ka)} km</b>)`:""} para mostrar quanto falta, e o ícone da Minha moto avisa quando faltar menos de 300 km.</p>
+      ${MAN.map(([k,r])=>{const p=prox(k),f=falta(k),cr=f==null?"#BDB7AA":f<0?"#E26D6B":f<=300?"#E9B949":"#8FD9A3",m=M.man;
+        return `<div class="man"><div class="man-t"><b>${r}</b><small style="color:${cr}">${p==null?"–":f==null?"próxima aos "+nKm(p)+" km":f<0?`passou ${nKm(-f)} km`:`faltam ${nKm(f)} km`}</small></div>
+        ${k==="rev"?`<div class="mf"><label class="inteiro">Próxima revisão aos (km)<input type="text" inputmode="numeric" data-man="rev_km" value="${m.rev_km||""}" placeholder="Ex.: 25000"></label></div>`
+        :`<div class="mf"><label>Última troca aos (km)<input type="text" inputmode="numeric" data-man="${k}_ult" value="${m[k+"_ult"]||""}" placeholder="Ex.: 21000"></label>
+          <label>Trocar a cada (km)<input type="text" inputmode="numeric" data-man="${k}_int" value="${m[k+"_int"]||""}" placeholder="${k==="oleo"?"Ex.: 3000":k==="pneu"?"Ex.: 15000":"Ex.: 20000"}"></label></div>`}
+        ${p!=null?`<small class="man-p">Próxima: aos ${nKm(p)} km</small>`:""}</div>`}).join("")}</div>`;
+    // ações
+    v.querySelectorAll("[data-bol]").forEach(b=>b.onclick=()=>{aberta=aberta===b.dataset.bol?null:b.dataset.bol;desenha();const c=document.getElementById("bolC");if(aberta&&c)c.scrollIntoView({behavior:"smooth",block:"start"})});
+    const mtIn=v.querySelector("#mtIn"),pega=()=>mtIn.click();v.querySelector("#motoFt").onclick=pega;const tr=v.querySelector("#mtTroca");if(tr)tr.onclick=pega;
+    mtIn.onchange=async()=>{const a=mtIn.files&&mtIn.files[0];if(!a)return;try{localStorage.setItem("motofoto_"+D.email,await cartImgProcessar(a));desenha()}catch(_){alert("Não consegui usar essa foto. Tente outra.")}};
+    const rm=v.querySelector("#mtRem");if(rm)rm.onclick=()=>{if(!confirm("Remover a foto da moto?"))return;try{localStorage.removeItem("motofoto_"+D.email)}catch(_){}desenha()};
+    v.querySelector("#mtMod").onchange=e=>{M.moto.modelo=e.target.value.trim();grava(M)};v.querySelector("#mtAno").onchange=e=>{M.moto.ano=e.target.value.trim();grava(M)};
+    v.querySelectorAll("[data-man]").forEach(i=>i.onchange=()=>{const n=parseInt(String(i.value).split(".").join(""),10);if(n>0)M.man[i.dataset.man]=n;else delete M.man[i.dataset.man];grava(M);desenha();atualizaBadge()});
+    v.querySelectorAll("[data-doc]").forEach(i=>i.onchange=()=>{M.docs[i.dataset.doc]=i.value;grava(M);desenha();atualizaBadge()});
+    if(aberta==="emg"){M.emg.nome=D.n;
+      v.querySelectorAll("[data-emg]").forEach(i=>i.onchange=()=>{const t=String(i.value||"").trim();if(t)M.emg[i.dataset.emg]=t;else delete M.emg[i.dataset.emg];grava(M)});
+      v.querySelectorAll("[data-emc]").forEach(i=>i.onchange=()=>{const k=+i.dataset.emc[0],f=i.dataset.emc[1];M.emg.c=M.emg.c||[{},{}];M.emg.c[k]=M.emg.c[k]||{};M.emg.c[k][f]=String(i.value||"").trim();grava(M)});
+      v.querySelector("#emgEnv").onchange=e=>{M.emg.enviar=e.target.checked;grava(M)};v.querySelector("#emgCt").onchange=e=>{M.emg.enviarCt=e.target.checked;grava(M)};
+      v.querySelector("#emgVer").onclick=()=>{grava(M);if(window.fichaMostrar)fichaMostrar(D.email||"eu")}}
+    if(aberta==="abs"){const calc=()=>{const vv=num2(v.querySelector("#abV").value),pp=num2(v.querySelector("#abP").value);v.querySelector("#abL").textContent=vv>0&&pp>0?"Litros: "+dec(vv/pp,2)+" L":"Litros: –"};
+      ["#abV","#abP"].forEach(q=>v.querySelector(q).addEventListener("input",calc));
+      v.querySelector("#abS").onclick=()=>{const d=v.querySelector("#abD").value,km=parseInt(String(v.querySelector("#abK").value).split(".").join(""),10),vv=num2(v.querySelector("#abV").value),pp=num2(v.querySelector("#abP").value);
+        if(!d||!(km>0)||!(vv>0)||!(pp>0)){alert("Preencha a data, o odômetro, o valor total e o preço por litro.");return}
+        const ult=consumo().slice(-1)[0];if(ult&&km<=ult.km&&!confirm(`O odômetro (${km} km) é menor ou igual ao último registro (${ult.km} km). Registrar mesmo assim?`))return;
+        M.abs.push({id:Date.now(),d,km,v:vv,p:pp,l:vv/pp,t:v.querySelector("#abT").value});grava(M);desenha();atualizaBadge();try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}};
+      v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(!confirm("Apagar este abastecimento?"))return;M.abs=M.abs.filter(a=>String(a.id)!==b.dataset.del);grava(M);desenha();atualizaBadge()})}
+    v.querySelector("#bkC").onclick=async()=>{const t="INSANOS-MOTO:"+btoa(unescape(encodeURIComponent(JSON.stringify({...M,foto:fotoLer(),fundo:fundoLer(),cartimg:cartImgLer(),motofoto:motoFotoLer()}))));
+      try{await navigator.clipboard.writeText(t);alert("Backup copiado. Cole numa conversa sua no WhatsApp para guardar.")}catch(_){prompt("Copie o backup:",t)}};
     v.querySelector("#bkR").onclick=()=>{const t=prompt("Cole aqui o backup (começa com INSANOS-MOTO:)");if(!t)return;
-      try{const o=JSON.parse(decodeURIComponent(escape(atob(t.trim().replace("INSANOS-MOTO:","")))));if(!o||typeof o!=="object")throw 0;M={docs:o.docs||{},abs:o.abs||[]};grava(M);try{if(o.foto)localStorage.setItem("foto_"+D.email,o.foto);if(o.fundo)localStorage.setItem("cartfundo_"+D.email,o.fundo);if(o.cartimg)localStorage.setItem("cartimg_"+D.email,o.cartimg)}catch(_){}fotoDesenha();desenha();avisoDocs();alert("Backup restaurado.")}
-      catch(_){alert("Esse texto não parece um backup válido.")}}}
-  // aviso no Início: documento vencido ou vencendo em até 30 dias
-  function avisoDocs(){const ant=document.getElementById("avisoDoc");if(ant)ant.remove();
-    const it=DOCS.map(([k,r])=>{const d=M.docs[k];if(!d)return null;const f=faltam(d);return f<=30?`${r}: ${f<0?"vencido desde "+br(d):f===0?"vence hoje":"vence em "+f+" dias ("+br(d)+")"}`:null}).filter(Boolean);
-    if(!it.length)return;const a=document.createElement("div");a.id="avisoDoc";a.className="aviso-doc";a.innerHTML="⚠️ "+it.join("<br>⚠️ ")+`<div style="margin-top:6px;font-size:13px;font-weight:500;opacity:.85">Toque para ver na aba Minha moto.</div>`;
-    a.onclick=()=>nav.querySelector('[data-aba="moto"]').click();const app=document.getElementById("app");app.insertBefore(a,app.children[1]||null)}
-  avisoDocs()})();
+      try{const o=JSON.parse(decodeURIComponent(escape(atob(t.trim().replace("INSANOS-MOTO:","")))));if(!o||typeof o!=="object")throw 0;M={docs:o.docs||{},abs:o.abs||[],man:o.man||{},moto:o.moto||{}};grava(M);
+        try{if(o.foto)localStorage.setItem("foto_"+D.email,o.foto);if(o.fundo)localStorage.setItem("cartfundo_"+D.email,o.fundo);if(o.cartimg)localStorage.setItem("cartimg_"+D.email,o.cartimg);if(o.motofoto)localStorage.setItem("motofoto_"+D.email,o.motofoto)}catch(_){}
+        fotoDesenha();desenha();atualizaBadge();alert("Backup restaurado.")}catch(_){alert("Esse texto não parece um backup válido.")}}}
+  atualizaBadge()})();
+
 
 // ---- ⚙️ ajustes do app (só neste celular): modo economia e tamanho da letra ----
 function ajustesLer(){try{return JSON.parse(localStorage.getItem("ajustes_app")||"{}")}catch(_){return {}}}
@@ -1252,6 +1339,8 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
 
 // ---- 📷 foto do irmão e 🎨 fundo da carteirinha (só neste celular: não vão para a planilha, a nuvem nem o comando) ----
+function motoFotoLer(){try{return localStorage.getItem("motofoto_"+D.email)||""}catch(_){return ""}}
+function motoNome(){try{const o=JSON.parse(localStorage.getItem("moto_"+(D.email||"eu"))||"{}").moto||{};return [o.modelo,o.ano].filter(Boolean).join(" · ")}catch(_){return ""}}
 function fotoLer(){try{return localStorage.getItem("foto_"+D.email)||""}catch(_){return ""}}
 function fundoLer(){try{return localStorage.getItem("cartfundo_"+D.email)||"padrao"}catch(_){return "padrao"}}
 const CART_FUNDOS=[["padrao","Padrão"],["couro","Couro"],["metal","Metal"],["carbono","Fibra de carbono"],["sangue","Vermelho sangue"],["imagem","Minha imagem"]];
@@ -1289,7 +1378,7 @@ function tempoInsanos(){if(!D.ent)return "";const a=new Date(D.ent+"T00:00:00"),
 async function cartCompartilhar(){
   const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
   const ld=src=>new Promise(r=>{if(!src)return r(null);const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=src});
-  const [cav,pin,foto,bgi,mapa]=await Promise.all([ld(CAV),ld(PIN?`pin-${PIN[0]}.png`:""),ld(fotoLer()),ld(fundoLer()==="imagem"?cartImgLer():""),ld(D.mapa?"mapa-divisao.png?v="+encodeURIComponent(D.ger||""):"")]);
+  const [cav,pin,foto,bgi,mapa]=await Promise.all([ld(CAV),ld(PIN?`pin-${PIN[0]}.png`:""),ld(fotoLer()),ld(fundoLer()==="imagem"?cartImgLer():""),ld(D.mapa?"mapa-divisao.png?v="+encodeURIComponent(D.ger||""):"")]);const mfi=await ld(motoFotoLer());
   const rr=(x,y,w,h,r)=>{g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()};
   const F="Inter, Roboto, Arial, sans-serif",fd=fundoLer();
   g.save();rr(0,0,W,H,56);g.clip();
@@ -1320,11 +1409,17 @@ async function cartCompartilhar(){
     og.putImageData(px,0,0);const ob=document.createElement("canvas");ob.width=w;ob.height=h;ob.getContext("2d").putImageData(base,0,0);
     g.globalAlpha=.45;g.drawImage(ob,cx,cy,w,h);g.globalAlpha=1;const t2=document.createElement("canvas");t2.width=w;t2.height=h;const tg=t2.getContext("2d");tg.beginPath();tg.rect(0,h*(1-vp/100),w,h*vp/100);tg.clip();tg.drawImage(o,0,0,w,h);
     g.save();if(vp>=90){g.shadowColor="rgba(233,185,73,.8)";g.shadowBlur=30}g.drawImage(t2,cx,cy,w,h);g.restore();   // o recorte primeiro, o brilho depois (sem cortar o brilho)
-    g.fillStyle=cor(vp)[1];g.font=`900 150px ${F}`;g.fillText(vp+"%",cx+w+50,830);g.fillStyle="#BDB7AA";g.font=`500 36px ${F}`;g.fillText(`de presença nos eventos em ${D.ano}`,cx+w+54,890)}
-  let yy=1010;
+    if(mfi){const bx=W-80-30-300,by=670,bw=300,bh=270,k=Math.max(bw/mfi.width,bh/mfi.height);g.save();rr(bx,by,bw,bh,24);g.clip();
+        g.drawImage(mfi,bx+(bw-mfi.width*k)/2,by+(bh-mfi.height*k)/2,mfi.width*k,mfi.height*k);g.restore();g.lineWidth=4;g.strokeStyle="rgba(233,185,73,.7)";rr(bx,by,bw,bh,24);g.stroke();
+        g.fillStyle=cor(vp)[1];g.font=`900 120px ${F}`;g.fillText(vp+"%",cx+w+36,810);g.fillStyle="#BDB7AA";g.font=`500 30px ${F}`;g.fillText("de presença nos",cx+w+40,860);g.fillText(`eventos em ${D.ano}`,cx+w+40,898)}   // com a moto, o texto vai em duas linhas
+    else{g.fillStyle=cor(vp)[1];g.font=`900 150px ${F}`;g.fillText(vp+"%",cx+w+50,830);g.fillStyle="#BDB7AA";g.font=`500 36px ${F}`;g.fillText(`de presença nos eventos em ${D.ano}`,cx+w+54,890)}}
+  let yy=1010;let kmR=0;try{const ab=(JSON.parse(localStorage.getItem("moto_"+(D.email||"eu"))||"{}").abs||[]).map(a=>+a.km).filter(x=>x>0);if(ab.length>1)kmR=Math.max(...ab)-Math.min(...ab)}catch(_){}
+  const kmTx=kmR>0?`🏍️ Eu já rodei ${kmR.toLocaleString("pt-BR")} km com a minha moto`:"";   // do primeiro ao último odômetro registrado na Minha moto
   if(mapa){g.fillStyle="rgba(255,255,255,.06)";rr(80,yy,W-160,530,36);g.fill();g.fillStyle="#ECE7DC";g.font=`800 40px ${F}`;g.fillText("📍 Por onde a Divisão já passou",110,yy+62);
     g.fillStyle="#BDB7AA";g.font=`500 30px ${F}`;g.fillText(`${D.mapa.lugares} ${D.mapa.lugares===1?"lugar":"lugares"} · ${D.mapa.eventos} eventos`,110,yy+104);
+    if(kmTx){g.fillStyle="#E9B949";g.font=`700 28px ${F}`;g.textAlign="right";g.fillText(kmTx.replace("Eu já rodei ","").replace(" com a minha moto"," rodados"),W-110,yy+104);g.textAlign="left"}
     const mw=W-260,mh=mw*mapa.height/mapa.width;g.save();rr(130,yy+125,mw,mh,24);g.clip();g.drawImage(mapa,130,yy+125,mw,mh);g.restore();yy+=560}
+  if(!mapa&&kmTx){g.fillStyle="#E9B949";g.font=`800 36px ${F}`;g.textAlign="center";g.fillText(kmTx,W/2,yy+40);g.textAlign="left";yy+=90}
   // 🤝 faça parte: o QR do cadastro de novos integrantes (o endereço sem o rastreador do Facebook)
   const URL_FP="https://marketing.insanosmc.com.br/faca-parte-do-maior-moto-clube-do-brasil-insanos-mc";
   g.fillStyle="rgba(233,185,73,.12)";rr(80,yy,W-160,250,36);g.fill();g.strokeStyle="rgba(233,185,73,.6)";g.lineWidth=3;rr(80,yy,W-160,250,36);g.stroke();
@@ -1445,6 +1540,7 @@ function cartAbrir(){const ent=D.ent?D.ent.slice(8,10)+"/"+D.ent.slice(5,7)+"/"+
   const v=document.createElement("div");v.className="cart-veu";v.innerHTML=`<div class="cart f-${fundoLer()==="imagem"&&!cartImgLer()?"padrao":fundoLer()}" style="${cartImgLer()?`--cimg:url('${cartImgLer()}')`:""}"><div class="topo"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
     <div class="meio">${fotoLer()?`<img class="foto" src="${fotoLer()}" alt="">`:""}${PIN?`<img class="pin" src="pin-${PIN[0]}.png" alt="${PIN[1]}">`:""}<div><h3>${es(D.n)}</h3><div class="c">${es(D.c||"")}</div>
       <div class="d">${ent?"Insanos M.C. desde "+ent:""}${PIN?" · "+PIN[1]:""}</div>${tempoInsanos()?`<div class="d" style="color:#ECE7DC">⏳ ${tempoInsanos()} de Insanos</div>`:""}</div></div>
+    ${motoFotoLer()?`<div class="moto-f"><img src="${motoFotoLer()}" alt="A moto"><span>🏍️ ${es(motoNome()||"A minha moto")}</span></div>`:""}
     ${vp!=null?`<div class="pres"><div class="cv${vp>=90?" trofeu":""}" style="--g:${corGlow(vp)}"><img src="${CAV}" alt=""><span class="o" style="--cav:url('${CAV}');--c:${cor(vp)[0]};clip-path:inset(${100-vp}% 0 0 0)"></span></div><div><b style="color:${cor(vp)[1]}">${vp}%</b><span>de presença nos eventos em ${D.ano}${D.pres&&D.pres[1]?` · ${D.pres[0]} de ${D.pres[1]}`:""}</span></div></div>`:""}
     <div class="qr"><canvas width="220" height="220"></canvas><p>Código de identificação do irmão. Quem ler vê o nome, o cargo, a divisão e desde quando é Insanos.</p></div>
     <div class="fundos-t">🎨 Fundo da carteirinha${fotoLer()?"":` · <a href="#" class="cart-foto" style="color:#E9B949">📷 pôr minha foto</a>`}</div>
@@ -1697,6 +1793,26 @@ SOS_MODULO = r"""<style>
   const abre=html=>{fecha();veu=document.createElement("div");veu.className="sosm-veu";veu.innerHTML=`<div class="sosm-cx" role="dialog" aria-modal="true">${html}</div>`;
     veu.onclick=e=>{if(e.target===veu)fecha()};document.body.appendChild(veu);return veu};
   const tel='<p style="margin-top:14px">⚠️ <b>Risco de vida?</b> Ligue primeiro:</p><div class="sosm-tel"><a href="tel:190">190 Polícia</a><a href="tel:192">192 SAMU</a><a href="tel:193">193 Bombeiros</a></div>';
+  window.fichaMostrar=function(em){let o=null;try{o=JSON.parse(localStorage.getItem("moto_"+em)||"{}").emg}catch(_){}
+    if(!o){alert("Você ainda não preencheu a ficha de emergência (Minha moto › Emergência).");return}
+    const es2=t=>String(t||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+    const v=document.createElement("div");v.className="ficha-tela";
+    v.innerHTML=`<div class="ficha-cx"><div class="ficha-top">🩺 FICHA DE EMERGÊNCIA</div><h2>${es2(o.nome||"")}</h2>
+      ${o.sangue?`<div class="ficha-sg"><span>Tipo sanguíneo</span><b>${es2(o.sangue)}</b></div>`:""}
+      ${o.alerg?`<div class="ficha-al"><span>⚠️ ALERGIAS</span><b>${es2(o.alerg)}</b></div>`:""}
+      ${o.rem?`<div class="ficha-i"><span>💊 Remédios de uso contínuo</span><b>${es2(o.rem)}</b></div>`:""}
+      ${o.obs?`<div class="ficha-i"><span>ℹ️ Outras informações</span><b>${es2(o.obs)}</b></div>`:""}
+      ${o.plano?`<div class="ficha-i"><span>🏥 Plano de saúde</span><b>${es2(o.plano)}</b></div>`:""}
+      ${(o.c||[]).filter(c=>c&&c.t).map(c=>`<a class="ficha-lig" href="tel:${es2(String(c.t).replace(/[^0-9+]/g,""))}">📞 Ligar para ${es2(c.n||"o contato")}${c.p?" ("+es2(c.p)+")":""}<small>${es2(c.t)}</small></a>`).join("")}
+      <button type="button" class="ficha-x">Fechar</button></div>`;
+    v.querySelector(".ficha-x").onclick=()=>v.remove();document.body.appendChild(v)};
+  window.fichaSOS=function(em){try{const o=JSON.parse(localStorage.getItem("moto_"+em)||"{}").emg;if(!o||o.enviar===false)return "";
+    const f={};["sangue","alerg","rem","obs","plano"].forEach(k=>{if(o[k])f[k]=String(o[k]).slice(0,120)});const c=(o.enviarCt===false?[]:(o.c||[])).filter(x=>x&&x.t).slice(0,2).map(x=>({n:String(x.n||"").slice(0,40),p:String(x.p||"").slice(0,20),t:String(x.t).slice(0,20)}));if(c.length)f.c=c;
+    return Object.keys(f).length?JSON.stringify(f):""}catch(_){return ""}};
+
+  if(!window.fichaZap)window.fichaZap=function(em){try{const j=(window.fichaSOS?fichaSOS(em):"");if(!j)return "";const f=JSON.parse(j),N=String.fromCharCode(10),L=[];
+    if(f.sangue)L.push("🩸 Tipo sanguíneo: "+f.sangue);if(f.alerg)L.push("⚠️ Alergia: "+f.alerg);if(f.rem)L.push("💊 Remédios: "+f.rem);if(f.obs)L.push("ℹ️ "+f.obs);if(f.plano)L.push("🏥 Plano: "+f.plano);
+    (f.c||[]).forEach(c=>L.push("📞 Contato: "+(c.n||"")+(c.p?" ("+c.p+")":"")+" · "+c.t));return L.length?N+N+"🩺 *Ficha de emergência*"+N+L.join(N):""}catch(_){return ""}};
   window.abrirSOS=function(){
     const url=window.SOS_URL||"",q=quem();
     if(!url||!q){abre(`<h3>🆘 SOS</h3><p>Para usar o SOS por aqui, entre uma vez no app com o seu e-mail e o código que chega no e-mail, neste celular.</p>${tel}<button class="sosm-b" data-f>Fechar</button>`).querySelector("[data-f]").onclick=fecha;return}
@@ -1708,9 +1824,9 @@ SOS_MODULO = r"""<style>
       c.querySelector("[data-s]").onclick=async()=>{const m=abre(`<h3>🆘 SOS</h3><p data-m>📍 Pegando a sua localização…</p>`).querySelector("[data-m]");
         const l=await pg,quando=new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
         let nomeIrmao=localStorage.getItem("sos_nome")||"";
-        const monta=n=>`🆘 *SOS · Insanos M.C.*\n${n?`*${n}*`:"Um irmão"} (Divisão ${window.SOS_DIV||""}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`;
+        const monta=n=>`🆘 *SOS · Insanos M.C.*\n${n?`*${n}*`:"Um irmão"} (Divisão ${window.SOS_DIV||""}) precisa de ajuda.\n${nome}\n`+(l?`📍 https://maps.google.com/?q=${l.lat},${l.lng}\n`:"📍 (sem localização)\n")+`🕒 ${quando}\nQuem estiver perto, por favor, dê um apoio! 🤝`+(window.fichaZap?fichaZap(q.email):"");
         let tx=monta(nomeIrmao);m.textContent="Enviando o alerta para os irmãos…";let ok=false;
-        try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null})});
+        try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null,ficha:(window.fichaSOS?fichaSOS(q.email):"")})});
           const j=await r.json();ok=!!j.ok;if(j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}tx=monta(j.nome)}if(!ok)m.textContent="⚠️ "+(j.erro||"Não consegui enviar o alerta.")}
         catch(e){m.textContent="⚠️ Não consegui enviar o alerta (sem internet?)."}
         try{await navigator.clipboard.writeText(tx)}catch(_){}
