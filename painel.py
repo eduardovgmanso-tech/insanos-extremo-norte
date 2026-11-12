@@ -837,6 +837,23 @@ MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta na
 h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margin:0 0 14px}
 .card{border:1px solid var(--linha);border-radius:16px;background:#161412;padding:16px;margin:12px 0}.card h2{font-size:17px;margin:0 0 12px}
 .cavs{display:flex;justify-content:space-around;gap:10px;text-align:center}
+.hist{position:relative;padding-left:6px}.hist::before{content:"";position:absolute;left:22px;top:8px;bottom:8px;width:2px;background:rgba(233,185,73,.35)}
+.hi{position:relative;display:flex;gap:12px;align-items:flex-start;padding:7px 0}.hi i{font-style:normal;width:34px;height:34px;flex:none;border-radius:50%;background:#1b1714;border:1px solid rgba(233,185,73,.55);display:flex;align-items:center;justify-content:center;font-size:17px;z-index:1}
+.hi b{display:block;font-size:15px}.hi small{display:block;color:#BDB7AA;font-size:13px;margin-top:2px}.hi.fut{opacity:.55}.hi.fut i{border-style:dashed}
+.cart .compart{display:block;width:100%;margin-top:12px;padding:12px;border-radius:12px;border:0;background:#E9B949;color:#1a1206;font:inherit;font-weight:800;font-size:15px}
+.foto-bt{width:54px;height:54px;border-radius:50%;border:2px dashed rgba(236,231,220,.4);background:rgba(236,231,220,.06);padding:0;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;color:#ECE7DC;font-size:20px;line-height:1;margin-left:8px;vertical-align:middle}
+.foto-bt.tem{border:2px solid #E9B949}.foto-bt img{width:100%;height:100%;object-fit:cover;display:block}.foto-bt span{display:flex;flex-direction:column;align-items:center}.foto-bt small{font-size:12px;font-weight:800;margin-top:-2px}
+.cart .meio .foto{width:86px;height:86px;border-radius:50%;object-fit:cover;border:2px solid #E9B949;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.cart .fundos{display:flex;gap:8px;justify-content:center;margin:12px 0 4px;flex-wrap:wrap}.cart .fundos button{width:34px;height:34px;border-radius:50%;border:2px solid rgba(236,231,220,.3);padding:0}
+.cart .fundos button[aria-pressed="true"]{border-color:#E9B949;box-shadow:0 0 0 2px rgba(233,185,73,.35)}.cart .fundos-t{text-align:center;font-size:12.5px;color:#BDB7AA;margin-top:10px}
+.cart.f-couro,.fundos [data-fd="couro"]{background:radial-gradient(circle at 20% 15%,rgba(255,220,170,.10),transparent 40%),repeating-radial-gradient(circle at 30% 40%,rgba(0,0,0,.18) 0 2px,transparent 2px 5px),linear-gradient(160deg,#5a3520,#2b170c)!important}
+.cart.f-metal,.fundos [data-fd="metal"]{background:repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px),linear-gradient(135deg,#2a2d31,#5d636b 45%,#24272b)!important}
+.cart.f-carbono,.fundos [data-fd="carbono"]{background:repeating-linear-gradient(45deg,#151515 0 6px,#232323 6px 12px),#181818!important}
+.cart.f-sangue,.fundos [data-fd="sangue"]{background:radial-gradient(circle at 70% 0%,rgba(255,80,80,.18),transparent 45%),linear-gradient(160deg,#5c0b0b,#1c0404)!important}
+.fundos [data-fd="padrao"]{background:#1b1714!important}
+.cart.f-imagem{background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,.72)),var(--cimg) center/cover no-repeat,#1b1714!important}   /* a película escura deixa o texto legível */
+.fundos [data-fd="imagem"]{background:rgba(236,231,220,.08);color:#ECE7DC;font-size:15px}.fundo-img-acoes[hidden]{display:none}
+
 /* escala única de texto (o Tamanho da letra dos Ajustes aumenta tudo na mesma proporção) */
 :root{--fs-campo:16px;--fs-rot:13.5px;--fs-nota:13px;--fs-btn:15px;--fs-h2:21px}
 .painel input:not([type=checkbox]):not([type=radio]):not([type=range]),.painel select,.painel textarea,.lw-jtx,.lanc-just,.card input:not([type=checkbox]):not([type=radio]),.card select,.card textarea,.fa-cx input:not([type=checkbox]),.fa-cx select,.fa-cx textarea{font-size:var(--fs-campo)!important}
@@ -1207,9 +1224,9 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       const ult=consumo().slice(-1)[0];if(ult&&km<=ult.km&&!confirm(`O odômetro (${km} km) é menor ou igual ao último registro (${ult.km} km). Registrar mesmo assim?`))return;
       M.abs.push({id:Date.now(),d,km,v:vv,p:pp,l:vv/pp,t:v.querySelector("#abT").value});grava(M);desenha();try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}};
     v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(!confirm("Apagar este abastecimento?"))return;M.abs=M.abs.filter(a=>String(a.id)!==b.dataset.del);grava(M);desenha()});
-    v.querySelector("#bkC").onclick=async()=>{const t="INSANOS-MOTO:"+btoa(unescape(encodeURIComponent(JSON.stringify(M))));try{await navigator.clipboard.writeText(t);alert("Backup copiado. Cole numa conversa sua no WhatsApp para guardar.")}catch(_){prompt("Copie o backup:",t)}};
+    v.querySelector("#bkC").onclick=async()=>{const t="INSANOS-MOTO:"+btoa(unescape(encodeURIComponent(JSON.stringify({...M,foto:fotoLer(),fundo:fundoLer(),cartimg:cartImgLer()}))));try{await navigator.clipboard.writeText(t);alert("Backup copiado. Cole numa conversa sua no WhatsApp para guardar.")}catch(_){prompt("Copie o backup:",t)}};
     v.querySelector("#bkR").onclick=()=>{const t=prompt("Cole aqui o backup (começa com INSANOS-MOTO:)");if(!t)return;
-      try{const o=JSON.parse(decodeURIComponent(escape(atob(t.trim().replace("INSANOS-MOTO:","")))));if(!o||typeof o!=="object")throw 0;M={docs:o.docs||{},abs:o.abs||[]};grava(M);desenha();avisoDocs();alert("Backup restaurado.")}
+      try{const o=JSON.parse(decodeURIComponent(escape(atob(t.trim().replace("INSANOS-MOTO:","")))));if(!o||typeof o!=="object")throw 0;M={docs:o.docs||{},abs:o.abs||[]};grava(M);try{if(o.foto)localStorage.setItem("foto_"+D.email,o.foto);if(o.fundo)localStorage.setItem("cartfundo_"+D.email,o.fundo);if(o.cartimg)localStorage.setItem("cartimg_"+D.email,o.cartimg)}catch(_){}fotoDesenha();desenha();avisoDocs();alert("Backup restaurado.")}
       catch(_){alert("Esse texto não parece um backup válido.")}}}
   // aviso no Início: documento vencido ou vencendo em até 30 dias
   function avisoDocs(){const ant=document.getElementById("avisoDoc");if(ant)ant.remove();
@@ -1233,6 +1250,106 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
     v.querySelector("#ajEco").onclick=()=>{const b=ajustesLer();b.eco=!b.eco;try{localStorage.setItem("ajustes_app",JSON.stringify(b))}catch(_){}ajustesAplicar();if(!b.eco)document.querySelectorAll("video.fundo-video").forEach(x=>{try{x.play()}catch(_){}});tela()};
     v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
+
+// ---- 📷 foto do irmão e 🎨 fundo da carteirinha (só neste celular: não vão para a planilha, a nuvem nem o comando) ----
+function fotoLer(){try{return localStorage.getItem("foto_"+D.email)||""}catch(_){return ""}}
+function fundoLer(){try{return localStorage.getItem("cartfundo_"+D.email)||"padrao"}catch(_){return "padrao"}}
+const CART_FUNDOS=[["padrao","Padrão"],["couro","Couro"],["metal","Metal"],["carbono","Fibra de carbono"],["sangue","Vermelho sangue"],["imagem","Minha imagem"]];
+function cartImgLer(){try{return localStorage.getItem("cartimg_"+D.email)||""}catch(_){return ""}}
+function cartImgProcessar(arq){return new Promise((ok,erro)=>{const r=new FileReader();r.onerror=erro;r.onload=()=>{const im=new Image();im.onerror=erro;im.onload=()=>{
+  const k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+  c.getContext("2d").drawImage(im,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.75))};im.src=r.result};r.readAsDataURL(arq)})}
+function fotoProcessar(arq){return new Promise((ok,erro)=>{const r=new FileReader();r.onerror=erro;r.onload=()=>{const im=new Image();im.onerror=erro;im.onload=()=>{
+  const L=320,c=document.createElement("canvas");c.width=c.height=L;const g=c.getContext("2d"),s=Math.min(im.width,im.height);
+  g.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,L,L);ok(c.toDataURL("image/jpeg",.82))};im.src=r.result};r.readAsDataURL(arq)})}
+function fotoDesenha(){const b=document.getElementById("fotoBt");if(!b)return;const f=fotoLer();
+  b.innerHTML=f?`<img src="${f}" alt="Minha foto">`:`<span>📷<small>+</small></span>`;b.classList.toggle("tem",!!f)}
+function fotoAbrir(){if(document.querySelector(".foto-cx"))return;const v=document.createElement("div");v.className="fa-veu";const f=fotoLer();
+  v.innerHTML=`<div class="fa-cx foto-cx" role="dialog" aria-label="Minha foto"><h3 style="margin:0 0 6px">📷 Minha foto</h3>
+    <p class="nota" style="margin:0 0 12px">🔒 A foto fica <b>só neste celular</b>. Ninguém mais vê, nem o comando. Ela aparece ao lado do Pin e na sua carteirinha.</p>
+    ${f?`<img src="${f}" alt="" style="display:block;width:120px;height:120px;border-radius:50%;object-fit:cover;margin:0 auto 14px;border:2px solid #E9B949">`:""}
+    <div class="qbts" style="flex-direction:column;gap:8px"><button type="button" id="ftCam">📸 Tirar foto</button><button type="button" id="ftGal">🖼️ Escolher da galeria</button>${f?'<button type="button" id="ftRem">🗑️ Remover a foto</button>':""}</div>
+    <input type="file" accept="image/*" capture="user" id="ftInCam" hidden><input type="file" accept="image/*" id="ftInGal" hidden>
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+  document.body.appendChild(v);v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
+  const usa=async inp=>{const a=inp.files&&inp.files[0];if(!a)return;try{const d=await fotoProcessar(a);localStorage.setItem("foto_"+D.email,d);fotoDesenha();v.remove()}catch(_){alert("Não consegui usar essa foto. Tente outra.")}};
+  v.querySelector("#ftCam").onclick=()=>v.querySelector("#ftInCam").click();v.querySelector("#ftGal").onclick=()=>v.querySelector("#ftInGal").click();
+  v.querySelector("#ftInCam").onchange=e=>usa(e.target);v.querySelector("#ftInGal").onchange=e=>usa(e.target);
+  const rm=v.querySelector("#ftRem");if(rm)rm.onclick=()=>{if(!confirm("Remover a sua foto?"))return;try{localStorage.removeItem("foto_"+D.email)}catch(_){}fotoDesenha();v.remove()}}
+// o círculo da foto, ao lado do Pin
+(function(){const h=document.querySelector("#app h1");if(!h||document.getElementById("fotoBt"))return;const b=document.createElement("button");b.type="button";b.id="fotoBt";b.className="foto-bt";
+  b.setAttribute("aria-label","Minha foto");b.onclick=fotoAbrir;const pin=h.querySelector("img");if(pin)pin.after(b);else h.appendChild(b);fotoDesenha()})();
+
+// ---- ⏳ tempo de Insanos, 📤 compartilhar a carteirinha e 📜 minha história no clube ----
+function tempoInsanos(){if(!D.ent)return "";const a=new Date(D.ent+"T00:00:00"),h=new Date();h.setHours(0,0,0,0);if(isNaN(a)||a>h)return "";
+  let an=h.getFullYear()-a.getFullYear(),me=h.getMonth()-a.getMonth(),di=h.getDate()-a.getDate();
+  if(di<0){me--;di+=new Date(h.getFullYear(),h.getMonth(),0).getDate()}if(me<0){an--;me+=12}
+  const p=[];if(an)p.push(an+(an===1?" ano":" anos"));if(me)p.push(me+(me===1?" mês":" meses"));if(di||!p.length)p.push(di+(di===1?" dia":" dias"));
+  return p.length>1?p.slice(0,-1).join(", ")+" e "+p[p.length-1]:p[0]}
+async function cartCompartilhar(){
+  const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
+  const ld=src=>new Promise(r=>{if(!src)return r(null);const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=src});
+  const [cav,pin,foto,bgi,mapa]=await Promise.all([ld(CAV),ld(PIN?`pin-${PIN[0]}.png`:""),ld(fotoLer()),ld(fundoLer()==="imagem"?cartImgLer():""),ld(D.mapa?"mapa-divisao.png?v="+encodeURIComponent(D.ger||""):"")]);
+  const rr=(x,y,w,h,r)=>{g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()};
+  const F="Inter, Roboto, Arial, sans-serif",fd=fundoLer();
+  g.save();rr(0,0,W,H,56);g.clip();
+  const lg=(a,b,cc)=>{const q=g.createLinearGradient(0,0,W,H);q.addColorStop(0,a);if(cc)q.addColorStop(.5,cc);q.addColorStop(1,b);g.fillStyle=q;g.fillRect(0,0,W,H)};
+  if(fd==="imagem"&&bgi){const k=Math.max(W/bgi.width,H/bgi.height);g.drawImage(bgi,(W-bgi.width*k)/2,(H-bgi.height*k)/2,bgi.width*k,bgi.height*k);g.fillStyle="rgba(0,0,0,.62)";g.fillRect(0,0,W,H)}
+  else if(fd==="couro")lg("#5a3520","#2b170c");else if(fd==="metal")lg("#2a2d31","#24272b","#5d636b");else if(fd==="sangue")lg("#5c0b0b","#1c0404");
+  else if(fd==="carbono"){g.fillStyle="#181818";g.fillRect(0,0,W,H);g.strokeStyle="#232323";g.lineWidth=12;for(let x=-H;x<W;x+=24){g.beginPath();g.moveTo(x,0);g.lineTo(x+H,H);g.stroke()}}
+  else{g.fillStyle="#1b1714";g.fillRect(0,0,W,H)}
+  g.restore();g.lineWidth=8;g.strokeStyle="#E9B949";rr(4,4,W-8,H-8,52);g.stroke();
+  if(cav){const h=170,w=h*cav.width/cav.height;g.drawImage(cav,80,60,w,h);
+    g.fillStyle="#ECE7DC";g.font=`800 58px ${F}`;g.fillText("INSANOS M.C.",80+w+34,135);g.fillStyle="#BDB7AA";g.font=`500 36px ${F}`;g.fillText(`Divisão ${D.div} · ${D.reg}`,80+w+34,188)}
+  g.fillStyle="rgba(233,185,73,.45)";g.fillRect(80,270,W-160,3);
+  let x=80;
+  if(foto){g.save();g.beginPath();g.arc(x+120,450,120,0,7);g.clip();g.drawImage(foto,x,330,240,240);g.restore();g.lineWidth=6;g.strokeStyle="#E9B949";g.beginPath();g.arc(x+120,450,120,0,7);g.stroke();x+=270}
+  if(pin){const h=250,w=h*pin.width/pin.height;g.drawImage(pin,x,325,w,h);x+=w+30}
+  const tw=W-80-x;let fs=74;g.font=`800 ${fs}px ${F}`;while(g.measureText(D.n).width>tw&&fs>40){fs-=4;g.font=`800 ${fs}px ${F}`}
+  const cabe=(t,sz,pe)=>{let z=sz;g.font=`${pe} ${z}px ${F}`;while(g.measureText(t).width>tw&&z>20){z-=2;g.font=`${pe} ${z}px ${F}`}};   // a linha diminui para caber
+  g.fillStyle="#ECE7DC";g.fillText(D.n,x,405);g.fillStyle="#E9B949";cabe(D.c||"",40,700);g.fillText(D.c||"",x,462);
+  g.fillStyle="#BDB7AA";const ent=D.ent?D.ent.slice(8,10)+"/"+D.ent.slice(5,7)+"/"+D.ent.slice(0,4):"";
+  if(ent){cabe("Insanos M.C. desde "+ent,32,500);g.fillText("Insanos M.C. desde "+ent,x,512)}const tp=tempoInsanos();if(tp){g.fillStyle="#ECE7DC";cabe("⏳ "+tp,32,500);g.fillText("⏳ "+tp,x,556)}
+  const vp=pc(D.pres);
+  if(vp!=null&&cav){g.fillStyle="rgba(255,255,255,.06)";rr(80,640,W-160,330,36);g.fill();
+    const h=270,w=h*cav.width/cav.height,cx=130,cy=670,o=document.createElement("canvas");o.width=w;o.height=h;const og=o.getContext("2d");
+    og.drawImage(cav,0,0,w,h);const hx=cor(vp)[0],cr=parseInt(hx.slice(1,3),16),cg=parseInt(hx.slice(3,5),16),cb=parseInt(hx.slice(5,7),16);
+    const px=og.getImageData(0,0,w|0,h|0),dd=px.data,base=new ImageData(new Uint8ClampedArray(dd),px.width,px.height),bd=base.data;
+    for(let k=0;k<dd.length;k+=4){const al=dd[k+3]<60?0:dd[k+3],lu=Math.min(1.15,(dd[k]+dd[k+1]+dd[k+2])/600+.25);   // ponto a ponto: o fundo quase transparente some
+      dd[k]=Math.min(255,cr*lu);dd[k+1]=Math.min(255,cg*lu);dd[k+2]=Math.min(255,cb*lu);dd[k+3]=al;const cz=(bd[k]+bd[k+1]+bd[k+2])/3*.55;bd[k]=bd[k+1]=bd[k+2]=cz;bd[k+3]=al}
+    og.putImageData(px,0,0);const ob=document.createElement("canvas");ob.width=w;ob.height=h;ob.getContext("2d").putImageData(base,0,0);
+    g.globalAlpha=.45;g.drawImage(ob,cx,cy,w,h);g.globalAlpha=1;const t2=document.createElement("canvas");t2.width=w;t2.height=h;const tg=t2.getContext("2d");tg.beginPath();tg.rect(0,h*(1-vp/100),w,h*vp/100);tg.clip();tg.drawImage(o,0,0,w,h);
+    g.save();if(vp>=90){g.shadowColor="rgba(233,185,73,.8)";g.shadowBlur=30}g.drawImage(t2,cx,cy,w,h);g.restore();   // o recorte primeiro, o brilho depois (sem cortar o brilho)
+    g.fillStyle=cor(vp)[1];g.font=`900 150px ${F}`;g.fillText(vp+"%",cx+w+50,830);g.fillStyle="#BDB7AA";g.font=`500 36px ${F}`;g.fillText(`de presença nos eventos em ${D.ano}`,cx+w+54,890)}
+  let yy=1010;
+  if(mapa){g.fillStyle="rgba(255,255,255,.06)";rr(80,yy,W-160,530,36);g.fill();g.fillStyle="#ECE7DC";g.font=`800 40px ${F}`;g.fillText("📍 Por onde a Divisão já passou",110,yy+62);
+    g.fillStyle="#BDB7AA";g.font=`500 30px ${F}`;g.fillText(`${D.mapa.lugares} ${D.mapa.lugares===1?"lugar":"lugares"} · ${D.mapa.eventos} eventos`,110,yy+104);
+    const mw=W-260,mh=mw*mapa.height/mapa.width;g.save();rr(130,yy+125,mw,mh,24);g.clip();g.drawImage(mapa,130,yy+125,mw,mh);g.restore();yy+=560}
+  // 🤝 faça parte: o QR do cadastro de novos integrantes (o endereço sem o rastreador do Facebook)
+  const URL_FP="https://marketing.insanosmc.com.br/faca-parte-do-maior-moto-clube-do-brasil-insanos-mc";
+  g.fillStyle="rgba(233,185,73,.12)";rr(80,yy,W-160,250,36);g.fill();g.strokeStyle="rgba(233,185,73,.6)";g.lineWidth=3;rr(80,yy,W-160,250,36);g.stroke();
+  try{await carregarQRLib();if(window.qrcode){const q=qrcode(0,"M");q.addData(URL_FP);q.make();const n=q.getModuleCount(),tam=200,m=tam/n,qx=115,qy=yy+25;
+    g.fillStyle="#fff";rr(qx-10,qy-10,tam+20,tam+20,14);g.fill();g.fillStyle="#000";for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))g.fillRect(qx+k*m,qy+r*m,Math.ceil(m),Math.ceil(m))}}catch(_){}
+  g.fillStyle="#ECE7DC";g.font=`800 38px ${F}`;g.fillText("Quer fazer parte do maior",360,yy+72);g.fillText("moto clube do Brasil?",360,yy+118);
+  g.fillStyle="#BDB7AA";g.font=`500 28px ${F}`;g.fillText("Aponte a câmera para o QR",360,yy+166);g.fillStyle="#E9B949";g.font=`800 32px ${F}`;g.fillText("insanosmc.com.br",360,yy+212);
+  g.fillStyle="#8f887d";g.font=`600 28px ${F}`;g.textAlign="center";g.fillText(`Insanos M.C. · Divisão ${D.div} · ${D.reg}`,W/2,H-45);g.textAlign="left";
+  c.toBlob(async b=>{if(!b){alert("Não consegui gerar a imagem.");return}const f=new File([b],"carteirinha-insanos.png",{type:"image/png"});
+    try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:"Minha carteirinha Insanos M.C."});return}}catch(_){return}
+    const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="carteirinha-insanos.png";document.body.appendChild(a);a.click();a.remove()},"image/png")}
+// 📜 minha história no clube (linha do tempo)
+(function(){const app=document.getElementById("app");if(!app||document.getElementById("histC"))return;const H=D.hist||{},it=[],br=d=>d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4);
+  if(D.ent){it.push([D.ent,"🏍️","Entrada no Insanos M.C.","Recebeu o Pin Caveira"]);const a0=+D.ent.slice(0,4),hj=new Date().getFullYear();
+    [[3,"🥉","Pin Bronze"],[6,"🥈","Pin Prata"],[9,"🥇","Pin Ouro"]].forEach(([n,ic,r])=>{const an=a0+n;it.push([an+"-01-01",ic,r,an<=hj?"Recebido em "+an:"Previsto para "+an,an>hj])})}
+  if(H.pri)it.push([H.pri[0],"⭐","Primeira presença",H.pri[1]]);
+  (H.marcos||[]).forEach(([n,d,e])=>it.push([d,"🎯",`${n}ª presença`,e]));
+  Object.entries(H.anos||{}).sort().forEach(([a,[p,t]])=>{if(t)it.push([a+"-12-31","📅",`${a}: ${p} de ${t} eventos`,`${Math.round(p*100/t)}% de presença`,a==String(new Date().getFullYear())])});
+  if(!it.length)return;it.sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:0);
+  const tp=tempoInsanos(),d=document.createElement("details");d.className="card";d.id="histC";
+  d.innerHTML=`<summary style="cursor:pointer;font-weight:800;font-size:var(--fs-h2,21px)">📜 Minha história no clube</summary>
+    <p class="nota" style="margin:8px 0 12px">${tp?`⏳ ${tp} de Insanos`:""}${H.tot?` · ${H.tot} presenças no total`:""}</p>
+    <div class="hist">${it.map(([dt,ic,t,s2,fut])=>`<div class="hi${fut?" fut":""}"><i>${ic}</i><div><b>${es(t)}</b><small>${dt.slice(5)==="01-01"||dt.slice(5)==="12-31"?"":br(dt)+(s2?" · ":"")}${es(s2||"")}</small></div></div>`).join("")}</div>`;
+  const ref=document.getElementById("avisos")||[...app.children].find(c=>/Atualizado em/.test(c.textContent||""));   // antes dos avisos e do rodapé
+  if(ref&&ref.parentNode===app)app.insertBefore(d,ref);else app.appendChild(d)})();
 
 // ---- ☀️ bom-dia das 9h: o irmão pode desligar só esse aviso (fica guardado na planilha, aba Preferências) ----
 (function(){const b=document.getElementById("bdTg");if(!b)return;const k="bomdia_off_"+D.email;
@@ -1325,12 +1442,29 @@ setTimeout(()=>{try{reinstAviso(D.reinst)}catch(_){}},1800);
 // ---- carteirinha (abre com o QR de identificação) e conquistas (sequências e marcas, sem expor faltas)
 function carregarQRLib(){return new Promise(ok=>{if(window.qrcode)return ok();const sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";sc.onload=()=>ok();sc.onerror=()=>ok();document.head.appendChild(sc)})}
 function cartAbrir(){const ent=D.ent?D.ent.slice(8,10)+"/"+D.ent.slice(5,7)+"/"+D.ent.slice(0,4):"";
-  const v=document.createElement("div");v.className="cart-veu";v.innerHTML=`<div class="cart"><div class="topo"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
-    <div class="meio">${PIN?`<img class="pin" src="pin-${PIN[0]}.png" alt="${PIN[1]}">`:""}<div><h3>${es(D.n)}</h3><div class="c">${es(D.c||"")}</div>
-      <div class="d">${ent?"Insanos M.C. desde "+ent:""}${PIN?" · "+PIN[1]:""}</div></div></div>
+  const v=document.createElement("div");v.className="cart-veu";v.innerHTML=`<div class="cart f-${fundoLer()==="imagem"&&!cartImgLer()?"padrao":fundoLer()}" style="${cartImgLer()?`--cimg:url('${cartImgLer()}')`:""}"><div class="topo"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
+    <div class="meio">${fotoLer()?`<img class="foto" src="${fotoLer()}" alt="">`:""}${PIN?`<img class="pin" src="pin-${PIN[0]}.png" alt="${PIN[1]}">`:""}<div><h3>${es(D.n)}</h3><div class="c">${es(D.c||"")}</div>
+      <div class="d">${ent?"Insanos M.C. desde "+ent:""}${PIN?" · "+PIN[1]:""}</div>${tempoInsanos()?`<div class="d" style="color:#ECE7DC">⏳ ${tempoInsanos()} de Insanos</div>`:""}</div></div>
     ${vp!=null?`<div class="pres"><div class="cv${vp>=90?" trofeu":""}" style="--g:${corGlow(vp)}"><img src="${CAV}" alt=""><span class="o" style="--cav:url('${CAV}');--c:${cor(vp)[0]};clip-path:inset(${100-vp}% 0 0 0)"></span></div><div><b style="color:${cor(vp)[1]}">${vp}%</b><span>de presença nos eventos em ${D.ano}${D.pres&&D.pres[1]?` · ${D.pres[0]} de ${D.pres[1]}`:""}</span></div></div>`:""}
     <div class="qr"><canvas width="220" height="220"></canvas><p>Código de identificação do irmão. Quem ler vê o nome, o cargo, a divisão e desde quando é Insanos.</p></div>
+    <div class="fundos-t">🎨 Fundo da carteirinha${fotoLer()?"":` · <a href="#" class="cart-foto" style="color:#E9B949">📷 pôr minha foto</a>`}</div>
+    <div class="fundos">${CART_FUNDOS.map(([k,r])=>`<button type="button" data-fd="${k}" aria-label="${r}" title="${r}" aria-pressed="${fundoLer()===k}"${k==="imagem"&&cartImgLer()?` style="background:url('${cartImgLer()}') center/cover!important"`:""}>${k==="imagem"&&!cartImgLer()?"📷":""}</button>`).join("")}</div>
+    <div class="fundos-t fundo-img-acoes"${fundoLer()==="imagem"&&cartImgLer()?"":" hidden"}><a href="#" data-img-troca style="color:#E9B949">🖼️ Trocar imagem</a> · <a href="#" data-img-rem style="color:#BDB7AA">🗑️ Remover</a></div>
+    <input type="file" accept="image/*" hidden class="cart-img-in">
+    <button type="button" class="compart">📤 Compartilhar a carteirinha</button>
     <button class="fechar">Fechar</button></div>`;document.body.appendChild(v);
+  const cx=v.querySelector(".cart"),inImg=v.querySelector(".cart-img-in"),acoes=v.querySelector(".fundo-img-acoes");
+  v.querySelector(".compart").onclick=e=>{e.stopPropagation();cartCompartilhar()};
+  const aplica=k=>{try{localStorage.setItem("cartfundo_"+D.email,k)}catch(_){}CART_FUNDOS.forEach(([f])=>cx.classList.remove("f-"+f));cx.classList.add("f-"+k);
+    v.querySelectorAll("[data-fd]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.fd===k));acoes.hidden=!(k==="imagem"&&cartImgLer())};
+  v.querySelectorAll("[data-fd]").forEach(b=>b.onclick=e=>{e.stopPropagation();if(b.dataset.fd==="imagem"&&!cartImgLer()){inImg.click();return}aplica(b.dataset.fd)});
+  inImg.onchange=async()=>{const a=inImg.files&&inImg.files[0];if(!a)return;try{const d=await cartImgProcessar(a);localStorage.setItem("cartimg_"+D.email,d);cx.style.setProperty("--cimg",`url('${d}')`);
+      const sw=v.querySelector('[data-fd="imagem"]');sw.textContent="";sw.style.cssText=`background:url('${d}') center/cover!important`;aplica("imagem")}
+    catch(_){alert("Não consegui usar essa imagem (pode ser grande demais). Tente outra.")}inImg.value=""};
+  v.querySelector("[data-img-troca]").onclick=e=>{e.preventDefault();inImg.click()};
+  v.querySelector("[data-img-rem]").onclick=e=>{e.preventDefault();if(!confirm("Remover a imagem de fundo?"))return;try{localStorage.removeItem("cartimg_"+D.email)}catch(_){}
+    cx.style.removeProperty("--cimg");const sw=v.querySelector('[data-fd="imagem"]');sw.style.cssText="";sw.textContent="📷";aplica("padrao")};
+  {const cf=v.querySelector(".cart-foto");if(cf)cf.onclick=e=>{e.preventDefault();v.remove();fotoAbrir()}}
   v.onclick=e=>{if(e.target===v||e.target.classList.contains("fechar"))v.remove()};
   carregarQRLib().then(()=>{if(!window.qrcode)return;const txt=`INSANOS M.C. · Divisão ${D.div} ${D.reg}\n${D.n} · ${D.c||""}${ent?"\nInsanos desde "+ent:""}${PIN?"\n"+PIN[1]:""}`;
     const q=qrcode(0,"M");q.addData(unescape(encodeURIComponent(txt)),"Byte");q.make();const cv=v.querySelector("canvas"),g=cv.getContext("2d"),n=q.getModuleCount(),m=cv.width/n;
@@ -1447,6 +1581,21 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         if "@" not in email or (m["n"].lower() in autoriz and m["n"].lower() not in {a.lower() for a in ACESSOS_SOMENTE}):
             continue
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
+        def historia(k):
+            """Linha do tempo do irmão (todos os anos): a primeira presença, os marcos de presença e o total por ano."""
+            try:
+                pres = [e for e in sorted(eventos, key=lambda x: x["d"]) if conta(e["p"][k], k, e["d"]) == 1]
+                anos = {}
+                for e in eventos:
+                    c_ = conta(e["p"][k], k, e["d"])
+                    if c_ is None:
+                        continue
+                    a_ = anos.setdefault(e["d"][:4], [0, 0]); a_[1] += 1; a_[0] += 1 if c_ == 1 else 0
+                return {"pri": [pres[0]["d"], pres[0]["e"]] if pres else None,
+                        "marcos": [[n_, pres[n_ - 1]["d"], pres[n_ - 1]["e"]] for n_ in (10, 25, 50, 100, 150, 200) if len(pres) >= n_],
+                        "tot": len(pres), "anos": anos}
+            except Exception:
+                return None
         lista = lambda evs: [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] + ([JUST[(e["d"], e["e"].strip().lower())][m["n"]]]
                               if m["n"] in JUST.get((e["d"], e["e"].strip().lower()), {}) else []) for e in sorted(evs, key=lambda x: x["d"], reverse=True)
                              if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None]
@@ -1461,6 +1610,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
                  "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
                  "anivs": anivs_lista,
+                 "hist": historia(i), "mapa": MAPA_INFO,
                  "enq": ({"id": ENQ["id"], "p": ENQ["p"], "ops": ENQ["ops"], "meu": ENQ["votos"].get(email.strip().lower(), ("", ""))[1]}
                          if ENQ and ENQ.get("aberta") else None),
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
@@ -3416,6 +3566,77 @@ INDEX_SO_ADM = """<!DOCTYPE html>
 </head><body><p>Abrindo o painel do comando… <a href="adm.html">toque aqui</a> se não abrir.</p></body></html>
 """
 
+MAPA_PNG, MAPA_INFO = None, None   # o mapa da divisão (lugares dos eventos), para a imagem compartilhada da carteirinha
+def montar_mapa(eventos):
+    """Mapa com os lugares onde a divisão já esteve: o endereço do evento (aba Eventos) ou, sem ele, a sede.
+    Coordenadas pelo OpenStreetMap (Nominatim, 1 por segundo) e o mapa com os blocos do OpenStreetMap, no tom escuro do app."""
+    global MAPA_PNG, MAPA_INFO
+    import urllib.request, urllib.parse, math, io, time
+    from PIL import Image, ImageDraw, ImageOps, ImageEnhance
+    UA = {"User-Agent": "PainelInsanos/1.0 (painel da divisao)"}
+    sede = (DIV.get("sede_endereco") or DIV.get("sede_local") or "").strip()
+    cont = {}
+    for e in eventos:
+        inf = INFO_EV.get((e["d"], e["e"].strip().lower()), {})
+        end = (inf.get("endereco") or inf.get("local") or sede or "").strip()
+        if end:
+            cont[end] = cont.get(end, 0) + 1
+    if not cont:
+        return
+    pts = []
+    for end, n in sorted(cont.items(), key=lambda x: -x[1])[:25]:
+        geo = CLIMA_GEO.get(end)
+        if end not in CLIMA_GEO:
+            try:
+                for q in (end, end.split(" - ")[-1] if " - " in end else ""):
+                    if not q:
+                        continue
+                    r = json.loads(urllib.request.urlopen(urllib.request.Request("https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
+                        {"format": "json", "limit": 1, "countrycodes": "br", "q": q}), headers=UA), timeout=8).read().decode("utf-8"))
+                    time.sleep(1.1)
+                    if r:
+                        geo = (float(r[0]["lat"]), float(r[0]["lon"])); break
+            except Exception:
+                geo = None
+            CLIMA_GEO[end] = geo
+        if geo:
+            pts.append((geo[0], geo[1], n))
+    if not pts:
+        return
+    junta = {}   # o mesmo ponto (endereços diferentes que caem no mesmo lugar) soma
+    for la, lo, n in pts:
+        k = (round(la, 4), round(lo, 4)); junta[k] = junta.get(k, 0) + n
+    pts = [(la, lo, n) for (la, lo), n in junta.items()]
+    W, H, PAD = 920, 440, 60
+    px = lambda la, lo, z: ((lo + 180) / 360 * 256 * 2 ** z, (1 - math.log(math.tan(math.radians(la)) + 1 / math.cos(math.radians(la))) / math.pi) / 2 * 256 * 2 ** z)
+    z = 14
+    while z > 3:
+        xs = [px(la, lo, z)[0] for la, lo, _ in pts]; ys = [px(la, lo, z)[1] for la, lo, _ in pts]
+        if max(xs) - min(xs) <= W - 2 * PAD and max(ys) - min(ys) <= H - 2 * PAD:
+            break
+        z -= 1
+    xs = [px(la, lo, z)[0] for la, lo, _ in pts]; ys = [px(la, lo, z)[1] for la, lo, _ in pts]
+    cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2
+    x0, y0 = cx - W / 2, cy - H / 2
+    tela = Image.new("RGB", (W, H), (20, 18, 16))
+    try:
+        for tx in range(int(x0 // 256), int((x0 + W) // 256) + 1):
+            for ty in range(int(y0 // 256), int((y0 + H) // 256) + 1):
+                u = f"https://tile.openstreetmap.org/{z}/{tx % (2 ** z)}/{ty}.png"
+                t = Image.open(io.BytesIO(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=10).read())).convert("RGB")
+                tela.paste(t, (int(tx * 256 - x0), int(ty * 256 - y0)))
+    except Exception as e:
+        print(f"Aviso: mapa sem os blocos do OpenStreetMap ({type(e).__name__}); só os pontos.")
+    tela = ImageOps.colorize(ImageEnhance.Contrast(ImageOps.grayscale(tela)).enhance(1.1), black=(10, 9, 8), white=(120, 104, 80))   # tom escuro do app
+    d = ImageDraw.Draw(tela)
+    for la, lo, n in sorted(pts, key=lambda p: p[2]):
+        x, y = px(la, lo, z); x -= x0; y -= y0; r = 9 + min(14, n * 2)
+        d.ellipse((x - r - 4, y - r - 4, x + r + 4, y + r + 4), fill=(233, 185, 73, 90))
+        d.ellipse((x - r, y - r, x + r, y + r), fill=(233, 185, 73), outline=(20, 18, 16), width=3)
+    d.text((W - 8, H - 6), "© OpenStreetMap", fill=(200, 190, 170), anchor="rd")
+    b = io.BytesIO(); tela.save(b, "PNG", optimize=True); MAPA_PNG = b.getvalue()
+    MAPA_INFO = {"lugares": len(pts), "eventos": sum(n for _, _, n in pts)}
+
 def arquivos_app():
     """Arquivos que fazem o link virar "app" (instalável no celular): manifestos, ajudante (sw.js) e ícones."""
     def manifesto(nome, curto, inicio):
@@ -3628,6 +3849,8 @@ self.addEventListener("notificationclick", e => {
         if (nome.startswith("notif-") or nome.startswith("atalho-") or nome.startswith("pin-")) and nome.endswith(".png"):     # notificações, atalhos e pins (honrarias)
             with open(os.path.join(pasta_app, nome), "rb") as f:
                 arq[nome] = f.read()
+    if MAPA_PNG:
+        arq["mapa-divisao.png"] = MAPA_PNG
     return arq
 
 def publicar_se_mudou(arquivos, assinatura, forcar=False):
@@ -4033,6 +4256,10 @@ def main():
     except Exception as e:
         PAG_MEU = {}; print(f"Aviso: mensalidade do Meu painel não montada ({type(e).__name__}: {e}).")
     try:
+        try:
+            montar_mapa(eventos)
+        except Exception as e:
+            print(f"Aviso: mapa da divisão não montado ({type(e).__name__}: {e}).")
         montar_pessoais(membros, eventos, eventos_ins, gerado)
     except Exception as e:
         PESSOAIS.clear(); print(f"Aviso: o 'Meu painel' dos irmãos não foi montado ({type(e).__name__}: {e}).")
