@@ -81,9 +81,9 @@
    ]
   },
   {
-   "name": "Lançar (comando)",
-   "short_name": "Lançar",
-   "description": "Lançar um evento ou insight",
+   "name": "Lançar/Alterar (comando)",
+   "short_name": "Lançar/Alterar",
+   "description": "Lançar ou alterar um evento ou insight",
    "url": "./adm.html#lancar",
    "icons": [
     {
