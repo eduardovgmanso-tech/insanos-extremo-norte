@@ -892,6 +892,9 @@ h1{font-size:30px;margin:18px 0 2px}.sub{color:var(--osso2);font-size:14px;margi
 .cart .compart{display:block;width:100%;margin-top:12px;padding:12px;border-radius:12px;border:0;background:#E9B949;color:#1a1206;font:inherit;font-weight:800;font-size:15px}
 .foto-bt{width:54px;height:54px;border-radius:50%;border:2px dashed rgba(236,231,220,.4);background:rgba(236,231,220,.06);padding:0;flex:none;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;color:#ECE7DC;font-size:20px;line-height:1;margin-left:8px;vertical-align:middle}
 .foto-bt.tem{border:2px solid #E9B949}.foto-bt img{width:100%;height:100%;object-fit:cover;display:block}.foto-bt span{display:flex;flex-direction:column;align-items:center}.foto-bt small{font-size:12px;font-weight:800;margin-top:-2px}
+.cart .fotos2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 0}.cart .fotos2.um{grid-template-columns:1fr}
+.cart .f2{position:relative;border-radius:14px;overflow:hidden;height:150px;border:1px solid rgba(233,185,73,.45)}.cart .f2 img{width:100%;height:100%;object-fit:cover;display:block}
+.cart .f2 span{position:absolute;left:0;right:0;bottom:0;padding:16px 8px 6px;background:linear-gradient(transparent,rgba(0,0,0,.78));font-size:12.5px;font-weight:700;color:#ECE7DC;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cart .moto-f{position:relative;margin:12px 0 0;border-radius:14px;overflow:hidden;height:120px;border:1px solid rgba(233,185,73,.45)}.cart .moto-f img{width:100%;height:100%;object-fit:cover;display:block}
 .cart .moto-f span{position:absolute;left:0;right:0;bottom:0;padding:16px 10px 6px;background:linear-gradient(transparent,rgba(0,0,0,.75));font-size:13px;font-weight:700;color:#ECE7DC}
 .cart .meio .foto{width:86px;height:86px;border-radius:50%;object-fit:cover;border:2px solid #E9B949;flex:none;box-shadow:0 4px 14px rgba(0,0,0,.5)}
@@ -969,7 +972,8 @@ details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary
 #conqBox{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 14px}#conqBox[hidden]{display:none}
 .cq{padding:12px;border-radius:14px;background:rgba(236,231,220,.05);border:1px solid rgba(236,231,220,.1)}.cq b{display:block;font-size:22px;line-height:1.1}
 .cq strong{display:block;font-size:13.5px;margin-top:4px}.cq span{display:block;font-size:12px;color:#BDB7AA;margin-top:2px}.cq.off{opacity:.45;filter:grayscale(1)}
-.cart-veu{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:16px}
+.cart-veu{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.78);display:flex;align-items:flex-start;justify-content:center;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px));overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.cart-veu .cart{margin:auto 0}
 .cart{width:min(380px,100%);border-radius:22px;padding:18px;background:linear-gradient(150deg,#262019,#0f0d0b 70%);border:2px solid #E9B949;box-shadow:0 20px 60px rgba(0,0,0,.6);color:#ECE7DC;position:relative}
 .cart .topo{display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(233,185,73,.35);padding-bottom:10px;margin-bottom:12px}
 .cart .topo img{width:40px;height:auto}.cart .topo b{font-size:16px;letter-spacing:.06em}.cart .topo span{display:block;font-size:12px;color:#BDB7AA}
@@ -1566,9 +1570,9 @@ setTimeout(()=>{try{reinstAviso(D.reinst)}catch(_){}},1800);
 function carregarQRLib(){return new Promise(ok=>{if(window.qrcode)return ok();const sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";sc.onload=()=>ok();sc.onerror=()=>ok();document.head.appendChild(sc)})}
 function cartAbrir(){const ent=D.ent?D.ent.slice(8,10)+"/"+D.ent.slice(5,7)+"/"+D.ent.slice(0,4):"";
   const v=document.createElement("div");v.className="cart-veu";v.innerHTML=`<div class="cart f-${fundoLer()==="imagem"&&!cartImgLer()?"padrao":fundoLer()}" style="${cartImgLer()?`--cimg:url('${cartImgLer()}')`:""}"><div class="topo"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
-    <div class="meio">${fotoLer()?`<img class="foto" src="${fotoLer()}" alt="">`:""}${PIN?`<img class="pin" src="pin-${PIN[0]}.png" alt="${PIN[1]}">`:""}<div><h3>${es(D.n)}</h3><div class="c">${es(D.c||"")}</div>
+    <div class="meio">${PIN?`<img class="pin" src="pin-${PIN[0]}.png" alt="${PIN[1]}">`:""}<div><h3>${es(D.n)}</h3><div class="c">${es(D.c||"")}</div>
       <div class="d">${ent?"Insanos M.C. desde "+ent:""}${PIN?" · "+PIN[1]:""}</div>${tempoInsanos()?`<div class="d" style="color:#ECE7DC">⏳ ${tempoInsanos()} de Insanos</div>`:""}</div></div>
-    ${motoFotoLer()?`<div class="moto-f"><img src="${motoFotoLer()}" alt="A moto"><span>🏍️ ${es(motoNome()||"A minha moto")}</span></div>`:""}
+    ${fotoLer()||motoFotoLer()?`<div class="fotos2${fotoLer()&&motoFotoLer()?"":" um"}">${fotoLer()?`<div class="f2"><img src="${fotoLer()}" alt="Minha foto"><span>${es(D.n)}</span></div>`:""}${motoFotoLer()?`<div class="f2"><img src="${motoFotoLer()}" alt="A moto"><span>🏍️ ${es(motoNome()||"A minha moto")}</span></div>`:""}</div>`:""}
     ${vp!=null?`<div class="pres"><div class="cv${vp>=90?" trofeu":""}" style="--g:${corGlow(vp)}"><img src="${CAV}" alt=""><span class="o" style="--cav:url('${CAV}');--c:${cor(vp)[0]};clip-path:inset(${100-vp}% 0 0 0)"></span></div><div><b style="color:${cor(vp)[1]}">${vp}%</b><span>de presença nos eventos em ${D.ano}${D.pres&&D.pres[1]?` · ${D.pres[0]} de ${D.pres[1]}`:""}</span></div></div>`:""}
     <div class="qr"><canvas width="220" height="220"></canvas><p>Código de identificação do irmão. Quem ler vê o nome, o cargo, a divisão e desde quando é Insanos.</p></div>
     <div class="fundos-t">🎨 Fundo da carteirinha${fotoLer()?"":` · <a href="#" class="cart-foto" style="color:#E9B949">📷 pôr minha foto</a>`}</div>
@@ -3760,7 +3764,16 @@ def montar_mapa(eventos):
         geo = CLIMA_GEO.get(end)
         if end not in CLIMA_GEO:
             try:
-                for q in (end, end.split(" - ")[-1] if " - " in end else ""):
+                import re as _re
+                limpo = _re.sub(r"\bn\s*(?:[°º]|o\.)\s*", "", end, flags=_re.I).strip(" .")
+                partes = [x.strip(" .,") for x in limpo.split(" - ") if x.strip(" .,")]
+                uf = partes[-1] if partes and len(partes[-1]) == 2 else (DIV.get("estado") or "")
+                cidade_uf = "São Paulo, SP" if uf.upper() == "SP" else uf
+                tentativas = [", ".join(partes) + ", Brasil"]
+                if len(partes) >= 2:
+                    tentativas.append(f"{partes[0]}, {partes[1]}, {cidade_uf}, Brasil")
+                    tentativas.append(f"{partes[-2] if len(partes) >= 3 else partes[1]}, {cidade_uf}, Brasil")
+                for q in tentativas:
                     if not q:
                         continue
                     r = json.loads(urllib.request.urlopen(urllib.request.Request("https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
@@ -3773,7 +3786,9 @@ def montar_mapa(eventos):
             CLIMA_GEO[end] = geo
         if geo:
             pts.append((geo[0], geo[1], n))
+    print(f"Mapa da divisão: {len(pts)} de {len(cont)} endereço(s) encontrados no mapa.")
     if not pts:
+        print("Aviso: mapa da divisão não montado (nenhum endereço encontrado).")
         return
     junta = {}   # o mesmo ponto (endereços diferentes que caem no mesmo lugar) soma
     for la, lo, n in pts:
@@ -3808,6 +3823,7 @@ def montar_mapa(eventos):
     d.text((W - 8, H - 6), "© OpenStreetMap", fill=(200, 190, 170), anchor="rd")
     b = io.BytesIO(); tela.save(b, "PNG", optimize=True); MAPA_PNG = b.getvalue()
     MAPA_INFO = {"lugares": len(pts), "eventos": sum(n for _, _, n in pts)}
+    print(f"Mapa da divisão montado: {MAPA_INFO['lugares']} lugar(es), {MAPA_INFO['eventos']} evento(s).")
 
 def arquivos_app():
     """Arquivos que fazem o link virar "app" (instalável no celular): manifestos, ajudante (sw.js) e ícones."""
