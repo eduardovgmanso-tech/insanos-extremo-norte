@@ -3690,6 +3690,34 @@ def _assinatura_conteudo(dados_geral, dados_adm):
     bruto = tpl + json.dumps(dados_geral, ensure_ascii=False, sort_keys=True) + json.dumps(adm, ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(bruto.encode("utf-8")).hexdigest()
 
+def _publicar_lote(cfg, token, arquivos, quando):
+    """Envia todos os arquivos que mudaram numa ÚNICA alteração do repositório (o site é publicado uma vez só).
+    Devolve quantos arquivos mudaram; qualquer erro sobe para quem chamou, que volta para o envio arquivo por arquivo."""
+    import hashlib
+    rep = f"/repos/{cfg.get('usuario', GITHUB_USUARIO)}/{cfg.get('repo', GITHUB_REPO)}"
+    ramo = _github("GET", rep, token).get("default_branch") or "main"
+    ref = _github("GET", f"{rep}/git/ref/heads/{ramo}", token)["object"]["sha"]
+    arvore = _github("GET", f"{rep}/git/commits/{ref}", token)["tree"]["sha"]
+    atual = _github("GET", f"{rep}/git/trees/{arvore}?recursive=1", token)
+    if atual.get("truncated"):
+        raise RuntimeError("repositório grande demais para o envio em lote")
+    shas = {x["path"]: x["sha"] for x in atual.get("tree", []) if x.get("type") == "blob"}
+    itens = []
+    for nome, conteudo in {**arquivos, ".nojekyll": ""}.items():
+        dados = conteudo if isinstance(conteudo, bytes) else conteudo.encode("utf-8")
+        if nome == ".nojekyll" and nome in shas:
+            continue
+        if shas.get(nome) == hashlib.sha1(b"blob %d\0" % len(dados) + dados).hexdigest():
+            continue       # igual ao que já está no link
+        blob = _github("POST", f"{rep}/git/blobs", token, {"content": base64.b64encode(dados).decode(), "encoding": "base64"})["sha"]
+        itens.append({"path": nome, "mode": "100644", "type": "blob", "sha": blob})
+    if not itens:
+        return 0
+    nova = _github("POST", f"{rep}/git/trees", token, {"base_tree": arvore, "tree": itens})["sha"]
+    com = _github("POST", f"{rep}/git/commits", token, {"message": f"Atualiza o painel ({len(itens)} arquivo(s), {quando})", "tree": nova, "parents": [ref]})["sha"]
+    _github("PATCH", f"{rep}/git/refs/heads/{ramo}", token, {"sha": com})
+    return len(itens)
+
 def publicar(arquivos):
     """Envia os arquivos {nome_no_site: conteúdo} para o repositório do GitHub (substitui a versão anterior)."""
     import urllib.error
@@ -3702,6 +3730,12 @@ def publicar(arquivos):
         token = cfg["token"]
         base = f"/repos/{cfg.get('usuario', GITHUB_USUARIO)}/{cfg.get('repo', GITHUB_REPO)}/contents/"
         quando = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+        try:   # o jeito rápido: tudo numa única alteração (uma publicação do site só)
+            n_ = _publicar_lote(cfg, token, arquivos, quando)
+            print(f"Publicado no link (de uma vez, {n_} arquivo(s) alterado(s)): {SITE_URL}adm.html")
+            return True
+        except Exception as e_:
+            print(f"Aviso: envio em lote não deu ({type(e_).__name__}: {e_}); enviando arquivo por arquivo.")
         import hashlib
         for nome, conteudo in {**arquivos, ".nojekyll": ""}.items():
             dados = conteudo if isinstance(conteudo, bytes) else conteudo.encode("utf-8")   # texto ou imagem
@@ -3778,10 +3812,26 @@ def montar_mapa(eventos):
             cont[end] = cont.get(end, 0) + 1
     if not cont:
         return
+    import datetime as _dtm
+    arq_geo = os.path.join(PASTA, "geo_cache.json")   # coordenadas já encontradas (guardadas entre as rodadas, sem ir para o site)
+    try:
+        with open(arq_geo, encoding="utf-8") as f:
+            guard = json.load(f)
+    except Exception:
+        guard = {}
+    hoje_s = _dtm.date.today().isoformat()
+    for end in cont:
+        g_ = guard.get(end)
+        if isinstance(g_, list) and len(g_) == 2:
+            CLIMA_GEO[end] = (float(g_[0]), float(g_[1]))
+        elif isinstance(g_, dict) and (_dtm.date.today() - _dtm.date.fromisoformat(g_.get("falhou", "2000-01-01"))).days < 3:
+            CLIMA_GEO[end] = None   # não achou há pouco: tenta de novo daqui a 3 dias
+    novos = 0
     pts = []
     for end, n in sorted(cont.items(), key=lambda x: -x[1])[:25]:
         geo = CLIMA_GEO.get(end)
         if end not in CLIMA_GEO:
+            novos += 1
             try:
                 import re as _re
                 limpo = _re.sub(r"\bn\s*(?:[°º]|o\.)\s*", "", end, flags=_re.I).strip(" .")
@@ -3805,7 +3855,15 @@ def montar_mapa(eventos):
             CLIMA_GEO[end] = geo
         if geo:
             pts.append((geo[0], geo[1], n))
-    print(f"Mapa da divisão: {len(pts)} de {len(cont)} endereço(s) encontrados no mapa.")
+    try:   # guarda o que achou (e o que não achou, com a data, para não tentar a cada rodada)
+        for end in cont:
+            if end in CLIMA_GEO:
+                guard[end] = list(CLIMA_GEO[end]) if CLIMA_GEO[end] else {"falhou": hoje_s}
+        with open(arq_geo, "w", encoding="utf-8") as f:
+            json.dump(guard, f, ensure_ascii=False)
+    except Exception:
+        pass
+    print(f"Mapa da divisão: {len(pts)} de {len(cont)} endereço(s) encontrados no mapa ({novos} procurado(s) agora; os outros já estavam guardados).")
     if not pts:
         print("Aviso: mapa da divisão não montado (nenhum endereço encontrado).")
         return

@@ -1474,7 +1474,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
