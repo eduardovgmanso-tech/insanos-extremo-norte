@@ -289,7 +289,7 @@ body.abertura.fotos-on .fotos-login .fl{opacity:.45}      /* durante o vídeo, b
 body.entrou:not(.anim) .fotos-login .fl{transition:none}
 body.entrou .fotos-login .fl{transition-delay:0s!important}     /* ao entrar, todas esmaecem juntas */
 @media (prefers-reduced-motion:reduce){.fundo-video{display:none}}
-</style></head><body class="abertura"><script>try{var _a=JSON.parse(localStorage.getItem("ajustes_app")||"{}");if(_a.eco)document.documentElement.classList.add("eco");if(_a.letra)document.documentElement.classList.add("letra-"+_a.letra)}catch(_){}</script><style>html.eco .fundo-video{display:none!important}html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}</style><video class="fundo-video" id="fv" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
+</style></head><body class="abertura"><script>window.__h0=location.hash;try{var _a=JSON.parse(localStorage.getItem("ajustes_app")||"{}");if(_a.eco)document.documentElement.classList.add("eco");if(_a.letra)document.documentElement.classList.add("letra-"+_a.letra)}catch(_){}</script><style>html.eco .fundo-video{display:none!important}html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}</style><video class="fundo-video" id="fv" src="fundo.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"
   oncanplay="document.documentElement.classList.add('com-video')" onerror="this.remove();entrar()"></video>
 <script>
 // abertura do app: o vídeo aparece sozinho por ~2 s e depois a tela de entrada surge por cima
@@ -380,13 +380,13 @@ const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
 (async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());   // celular: digital/Face ID · computador: Windows Hello
   if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
-    if(!location.hash.startsWith("#sos="))soDigital()}}catch(_){}})();   // a digital abre só com o toque (o SOS fica sempre à mão)
+    const h0=window.__h0||location.hash;if(!h0.startsWith("#sos")){soDigital();setTimeout(()=>{if(!location.hash.startsWith("#sos"))bioEntrar(true)},350)}}}catch(_){}})();   // aberto pelo SOS (notificação ou atalho do ícone): a digital não abre sozinha   // pelo SOS (notificação ou atalho do ícone) a digital não abre sozinha   // a digital abre sozinha; se falhar, aparece o e-mail   // a digital abre só com o toque (o SOS fica sempre à mão)
 // com a digital cadastrada neste celular: a entrada mostra só a digital; o e-mail fica a um toque (ou aparece se a digital falhar)
 function soDigital(){["cpf","b"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});
   document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");const l=document.getElementById("emailLink");if(l)l.style.display="block"}
-function mostraEmail(){["cpf","b"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=false});
+function mostraEmail(semFoco){["cpf","b"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=false});
   document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="");const l=document.getElementById("emailLink");if(l)l.style.display="none";
-  const c=document.getElementById("cpf");if(c)setTimeout(()=>c.focus(),50)}
+  const c=document.getElementById("cpf");if(c&&!semFoco)setTimeout(()=>c.focus(),50)}
 document.getElementById("emailLink").onclick=ev=>{ev.preventDefault();mostraEmail()};
 (function(){let re="";try{re=sessionStorage.getItem("reentrar")||"";sessionStorage.removeItem("reentrar")}catch(_){}
   if(re&&re.includes("@")){cpf.value=re;setTimeout(()=>{try{document.getElementById("f").requestSubmit()}catch(_){}},250)}})();
@@ -404,7 +404,7 @@ async function bioEntrar(auto){erro.textContent="";try{
   const em=new TextDecoder().decode(a.response.userHandle||new Uint8Array());
   if(!em.includes("@"))throw new Error("sem e-mail");
   cpf.value=em;window.__viaBio=true;document.getElementById("f").requestSubmit()}
-  catch(e){if(auto)return;   // ao abrir o app (sem toque): se o celular não deixou ou a pessoa cancelou, o botão continua lá
+  catch(e){if(auto){mostraEmail(true);erro.textContent="Toque em Entrar com a digital para tentar de novo, ou entre com o seu e-mail.";return}   // abriu sozinha e não deu: o botão continua e o e-mail aparece
     try{sessionStorage.setItem("bio_falhou","1")}catch(_){}   // se a chave sumiu do celular, depois do e-mail o app oferece cadastrar de novo
     mostraEmail();erro.textContent="Não deu certo com a digital. Tente de novo ou entre com o seu e-mail."}}
 bioB.onclick=()=>bioEntrar(false);
