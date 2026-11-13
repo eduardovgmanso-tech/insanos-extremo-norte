@@ -380,7 +380,7 @@ const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
 (async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());   // celular: digital/Face ID · computador: Windows Hello
   if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
-    const h0=window.__h0||location.hash;if(!h0.startsWith("#sos")){soDigital();setTimeout(()=>{if(!location.hash.startsWith("#sos"))bioEntrar(true)},350)}}}catch(_){}})();   // aberto pelo SOS (notificação ou atalho do ícone): a digital não abre sozinha   // pelo SOS (notificação ou atalho do ícone) a digital não abre sozinha   // a digital abre sozinha; se falhar, aparece o e-mail   // a digital abre só com o toque (o SOS fica sempre à mão)
+    const h0=window.__h0||location.hash;if(!h0.startsWith("#sos"))soDigital()}}catch(_){}})();   // a digital abre só com o toque (assim os avisos da tela de entrada ficam à vista e o SOS à mão)   // pelo SOS (notificação ou atalho do ícone) a digital não abre sozinha   // a digital abre sozinha; se falhar, aparece o e-mail   // a digital abre só com o toque (o SOS fica sempre à mão)
 // com a digital cadastrada neste celular: a entrada mostra só a digital; o e-mail fica a um toque (ou aparece se a digital falhar)
 function soDigital(){["cpf","b"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});
   document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");const l=document.getElementById("emailLink");if(l)l.style.display="block"}
