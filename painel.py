@@ -595,6 +595,21 @@ document.getElementById("f").addEventListener("submit",async ev=>{
         if(s.t==="v")abre();else bioPerguntar(d,abre);return}catch(e){}}
       if(comoIrmao){try{sessionStorage.removeItem("ver_irmao")}catch(_){}await tentaSlots()}   // sem Meu painel: volta ao ADM
       if(!chave)throw 0}
+    // do comando e também com o Meu painel: pergunta como quer entrar (ou usa a escolha lembrada / o atalho do ícone)
+    let meuH=null;if(!comoIrmao)for(const s of (P.pes||[])){if(s.t==="v")continue;try{meuH=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));break}catch(e){}}
+    if(meuH){let modo="";const h=location.hash;if(h==="#moto"||h==="#eventos")modo="irm";else if(h==="#lancar"||h==="#lista")modo="cmd";
+      try{if(sessionStorage.getItem("forcar_cmd")==="1"){sessionStorage.removeItem("forcar_cmd");modo="cmd"}}catch(_){}   // veio do "Voltar ao painel do comando"
+      if(!modo){try{modo=localStorage.getItem("entrar_como")||""}catch(_){}}
+      if(!modo)modo=await new Promise(ok=>{const v=document.createElement("div");v.id="escolheEntrada";
+        v.style.cssText="position:fixed;inset:0;z-index:2147483000;background:rgba(10,8,7,.96);display:flex;align-items:center;justify-content:center;padding:20px";
+        v.innerHTML=`<div style="width:min(380px,100%);background:#1b1714;border:2px solid #E9B949;border-radius:22px;padding:22px 18px;color:#ECE7DC;text-align:center">
+          <div style="font-size:20px;font-weight:800;margin-bottom:6px">Como você quer entrar?</div><div style="font-size:13.5px;color:#BDB7AA;margin-bottom:16px">Você é do comando e também tem o seu Meu painel.</div>
+          <button type="button" data-m="cmd" style="display:block;width:100%;padding:16px;border-radius:14px;border:0;background:#E9B949;color:#1a1206;font:inherit;font-weight:800;font-size:17px;margin-bottom:10px">👑 Entrar como comando</button>
+          <button type="button" data-m="irm" style="display:block;width:100%;padding:16px;border-radius:14px;border:1px solid rgba(236,231,220,.35);background:none;color:#ECE7DC;font:inherit;font-weight:800;font-size:17px">👤 Entrar como irmão (Meu painel)</button>
+          <label style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:14px;font-size:13.5px;color:#BDB7AA"><input type="checkbox" id="lembraEnt" style="width:18px;height:18px"> Lembrar neste celular</label></div>`;
+        document.body.appendChild(v);v.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{if(v.querySelector("#lembraEnt").checked){try{localStorage.setItem("entrar_como",b.dataset.m)}catch(_){}}v.remove();ok(b.dataset.m)})});
+      if(modo==="irm"){try{sessionStorage.setItem("ver_irmao","1");sessionStorage.setItem("painel_email",d)}catch(_){}registrar(true);
+        bioPerguntar(d,()=>{document.open();document.write(meuH.split("__CAV__").join(P.cav||""));document.close()});return}}
     const k=await crypto.subtle.importKey("raw",chave,"AES-GCM",false,["decrypt"]);
     const html=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(P.iv)},k,b64(P.ct)));
     registrar(true);
@@ -1365,7 +1380,11 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
     <button type="button" class="aj-op" id="ajEco" aria-pressed="${!!a.eco}"><span><b>🔋 Modo economia</b><small>Desliga o vídeo de fundo e os efeitos animados (brilho e sombras das caveiras). Bom para celular mais simples ou para poupar bateria e internet.</small></span><i>${a.eco?"Ligado":"Desligado"}</i></button>
     <p style="margin:16px 0 8px;font-weight:700">🔠 Tamanho da letra</p>
     <div class="aj-letras">${[["","Normal"],["g","Grande"],["gg","Muito grande"]].map(([k,r])=>`<button type="button" data-l="${k}" aria-pressed="${(a.letra||"")===k}">${r}</button>`).join("")}</div>
+    ${(()=>{let tem=false;try{tem=!!(window.TEM_ACESSOS||sessionStorage.getItem("ver_irmao")||localStorage.getItem("entrar_como")||document.getElementById("quadros3"))}catch(_){}
+      if(!tem)return "";let m="";try{m=localStorage.getItem("entrar_como")||""}catch(_){}
+      return `<p style="margin:16px 0 8px;font-weight:700">🚪 Ao entrar no app</p><div class="aj-letras aj-ent">${[["","Perguntar"],["cmd","Comando"],["irm","Irmão"]].map(([k,r])=>`<button type="button" data-e="${k}" aria-pressed="${m===k}">${r}</button>`).join("")}</div>`})()}
     <button type="button" class="fa-fechar">Fechar</button></div>`;
+    v.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{try{if(b.dataset.e)localStorage.setItem("entrar_como",b.dataset.e);else localStorage.removeItem("entrar_como")}catch(_){}tela()});
     v.querySelector("#ajEco").onclick=()=>{const b=ajustesLer();b.eco=!b.eco;try{localStorage.setItem("ajustes_app",JSON.stringify(b))}catch(_){}ajustesAplicar();if(!b.eco)document.querySelectorAll("video.fundo-video").forEach(x=>{try{x.play()}catch(_){}});tela()};
     v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
@@ -1621,7 +1640,7 @@ function conquistas(){const ev=[...(D.ev||[])].sort((a,b)=>a[0]<b[0]?1:-1),cron=
       if(!r||!r.ok)throw new Error((r&&r.erro)||"não enviado");try{localStorage.setItem(chave,hoje)}catch(_){}feito()}
     catch(e){b.disabled=false;b.textContent=`🙋 Pedir o boleto ao ${D.mens.adm}`;alert("Não consegui pedir agora ("+(e.message||e)+"). Entre uma vez no app com o seu e-mail e o código, se ainda não entrou.")}}})();
 try{if(sessionStorage.getItem("ver_irmao")==="1"){const f=document.getElementById("comoIrmao");f.hidden=false;
-  document.getElementById("voltarCmd").onclick=e=>{e.preventDefault();try{sessionStorage.removeItem("ver_irmao")}catch(_){}location.href=location.pathname}}}catch(_){}
+  document.getElementById("voltarCmd").onclick=e=>{e.preventDefault();try{sessionStorage.removeItem("ver_irmao");sessionStorage.setItem("forcar_cmd","1")}catch(_){}location.href=location.pathname}}}catch(_){}
 if(location.hash==="#mensagens")setTimeout(()=>{try{abrirMensagens({modo:"irmao",comando:D.cmd||[]})}catch(_){}},900);
 else setTimeout(()=>{try{msgNaoLidas({modo:"irmao",comando:D.cmd||[]})}catch(_){}},2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)avSinc()});
 try{if(matchMedia("(display-mode: standalone)").matches||navigator.standalone===true)document.getElementById("instalar").hidden=true}catch(e){}
@@ -1706,7 +1725,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
         print(f"Aviso: próximos aniversários não montados ({type(e).__name__}: {e}).")
     for i, m in enumerate(membros):
         email = EMAIL_APELIDO_INV.get(m["n"].lower(), "")
-        if "@" not in email or (m["n"].lower() in autoriz and m["n"].lower() not in {a.lower() for a in ACESSOS_SOMENTE}):
+        if "@" not in email:   # (o comando também tem o Meu painel: ao entrar, escolhe "comando" ou "irmão")
             continue
         mesmo = [j for j in todos if grupos[j] == grupos[i]]
         def historia(k):

@@ -2806,7 +2806,10 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
     <button type="button" class="aj-op" id="ajEco" aria-pressed="${!!a.eco}"><span><b>🔋 Modo economia</b><small>Desliga o vídeo de fundo e os efeitos animados (brilho e sombras das caveiras). Bom para celular mais simples ou para poupar bateria e internet.</small></span><i>${a.eco?"Ligado":"Desligado"}</i></button>
     <p style="margin:16px 0 8px;font-weight:700">🔠 Tamanho da letra</p>
     <div class="aj-letras">${[["","Normal"],["g","Grande"],["gg","Muito grande"]].map(([k,r])=>`<button type="button" data-l="${k}" aria-pressed="${(a.letra||"")===k}">${r}</button>`).join("")}</div>
+    ${(()=>{let m="";try{m=localStorage.getItem("entrar_como")||""}catch(_){}
+      return `<p style="margin:16px 0 8px;font-weight:700">🚪 Ao entrar no app</p><div class="aj-letras aj-ent">${[["","Perguntar"],["cmd","Comando"],["irm","Irmão"]].map(([k,r])=>`<button type="button" data-e="${k}" aria-pressed="${m===k}">${r}</button>`).join("")}</div>`})()}
     <button type="button" class="fa-fechar">Fechar</button></div>`;
+    v.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{try{if(b.dataset.e)localStorage.setItem("entrar_como",b.dataset.e);else localStorage.removeItem("entrar_como")}catch(_){}tela()});
     v.querySelector("#ajEco").onclick=()=>{const b=ajustesLer();b.eco=!b.eco;try{localStorage.setItem("ajustes_app",JSON.stringify(b))}catch(_){}ajustesAplicar();if(!b.eco)document.querySelectorAll("video.fundo-video").forEach(x=>{try{x.play()}catch(_){}});tela()};
     v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
