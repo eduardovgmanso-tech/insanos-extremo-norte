@@ -158,6 +158,11 @@ def gravar_info_evento(api, pid, d, quem=""):
     api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW",
                                        body={"values": [cab] + outros + [linha]}).execute()
 
+def fly_nome(d):
+    """O nome do arquivo do fly de um lançamento (o mesmo evento e data dão sempre o mesmo nome)."""
+    import hashlib
+    return "fly-" + hashlib.sha1(f"{d.get('data', '')}|{str(d.get('evento', '')).strip().lower()}".encode("utf-8")).hexdigest()[:12] + ".jpg"
+
 def aplicar_enquete(api, pid, d, quem=""):
     """Enquete do comando (aba Enquetes, criada sozinha): uma linha por enquete; a nova encerra a que estava aberta.
     enquete_fim: encerra a enquete pelo id."""
@@ -1354,6 +1359,14 @@ def processar_fila(api, pid):
             d = json.loads(row[3]); tp = d.get("tipo")
             if tp == "lancamento_presenca":
                 res, sit = aplicar_evento(api, pid, d), "feito"
+                try:   # o fly da lista (versão pequena): vira um arquivo do site, para o aviso "Painel atualizado" mostrar a imagem
+                    fl = str(d.get("fly") or "")
+                    if fl.startswith("data:image/") and "," in fl:
+                        nome_f = fly_nome(d)
+                        with open(os.path.join(PASTA, nome_f), "wb") as f_:
+                            f_.write(base64.b64decode(fl.split(",", 1)[1]))
+                except Exception as e:
+                    print(f"Aviso: fly do lançamento não guardado ({type(e).__name__}: {e}).")
                 try:
                     gravar_justificativas(api, pid, d, row[1])
                 except Exception as e:
@@ -1850,8 +1863,12 @@ def main():
                 emoji, icone = min(tipos, key=lambda x: ordem.index(x[1])) if tipos else ("✅", None)
                 resp_ = {str(x).strip().lower() for x in (getattr(g, "ACESSOS_SOMENTE", []) or [])}
                 teste = " (Possível teste ou melhoria)" if any(str(q).strip().lower() in resp_ for q in quem) else ""   # lançado pelo responsável pelo painel
+                fly_u = None   # o fly do último lançamento com fly (o arquivo já foi publicado nesta rodada)
+                for _, _, d_ in resumo_fila:
+                    if d_.get("tipo") == "lancamento_presenca" and str(d_.get("fly") or "").startswith("data:image/") and os.path.exists(os.path.join(PASTA, fly_nome(d_))):
+                        fly_u = getattr(g, "SITE_URL", "") + fly_nome(d_)
                 g.notificar(f"{emoji} Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else "") + teste, "atualizacao",
-                            zap=zaps[-1] if zaps else None, icone=icone)      # a mensagem pronta do último lançamento com lista
+                            zap=zaps[-1] if zaps else None, icone=icone, imagem=fly_u)      # a mensagem pronta do último lançamento com lista
             elif evento == "repository_dispatch" and not lanc_recente and acao != "rsvp":
                 # a planilha avisou e a Fila estava vazia: foi edição feita à mão na planilha
                 g.notificar("📝 Painel atualizado", "A planilha foi editada à mão. O painel já está com a alteração.", "atualizacao")

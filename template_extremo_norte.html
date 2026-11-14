@@ -2870,6 +2870,20 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
     v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
 
+// ---- 📤 "Mandar com o fly" (botão do aviso "Painel atualizado"): o fly e a lista prontos; um toque abre o compartilhar ----
+async function zapFlyAbrir(){let o=null;try{const c=await caches.open("insanos-zap"),r=await c.match("zapfly");if(r){o=await r.json();await c.delete("zapfly")}}catch(_){}
+  if(!o||!o.txt)return;const v=document.createElement("div");v.className="fa-veu";
+  v.innerHTML=`<div class="fa-cx" role="dialog" aria-label="Mandar com o fly"><h3 style="margin:0 0 8px">📤 Mandar com o fly</h3>
+    ${o.fly?`<img src="${esc(o.fly)}" alt="O fly" style="display:block;width:100%;max-height:300px;object-fit:contain;border-radius:12px;margin-bottom:8px;background:#000">`:""}
+    <div style="max-height:180px;overflow:auto;white-space:pre-wrap;font-size:13px;background:rgba(0,0,0,.35);border-radius:10px;padding:10px">${esc(o.txt)}</div>
+    <button type="button" class="btn zap" id="zfMandar" style="width:100%;margin-top:10px">📤 Mandar no WhatsApp</button><button type="button" class="fa-fechar">Fechar</button></div>`;
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);
+  v.querySelector("#zfMandar").onclick=async()=>{try{await navigator.clipboard.writeText(o.txt)}catch(_){}
+    try{if(o.fly){const bl=await (await fetch(o.fly)).blob(),f=new File([bl],"fly.jpg",{type:bl.type||"image/jpeg"});
+      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:o.txt});return}}}catch(e){if(e&&e.name==="AbortError")return}
+    window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")}}
+if(location.hash==="#zapfly"){try{history.replaceState(null,"",location.pathname)}catch(_){}setTimeout(zapFlyAbrir,700)}
+if(navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.zapfly)zapFlyAbrir()});
 // ---- 🚑 APH da regional (Gestão): o comando cadastra os dois; o app abre o SMS com o pedido de autorização ----
 try{localStorage.setItem("aph_ok",JSON.stringify((DADOS.aph||[]).filter(a=>a.st==="autorizado").map(a=>({nome:a.nome,tel:a.tel}))))}catch(_){}
 function aphAbrir(){if(document.querySelector(".aph-cx"))return;const L=DADOS.aph||[],v=document.createElement("div");v.className="fa-veu";
@@ -3524,7 +3538,7 @@ function montarListas(){
     $("lwTipos").querySelectorAll("button").forEach(x=>x.setAttribute("aria-selected",x===b));lwCampos();lwListaUI();lwAtualiza()};
   lwCampos();lwListaUI();lwAtualiza();
   {const s=$("lwTipoSel");s.innerHTML=Object.entries(LW_TIPOS).map(([k,x])=>`<option value="${k}">${esc(x.nome)}</option>`).join("");s.value=lw.tipo;
-    s.onchange=()=>{const b=$("lwTipos").querySelector(`[data-lwt="${s.value}"]`);if(b)b.click()};
+    s.onchange=()=>{const b=$("lwTipos").querySelector(`[data-lwt="${s.value}"]`);if(b)b.click();setTimeout(lwFlyBotao,50)};setTimeout(lwFlyBotao,300);
     $("lwTipos").addEventListener("click",()=>setTimeout(()=>{s.value=lw.tipo},0))}   // quando o fly troca o tipo sozinho, o filtro acompanha
   document.getElementById("listasView").addEventListener("click",ev=>{
     const b=ev.target.closest(".lw-seg button");
@@ -3547,7 +3561,7 @@ function montarListas(){
     Object.keys(LW_TIPOS).forEach(k=>{try{["lw_","lw_m_","lw_j_"].forEach(pf=>localStorage.removeItem(pf+k))}catch(e){}});
     lw.f={};lw.marca={};lw.just={};$("lwColar").value="";$("lwLido").textContent="";
     lwCampos();lwListaUI();lwAtualiza();alert("Todas as listas foram limpas.")};
-  $("lwLimpar").onclick=()=>{const nome=LW_TIPOS[lw.tipo].nome;
+  $("lwLimpar").onclick=()=>{try{localStorage.removeItem(lwFlyChave())}catch(_){}setTimeout(lwFlyBotao,0);const nome=LW_TIPOS[lw.tipo].nome;
     if(!confirm(`Limpar todos os dados da lista "${nome}"? Os campos voltam ao padrão e as marcações ✅/❌ são apagadas.`))return;
     try{localStorage.removeItem("lw_"+lw.tipo);localStorage.removeItem("lw_m_"+lw.tipo)}catch(e){}
     try{localStorage.removeItem("lw_j_"+lw.tipo)}catch(e){}
@@ -3642,7 +3656,7 @@ async function flyCompartilhado(){if(location.hash!=="#fly-compartilhado"||MODO!
     irPara("listas");setTimeout(()=>lwLerFly(new File([b],"fly."+((b.type||"image/jpeg").split("/")[1]||"jpg"),{type:b.type||"image/jpeg"})),500)}catch(_){}}
 setTimeout(flyCompartilhado,1200);
 setTimeout(()=>{try{if(MODO==="adm"&&window.reinstAviso)reinstAviso(DADOS.reinst)}catch(_){}},2200);   // aviso de reinstalar, quando uma atualização pedir
-function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;const F=lw.f[lw.tipo]||{},assin=F.assin;
+function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;try{localStorage.removeItem(lwFlyChave())}catch(_){}setTimeout(lwFlyBotao,0);const F=lw.f[lw.tipo]||{},assin=F.assin;
   lw.f[lw.tipo]=Object.fromEntries(T.campos.map(([k,,d])=>[k,d]));if(assin!==undefined)lw.f[lw.tipo].assin=assin;
   lwFlyCampos=new Set();lwGuardar();lwCampos();lwAtualiza();$("lwFlyLido").textContent="";$("lwFlyLimpar").hidden=true;avisoRapido("🗑️ Leitura e campos apagados.")}
 async function flyImagem64(f,camera){const img=await _img(URL.createObjectURL(f));if(!img)return null;
@@ -3721,7 +3735,30 @@ async function flyOcrGoogle(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return n
     if(j&&j.ok&&j.texto&&j.texto.trim())return j.texto;
     flyOcrGoogle.erro=j&&j.ok?"o Google não achou texto na imagem":(j&&j.erro?j.erro:"sem resposta");return null}
   catch(e){flyOcrGoogle.erro=e&&e.name==="AbortError"?"demorou demais (mais de 30 s)":"sem conexão com o Apps Script";return null}finally{clearTimeout(to)}}
+// o fly da lista para o aviso do comando: só se o lançamento for do mesmo evento da lista; versão pequena (cabe na planilha)
+async function lancFlyPequeno(d){if(!lancInfo||lancInfo.padrao)return "";const tp=lancInfo.tipo||(lw&&lw.tipo);let src="";try{src=localStorage.getItem("lw_fly_"+tp)||""}catch(_){}
+  if(!src)return "";const F=lancInfo.f||{},dl=String(F.data||F.dt||"").slice(0,10);if(dl&&dl!==d)return "";
+  const im=await new Promise((ok,er)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=er;i.src=src});
+  for(const [w,q] of [[640,.6],[560,.5],[480,.45],[400,.4]]){const k=Math.min(1,w/im.width),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height);const u=c.toDataURL("image/jpeg",q);if(u.length<38000)return u}
+  return ""}
+// ---- o fly junto da lista: guardado ao ler (versão reduzida) e enviado com a lista como legenda ----
+function lwFlyChave(){return "lw_fly_"+(lw&&lw.tipo||"x")}
+function lwFlyLer(){try{return localStorage.getItem(lwFlyChave())||""}catch(_){return ""}}
+function lwFlyGuardar(f){const tipo=lwFlyChave(),r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement("canvas");
+    c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+    try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.82))}catch(_){try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.6))}catch(_){}}lwFlyBotao()};im.src=r.result};r.readAsDataURL(f)}
+function lwFlyBotao(){if(!$("lwCopiar"))return;let b=$("lwZapFly");const d=lwFlyLer();
+  if(!b){$("lwCopiar").insertAdjacentHTML("beforebegin",`<button type="button" class="btn zap" id="lwZapFly"></button>`);b=$("lwZapFly");b.onclick=lwMandarComFly}
+  b.hidden=!d;b.innerHTML=d?`<img src="${d}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Mandar com o fly (WhatsApp)`:""}
+async function lwMandarComFly(){if(lwSemAssinatura()){lwAvisoAssin();return}
+  const fj=lwFaltaJust();if(fj.length&&!confirm(`Falta justificar a ausência de: ${fj.join(", ")}. Mandar mesmo assim?`))return;
+  const tx=lwTexto();try{await navigator.clipboard.writeText(tx)}catch(_){}   // o texto também fica copiado (se a legenda vier cortada, é só colar)
+  const d=lwFlyLer();if(!d)return;const bl=await (await fetch(d)).blob(),f=new File([bl],"fly.jpg",{type:"image/jpeg"});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}
+  avisoRapido("Este celular não deixou mandar a imagem com o texto. A lista já foi copiada: mande o fly e cole a lista logo abaixo.")}
 async function lwLerFly(f,camera){
+  try{lwFlyGuardar(f)}catch(_){}   // guarda o fly para mandar junto com a lista
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
   st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura com IA</small>':""}</span>`;
@@ -4383,7 +4420,8 @@ async function salvarLancamento(){
   if(!editando&&EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Para corrigir a lista dele, escolha o evento no campo Evento. Salvar mesmo assim?"))return;
   const just=Object.fromEntries(Object.entries(lancJust).filter(([m,x])=>lanc[m]==="Não"&&String(x||"").trim()).map(([m,x])=>[m,String(x).trim().slice(0,80)]));
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,criado:new Date().toISOString()};
-  if(lancInfo&&!lancInfo.padrao)dados.info=lancResumo();dados.zap=lancZapTexto();   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
+  if(lancInfo&&!lancInfo.padrao)dados.info=lancResumo();dados.zap=lancZapTexto();
+  try{const fl=await lancFlyPequeno(d);if(fl)dados.fly=fl}catch(_){}   // o fly da lista (versão pequena), para o aviso "Painel atualizado"   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
   if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});

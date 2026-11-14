@@ -3488,7 +3488,7 @@ def aparelhos_com_avisos():
             cont[em] = cont.get(em, 0) + 1
     return cont
 
-def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None, rsvp=None,
+def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None, rsvp=None, imagem=None,
               todos=False, excluir=None, extra=None):
     """Manda a notificação. Sem so_para: só para os celulares do comando (ADM).
     Com so_para: só para os celulares daquele e-mail (lembretes individuais dos irmãos)."""
@@ -3512,6 +3512,8 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
         msg["link"] = link; msg["lrot"] = link_rot or "Abrir"
     if icone:    # imagem do aviso (pasta app: notif-pag.png, notif-evento.png, ...)
         msg["icon"] = icone
+    if imagem:   # o fly do evento: o Android mostra a imagem grande no aviso (o iPhone ignora)
+        msg["image"] = imagem
     if zap:      # mensagem pronta para o botão "📲 Enviar no WhatsApp" (a notificação tem limite de tamanho)
         msg["zap"] = zap
         if len(json.dumps(msg, ensure_ascii=False).encode("utf-8")) > 3400:
@@ -3961,7 +3963,7 @@ def arquivos_app():
                                 "url": inicio + "#lista", "icons": [{"src": "atalho-lista.png", "sizes": "192x192", "type": "image/png"}]}]},
                           ensure_ascii=False, indent=1)
     sw = """// Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v27";
+const CACHE = "insanos-v28";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -3995,6 +3997,8 @@ const aoPush = e => {
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "notif-badge.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
+  if (d.image) { op.image = d.image; op.data.fly = d.image;   // o fly grande no aviso (Android) e o botão para mandar com o fly
+    if (d.zap) op.actions = [{action: "zapfly", title: "📤 Mandar com o fly"}, {action: "zap", title: "📲 Só o texto"}]; }
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t}));
     if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
@@ -4115,6 +4119,14 @@ self.addEventListener("notificationclick", e => {
   if (dd.rsvp && !e.action) {   // tocou na notificação (no iPhone não há botões): abre o painel para responder
     e.waitUntil(clients.openWindow("adm.html#eventos")); return;
   }
+  if (e.action === "zapfly" && dd.zap) {   // "Mandar com o fly": o app abre com o fly e a lista prontos (um toque em Mandar)
+    e.notification.close();
+    e.waitUntil(caches.open("insanos-zap").then(c => c.put("zapfly", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap, fly: dd.fly || ""}))))
+      .then(() => clients.matchAll({type: "window", includeUncontrolled: true}))
+      .then(ws => { for (const w of ws) if (w.url.includes("adm.html")) { w.postMessage({zapfly: 1}); return w.focus(); }
+                    return clients.openWindow("adm.html#zapfly"); }));
+    return;
+  }
   if (dd.link && (e.action === "link" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {   // ex.: "Abrir meu boleto"
     e.waitUntil(clients.openWindow(dd.link)); return;
   }
@@ -4152,6 +4164,10 @@ self.addEventListener("notificationclick", e => {
                 arq[nome] = f.read()
     if MAPA_PNG:
         arq["mapa-divisao.png"] = MAPA_PNG
+    for nome in (sorted(os.listdir(PASTA)) if os.path.isdir(PASTA) else []):
+        if nome.startswith("fly-") and nome.endswith(".jpg"):   # os flys dos eventos (para o aviso "Painel atualizado")
+            with open(os.path.join(PASTA, nome), "rb") as f:
+                arq[nome] = f.read()
     return arq
 
 def publicar_se_mudou(arquivos, assinatura, forcar=False):
