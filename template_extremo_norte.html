@@ -3607,7 +3607,8 @@ function montarListas(){
     Object.keys(lancJust).forEach(n=>delete lancJust[n]);M.forEach(m=>{if(lanc[m.n]==="Não"){const x=lwJustTexto(m.n);if(x)lancJust[m.n]=x}});
     if($("lEv"))$("lEv").value="novo";
     lancInfo={tipo:lw.tipo==="original"?"reuniao":lw.tipo,f:Object.assign({},lw.f[lw.tipo]||{}),mapas:!!lw.mapas};
-    try{const fl=lwFlyLer();if(fl){localStorage.setItem("lanc_fly",fl);localStorage.setItem("lanc_fly_data",iso||"")}else{localStorage.removeItem("lanc_fly");localStorage.removeItem("lanc_fly_data")}}catch(_){}   // o fly acompanha o evento   // a lista inteira vai para o Lançar
+    {const fl=lwFlyLer();window.__lancFly=fl?{fl,data:iso||"",tit:String((lw.f[lw.tipo]||{}).titulo||"").trim()}:null;   // o fly acompanha o evento (na memória do app)
+      try{if(fl){localStorage.setItem("lanc_fly",fl);localStorage.setItem("lanc_fly_data",iso||"")}else{localStorage.removeItem("lanc_fly");localStorage.removeItem("lanc_fly_data")}}catch(e){console.warn("fly: sem espaço no celular",e)}}   // a lista inteira vai para o Lançar
     // e a Lista fica limpa, pronta para a próxima
     try{localStorage.removeItem("lw_"+lw.tipo);localStorage.removeItem("lw_m_"+lw.tipo);localStorage.removeItem("lw_j_"+lw.tipo)}catch(_){}
     delete lw.f[lw.tipo];lw.marca={};lw.just={};if($("lwColar"))$("lwColar").value="";if($("lwLido"))$("lwLido").textContent="";
@@ -3770,11 +3771,16 @@ async function lancFlyChecar(){const d=$("lData")&&$("lData").value,n=$("lNome")
 function lwFlyArquivoDe(d){if(!d||d.indexOf(",")<0)return null;try{const b=atob(d.split(",")[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new File([u],"fly.jpg",{type:"image/jpeg"})}catch(_){return null}}
 function lancFlyBotao(){const z=$("lZapBtn");if(!z)return;z.innerHTML=lancFlyArq?`<img src="${URL.createObjectURL(lancFlyArq)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Enviar a lista alterada (com o fly)`:"📲 Enviar a lista alterada"}
 // o fly da lista para o aviso do comando: só se o lançamento for do mesmo evento da lista; versão pequena (cabe na planilha)
-function lancFlyLocal(d){try{const s=localStorage.getItem("lanc_fly")||"",dl=localStorage.getItem("lanc_fly_data")||"";return s&&(!dl||dl===d)?s:""}catch(_){return ""}}   // o fly que veio da Lista, só para o mesmo evento (data)
-async function lancFlyPequeno(d){const src=lancFlyLocal(d);if(!src)return "";
+function lancFlyLocal(d){const n=($("lNome")&&$("lNome").value.trim().toLowerCase())||"",M=window.__lancFly;
+  if(M&&M.fl&&(!M.data||M.data===d))return M.fl;   // 1º: o que veio da Lista agora (memória do app)
+  try{const s=localStorage.getItem("lanc_fly")||"",dl=localStorage.getItem("lanc_fly_data")||"";if(s&&(!dl||dl===d))return s}catch(_){}   // 2º: o guardado no Levar
+  try{for(const k of Object.keys(localStorage)){if(!k.startsWith("lw_fly_"))continue;let m=null;try{m=JSON.parse(localStorage.getItem("lw_flymeta_"+k.slice(7))||"null")}catch(_){}
+    if(m&&((m.data&&lwDataISO(m.data)===d)||(m.tit&&n&&m.tit.toLowerCase()===n)))return localStorage.getItem(k)||""}}catch(_){}   // 3º: um fly da Lista do mesmo evento
+  return ""}
+async function lancFlyPequeno(d,limite){const src=lancFlyLocal(d);if(!src)return "";limite=Math.min(38000,limite||38000);
   const im=await new Promise((ok,er)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=er;i.src=src});
-  for(const [w,q] of [[640,.6],[560,.5],[480,.45],[400,.4]]){const k=Math.min(1,w/im.width),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
-    c.getContext("2d").drawImage(im,0,0,c.width,c.height);const u=c.toDataURL("image/jpeg",q);if(u.length<38000)return u}
+  for(const [w,q] of [[640,.6],[560,.5],[480,.45],[400,.4],[360,.35],[320,.3]]){const k=Math.min(1,w/im.width),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    c.getContext("2d").drawImage(im,0,0,c.width,c.height);const u=c.toDataURL("image/jpeg",q);if(u.length<limite)return u}
   return ""}
 // o fly é guardado DEPOIS da leitura: a IA pode trocar o tipo da lista (ex.: Reunião › Evento/Bonde), e ele fica no tipo certo
 setTimeout(()=>{if(typeof lwLerFly!=="function"||lwLerFly.__comFly)return;const orig=lwLerFly;
@@ -4473,9 +4479,10 @@ async function salvarLancamento(){
   const just=Object.fromEntries(Object.entries(lancJust).filter(([m,x])=>lanc[m]==="Não"&&String(x||"").trim()).map(([m,x])=>[m,String(x).trim().slice(0,80)]));
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,criado:new Date().toISOString()};
   if(lancInfo&&!lancInfo.padrao)dados.info=lancResumo();dados.zap=lancZapTexto();
-  try{const fl=await lancFlyPequeno(d);if(fl)dados.fly=fl}catch(_){}   // o fly da lista (versão pequena), para o aviso "Painel atualizado"   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
+  let flySt="";try{const sobra=44000-JSON.stringify(dados).length-600,tem=!!lancFlyLocal(d),fl=tem&&sobra>8000?await lancFlyPequeno(d,sobra):"";if(fl)dados.fly=fl;
+    flySt=fl?"\n\n📎 Fly: foi junto (aparece no aviso do comando).":tem?"\n\n📎 Fly: não foi (a lista ficou grande demais para levar a imagem).":"\n\n📎 Fly: não foi (nenhum fly lido na Lista para este evento)."}catch(_){flySt="\n\n📎 Fly: não foi (erro ao preparar a imagem)."}   // o fly (versão pequena): só o espaço que sobra (o recebedor corta em 45 mil caracteres)   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
-  if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca).")){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
+  if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca)."+flySt)){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
   const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();
