@@ -1,5 +1,5 @@
 // Painel Insanos: busca sempre a versão nova; sem internet, abre a última versão vista.
-const CACHE = "insanos-v27";
+const CACHE = "insanos-v28";
 self.addEventListener("install", e => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {
@@ -33,6 +33,8 @@ const aoPush = e => {
   const op = {body: d.body || "", icon: d.icon || "icon-192.png", badge: "notif-badge.png", tag: d.tag || "aviso", renotify: true,
               data: {url: d.url || "adm.html", zap: d.zap || ""}};
   if (d.zap) op.actions = [{action: "zap", title: "📲 Enviar no WhatsApp"}];
+  if (d.image) { op.image = d.image; op.data.fly = d.image;   // o fly grande no aviso (Android) e o botão para mandar com o fly
+    if (d.zap) op.actions = [{action: "zapfly", title: "📤 Mandar com o fly"}, {action: "zap", title: "📲 Só o texto"}]; }
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t}));
     if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
@@ -152,6 +154,14 @@ self.addEventListener("notificationclick", e => {
   }
   if (dd.rsvp && !e.action) {   // tocou na notificação (no iPhone não há botões): abre o painel para responder
     e.waitUntil(clients.openWindow("adm.html#eventos")); return;
+  }
+  if (e.action === "zapfly" && dd.zap) {   // "Mandar com o fly": o app abre com o fly e a lista prontos (um toque em Mandar)
+    e.notification.close();
+    e.waitUntil(caches.open("insanos-zap").then(c => c.put("zapfly", new Response(JSON.stringify({ts: Date.now(), txt: dd.zap, fly: dd.fly || ""}))))
+      .then(() => clients.matchAll({type: "window", includeUncontrolled: true}))
+      .then(ws => { for (const w of ws) if (w.url.includes("adm.html")) { w.postMessage({zapfly: 1}); return w.focus(); }
+                    return clients.openWindow("adm.html#zapfly"); }));
+    return;
   }
   if (dd.link && (e.action === "link" || /iPhone|iPad|iPod/.test(navigator.userAgent))) {   // ex.: "Abrir meu boleto"
     e.waitUntil(clients.openWindow(dd.link)); return;
