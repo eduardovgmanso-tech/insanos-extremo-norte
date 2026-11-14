@@ -9,7 +9,7 @@ import urllib.parse
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
-ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos", "APH", "Excluidos"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
+ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos", "APH", "Excluidos", "Categorias"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
 COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17]}   # colunas de data (0 = A): B, J e R
 
 def _serial_para_data(v):
@@ -177,6 +177,23 @@ def limpar_flys(g):
     except Exception as e:
         print(f"Aviso: limpeza dos flys não feita ({type(e).__name__}: {e}).")
 
+def gravar_categoria(api, pid, data, evento, cat):
+    """⭐ oficial / 🤝 convidado: só os de convidado ficam registrados na aba Categorias (sem registro = oficial)."""
+    a = _aba_real(api, pid, "Categorias")
+    if not a:
+        if cat != "convidado":
+            return
+        _estrutura(api, pid, [{"addSheet": {"properties": {"title": "Categorias"}}}]); a = "Categorias"
+        api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", body={"values": [["Data", "Evento", "Categoria"]]}).execute()
+    v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{a}'!A1:C2000").execute().get("values", [])
+    chave = (str(data)[:10], str(evento).strip().lower())
+    resto = [r for r in v[1:] if r and (str(r[0])[:10], str((r + ["", ""])[1]).strip().lower()) != chave]
+    if cat == "convidado":
+        resto.append([str(data)[:10], str(evento).strip(), "convidado"])
+    if len(resto) != len(v[1:]) or cat == "convidado":
+        api.spreadsheets().values().clear(spreadsheetId=pid, range=f"'{a}'!A1:C2000").execute()
+        api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", body={"values": [["Data", "Evento", "Categoria"]] + resto}).execute()
+
 def fly_nome(d):
     """O nome do arquivo do fly de um lançamento (o mesmo evento e data dão sempre o mesmo nome)."""
     import hashlib
@@ -233,7 +250,17 @@ def excluir_evento(api, pid, d, quem=""):
         return a, v[:1], dele, outros
     aj, cab_j, just, outros_j = pega("Justificativas", "A1:G5000", 7)
     ae, cab_e, info, outros_e = pega("Eventos", "A1:J3000", 10)
-    copia = json.dumps({"aba": aba, "linha": linha, "marcas": marcas, "just": just, "info": info}, ensure_ascii=False)[:45000]
+    conv = False
+    try:
+        ac = _aba_real(api, pid, "Categorias")
+        if ac:
+            vc = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{ac}'!A1:C2000").execute().get("values", [])
+            conv = any(r and str(r[0])[:10] == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower() for r in vc[1:])
+            if conv:
+                gravar_categoria(api, pid, data_s, ev, "oficial")
+    except Exception:
+        pass
+    copia = json.dumps({"aba": aba, "linha": linha, "marcas": marcas, "just": just, "info": info, "conv": conv}, ensure_ascii=False)[:45000]
     ax = _excluidos_aba(api, pid)
     ident = hashlib.sha1(f"{data_s}|{ev}|{datetime.datetime.now().isoformat()}".encode("utf-8")).hexdigest()[:10]
     api.spreadsheets().values().append(spreadsheetId=pid, range=f"'{ax}'!A1", valueInputOption="RAW", insertDataOption="INSERT_ROWS",
@@ -278,6 +305,11 @@ def restaurar_evento(api, pid, d, quem=""):
             _estrutura(api, pid, [{"addSheet": {"properties": {"title": nome_aba}}}]); a = nome_aba
             api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", body={"values": [ncab]}).execute()
         api.spreadsheets().values().append(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": linhas}).execute()
+    if c.get("conv"):
+        try:
+            gravar_categoria(api, pid, r[3], r[4], "convidado")
+        except Exception:
+            pass
     _gravar(api, pid, [(f"'{ax}'!G{i + 1}", f"restaurado em {datetime.datetime.now():%d/%m/%Y %H:%M} por {str(quem or '').split('@')[0]}")])
     return f"evento restaurado ({res})"
 
@@ -1477,6 +1509,13 @@ def processar_fila(api, pid):
             d = json.loads(row[3]); tp = d.get("tipo")
             if tp == "lancamento_presenca":
                 res, sit = aplicar_evento(api, pid, d), "feito"
+                if d.get("categoria") in ("oficial", "convidado") and not _sa(str(d.get("aba", ""))).startswith("insight"):
+                    try:   # ⭐ oficial / 🤝 convidado
+                        gravar_categoria(api, pid, d["data"], d.get("evento", ""), d["categoria"])
+                        if d["categoria"] == "convidado":
+                            res += " · 🤝 convidado"
+                    except Exception as e:
+                        print(f"Aviso: categoria não gravada ({type(e).__name__}: {e}).")
                 try:   # o fly da lista (versão pequena): vira um arquivo do site, para o aviso "Painel atualizado" mostrar a imagem
                     fl = str(d.get("fly") or "")
                     if fl.startswith("data:image/") and "," in fl:

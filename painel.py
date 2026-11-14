@@ -647,6 +647,8 @@ LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes 
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
 INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
 APAGAR_SITE = set()    # arquivos a tirar do site (ex.: flys de eventos com mais de 6 meses)
+CATS_RAW = []          # (data, evento) marcados como convidado na aba Categorias
+EVENTOS_CONV = []      # eventos em que a divisão foi como convidada (não contam na porcentagem dos irmãos)
 EXCLUIDOS = []         # eventos excluídos (aba Excluidos), para restaurar pela Gestão
 APH = []               # APH da regional (aba APH): [{pos, nome, tel, st, quando}]; os irmãos só recebem os autorizados
 ENQ = {}               # enquete do comando (abas Enquetes e Votos): a última; a contagem só vai para o painel do comando
@@ -1068,6 +1070,9 @@ ${D.mens&&D.mens.st?mensQuadro():""}
   <div class="tabs peq" id="tFil"><button data-f="" class="on">Todos</button><button data-f="x">❌ Só onde faltei</button></div>
   <div id="lista"></div>
   <p class="nota" style="margin-top:10px">Acha que alguma falta está errada? Toque em <b>Questionar</b>: a mensagem sai pronta para você mandar no WhatsApp.</p></div>
+${(D.evx||[]).length?`<div class="card"><h2>🤝 Eventos como convidado</h2><p class="nota" style="margin:0 0 8px">Eventos em que a divisão foi como convidada. São um <b>extra</b>: não contam na sua porcentagem, nem para mais nem para menos.</p>
+  ${(D.evx||[]).map(x=>`<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid rgba(236,231,220,.08)"><span>${x[2]===1?"✅":x[2]===0?"➖":"·"}</span><span style="opacity:.8;min-width:44px">${x[0].slice(8,10)}/${x[0].slice(5,7)}</span><span>${es(x[1])}</span></div>`).join("")}
+  <p class="nota" style="margin-top:8px">${(D.evx||[]).filter(x=>x[2]===1).length} de ${(D.evx||[]).length} em ${D.ano||new Date().getFullYear()}.</p></div>`:""}
 <div class="card" id="instalar"><h2>📲 Instale o app</h2><p class="nota" style="margin:0 0 10px">Ícone na tela inicial, tela cheia e os avisos da divisão no seu celular.</p>
   <div class="qbts"><button class="qz" onclick="tutAbrir()">Ver como instalar</button></div></div>
 <div class="card" id="avisos"><h2>🔔 Avisos no celular</h2><p class="nota" id="avSt" style="margin:0 0 10px">Receba lembretes das listas e da agenda da divisão, só para você.</p>
@@ -1775,6 +1780,8 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "pf": posicao(i, mesmo), "pd": posicao(i, todos),
                  "meses": [{"ym": ym, "p": soma(eventos, i, ym), "i": soma(eventos_ins, i, ym)} for ym in meses],
                  "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
+                 "evx": [[e["d"], e["e"], conta(e["p"][i], i, e["d"])] for e in sorted(EVENTOS_CONV, key=lambda x: x["d"], reverse=True)
+                         if e["d"].startswith(ano) and conta(e["p"][i], i, e["d"]) is not None],
                  "anivs": anivs_lista,
                  "hist": historia(i), "mapa": MAPA_INFO,
                  "aph": [{"nome": x["nome"], "tel": x["tel"]} for x in APH if x["st"] == "autorizado"],
@@ -3910,6 +3917,13 @@ def montar_mapa(eventos):
     if not pts:
         print("Aviso: mapa da divisão não montado (nenhum endereço encontrado).")
         return
+    # só redesenha quando os pontos mudam (senão a imagem que já está no site continua valendo, e o site não é republicado à toa)
+    import hashlib as _hl
+    assin = _hl.sha1(json.dumps(sorted((round(a_, 5), round(b_, 5), n_) for a_, b_, n_ in pts)).encode()).hexdigest()[:16]
+    if guard.get("__mapa") == assin and os.path.exists(os.path.join(PASTA, "mapa-divisao.png")):
+        MAPA_INFO = {"lugares": len(pts), "eventos": sum(n for _, _, n in pts)}
+        print(f"Mapa da divisão: sem mudança nos pontos (a imagem atual continua valendo).")
+        return
     junta = {}   # o mesmo ponto (endereços diferentes que caem no mesmo lugar) soma
     for la, lo, n in pts:
         k = (round(la, 4), round(lo, 4)); junta[k] = junta.get(k, 0) + n
@@ -3943,6 +3957,12 @@ def montar_mapa(eventos):
     d.text((W - 8, H - 6), "© OpenStreetMap", fill=(200, 190, 170), anchor="rd")
     b = io.BytesIO(); tela.save(b, "PNG", optimize=True); MAPA_PNG = b.getvalue()
     MAPA_INFO = {"lugares": len(pts), "eventos": sum(n for _, _, n in pts)}
+    try:   # guarda a impressão digital dos pontos, para não redesenhar sem mudança
+        guard["__mapa"] = assin
+        with open(arq_geo, "w", encoding="utf-8") as f:
+            json.dump(guard, f, ensure_ascii=False)
+    except Exception:
+        pass
     print(f"Mapa da divisão montado: {MAPA_INFO['lugares']} lugar(es), {MAPA_INFO['eventos']} evento(s).")
 
 def arquivos_app():
@@ -4369,6 +4389,15 @@ def main():
                 INFO_EV[(dj, str(ej).strip().lower())] = inf_ev   # (nome próprio: "info" é o dos integrantes)
     except Exception as e:
         print(f"Aviso: informações dos eventos não lidas ({type(e).__name__}: {e}).")
+    # ⭐/🤝 categorias dos eventos (aba Categorias): lidas aqui, enquanto a planilha está aberta
+    global CATS_RAW
+    CATS_RAW = []
+    try:
+        if "Categorias" in wb.sheetnames:
+            CATS_RAW = [(r[0], str(r[1]).strip().lower()) for r in wb["Categorias"].iter_rows(min_row=2, max_col=3, values_only=True)
+                        if r and r[0] and r[1] and str(r[2] or "").strip().lower().startswith("conv")]
+    except Exception as e:
+        print(f"Aviso: categorias não lidas ({type(e).__name__}: {e}).")
     # APH da regional: cadastrados pelo comando (aba APH, gravada pelo Apps Script); só vale o que um ADM cadastrou
     global APH
     APH = []
@@ -4498,6 +4527,15 @@ def main():
         if sx["s"] == "afastado":
             AFASTADOS.append(info_afastamento(sx["apelido"], sx["desde"]))
 
+    # ⭐ oficial / 🤝 convidado (aba Categorias, gravada pelo Lançar): sem registro = oficial. Os de convidado ficam à parte:
+    # não contam na porcentagem do irmão (Meu painel, carteirinha, conquistas, honrarias, ranking); o comando vê pelo seletor da Presença
+    global EVENTOS_CONV
+    cats = {((str(d0)[:10] if isinstance(d0, str) else data_iso(d0, ano)), n0) for d0, n0 in CATS_RAW}
+    EVENTOS_CONV = [e for e in eventos if (e["d"], e["e"].strip().lower()) in cats]
+    eventos = [e for e in eventos if (e["d"], e["e"].strip().lower()) not in cats]
+    if EVENTOS_CONV:
+        print(f"Eventos como convidado (fora da porcentagem dos irmãos): {len(EVENTOS_CONV)}.")
+
     def eventos_da_aba(lin):
         """Eventos de uma aba no formato da Presenca, alinhados aos integrantes pelo apelido."""
         if len(lin) < 8:
@@ -4607,7 +4645,7 @@ def main():
         PAG_MEU = {}; print(f"Aviso: mensalidade do Meu painel não montada ({type(e).__name__}: {e}).")
     try:
         try:
-            montar_mapa(eventos)
+            montar_mapa(eventos + EVENTOS_CONV)   # o mapa mostra todos os lugares (oficiais e como convidado)
         except Exception as e:
             print(f"Aviso: mapa da divisão não montado ({type(e).__name__}: {e}).")
         montar_pessoais(membros, eventos, eventos_ins, gerado)
@@ -4758,10 +4796,10 @@ def main():
         _ap = str(EMAIL_APELIDO.get(_por, "") or (_por if "@" not in _por else _por.split("@")[0]))
         enq_adm["por"] = nomes_.get(_ap.lower(), _ap)   # o apelido de quem criou
         enq_adm.update({"res": res_, "total": len(membros)})
-    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": EVENTOS_CONV, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": EVENTOS_CONV, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]

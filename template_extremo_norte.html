@@ -330,6 +330,8 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 .lw-filtro{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.lw-filtro button{padding:7px 11px;border-radius:999px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-size:13px;font-weight:600}
 .lw-filtro button span{opacity:.7;font-weight:800;margin-left:2px}.lw-filtro button[aria-pressed="true"]{background:#ECE7DC;color:#111}
 .ver-todos{display:block;margin:0 0 10px auto;padding:7px 12px;border-radius:999px;border:1px solid rgba(233,185,73,.6);background:rgba(233,185,73,.12);color:#F1CF6E;font:inherit;font-size:13px;font-weight:700}.ver-todos[hidden]{display:none}
+.cat-vis{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}.cat-vis button{font:inherit;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso,#ECE7DC);cursor:pointer}
+.cat-vis button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}
 .aph-b{padding:12px;border-radius:14px;background:rgba(236,231,220,.04);border:1px solid rgba(236,231,220,.12);margin-bottom:10px}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
@@ -1255,6 +1257,7 @@ html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none
         <label>Nome do evento<input type="text" id="lNome" maxlength="80" placeholder="Ex.: Reunião mensal"></label>
         <label>Data do evento<input type="date" id="lData"></label>
         <label class="inteiro">Assinatura<select id="lAssin"></select></label>
+        <label class="inteiro">Tipo do evento<select id="lCat"><option value="oficial">⭐ Oficial (conta na presença dos irmãos)</option><option value="convidado">🤝 Convidado (extra: não conta na porcentagem)</option></select></label>
       </div>
       <div class="lanc-info" id="lInfo" hidden><div class="lanc-g">LISTA DO EVENTO</div><div class="lw-tipos" role="tablist" id="lTipos"></div><div class="lw-campos" id="lInfoCampos"></div></div>
       <div class="lanc-acoes" style="margin-top:14px">
@@ -1283,9 +1286,15 @@ const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agos
 let M=DADOS.m, EV=DADOS.ev.map((e,i)=>({...e,i}));
 // análises da tela Presença: Presença, Insights e Staff (mesmo formato); no Insights e no Staff dá para tirar o Comando
 const M_FULL=M,EV_SETS={pres:DADOS.ev||[],ins:DADOS.ev_ins||[],staff:DADOS.ev_staff||[]};
+// ⭐ oficiais (padrão) / 🤝 como convidado / todos: o seletor da Presença troca a lista; o Lançar vê sempre todos
+const EV_OF=DADOS.ev||[],EV_CV=DADOS.ev_conv||[],EV_TODOS=EV_OF.concat(EV_CV).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0),EV_CVSET=new Set(EV_CV.map(e=>e.d+"|"+String(e.e).trim().toLowerCase()));
+const evConv=(d,n)=>EV_CVSET.has(d+"|"+String(n||"").trim().toLowerCase());let CAT_VIS="of";
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-cat]");if(b)catVer(b.dataset.cat)});
+function catChips(){return ANAL==="pres"?`<div class="cat-vis" role="group" aria-label="Tipo de evento">${[["of","⭐ Oficiais"],["cv","🤝 Convidado"],["todos","Todos"]].map(([k,r])=>`<button type="button" data-cat="${k}" aria-pressed="${CAT_VIS===k}">${r}${k==="cv"?` (${EV_CV.length})`:""}</button>`).join("")}</div>`:""}
+function catVer(v){CAT_VIS=v;EV_SETS.pres=v==="cv"?EV_CV:v==="todos"?EV_TODOS:EV_OF;try{aplicarAnalise();montarFiltros();render()}catch(e){console.error(e)}}
 // ENTRADA: cada irmão conta a partir do primeiro evento em que aparece marcado (✅, ❌, Staff ou –).
 // Antes disso não conta; depois, se ficar sem marcação, conta como "não foi / não respondeu".
-const ENTRADA={};["pres","ins"].forEach(k=>(EV_SETS[k]||[]).forEach(e=>(e.p||[]).forEach((v,i)=>{const m=M_FULL[i];
+const ENTRADA={};[EV_TODOS,EV_SETS.ins||[]].forEach(L=>L.forEach(e=>(e.p||[]).forEach((v,i)=>{const m=M_FULL[i];
   if(m&&v!==null&&v!==undefined&&v!==""&&(!ENTRADA[m.n]||e.d<ENTRADA[m.n]))ENTRADA[m.n]=e.d})));
 const HOJE_ISO=(()=>{const x=new Date();return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0")})();
 function contaEnt(v,i,d){if(d>HOJE_ISO)return null;   // evento que ainda não aconteceu: fora das estatísticas até o dia dele
@@ -2656,8 +2665,8 @@ function render(){
     <tbody>${mem.map(m=>`<tr><th data-nome="${esc(m.n)}">${esc(m.n)}<span class="nr">Nº ${esc(m.num)}</span>${anivIdade(m)?`<span class="nr aniv">${esc(anivIdade(m))}</span>`:""}</th>${evs.map(e=>{const v=e.p[m.i];
       return `<td title="${esc(m.n)} · ${fmtD(e.d)} · ${v===1?"presente":v===0?"ausente":v==="-"?"não conta":"sem registro"}"><span class="pt ${v===1?"s1":v===0?"s0":v==="-"?"nc":"sn"}"></span></td>`}).join("")}</tr>`).join("")}</tbody>`;
 
-  const ds=EV.map(e=>e.d).sort();if(!ds.length){$("periodo").innerHTML="<b>Nenhum evento registrado nesta aba</b>";window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}else
-  {$("periodo").innerHTML=`<b>${EV.length} eventos registrados</b>${fmtDL(ds[0])} a ${fmtDL(ds[ds.length-1])} de ${ds[0].slice(0,4)}`;window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}
+  const ds=EV.map(e=>e.d).sort();if(!ds.length){$("periodo").innerHTML=catChips()+(ANAL==="pres"&&CAT_VIS==="cv"?"<b>Nenhum evento como convidado ainda</b>":"<b>Nenhum evento registrado nesta aba</b>");window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}else
+  {$("periodo").innerHTML=catChips()+`<b>${EV.length} eventos registrados</b>${fmtDL(ds[0])} a ${fmtDL(ds[ds.length-1])} de ${ds[0].slice(0,4)}`;window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}
   $("rodape").textContent="Fonte: Insanos - Divisão Extremo Norte - SP3, atualizado em "+GERADO+".";
 }
 // lista de funções (várias): abre/fecha, marca/desmarca e limpa
@@ -4457,9 +4466,9 @@ function lwInfoAtual(){const f=Object.assign({},lw.f[lw.tipo]||{});let L={};try{
   return {tipo:lw.tipo,tnome:(LW_TIPOS[lw.tipo]||{}).nome||lw.tipo,hora:f.hora||f.conc_cheg||f.pe_hora||"",local:L.local||f.local||f.destino||"",
     endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:!!lw.mapas,f}}   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
-function lancEventos(){const s=$("lEv");if(!s)return;const evs=(EV_SETS.pres||[]).map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
-  s.innerHTML=`<option value="novo">➕ Novo ou alterar evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${esc(e.e)}</option>`).join("");s.value="novo";
-  s.onchange=()=>{const k=s.value,e=k==="novo"?null:(EV_SETS.pres||[])[+k];
+function lancEventos(){const s=$("lEv");if(!s)return;const evs=EV_TODOS.map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
+  s.innerHTML=`<option value="novo">➕ Novo ou alterar evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${evConv(e.d,e.e)?"🤝 ":""}${esc(e.e)}</option>`).join("");s.value="novo";
+  s.onchange=()=>{const k=s.value,e=k==="novo"?null:EV_TODOS[+k];if($("lCat"))$("lCat").value=e&&evConv(e.d,e.e)?"convidado":"oficial";
     const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
     Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
     Object.keys(lancJust).forEach(n=>delete lancJust[n]);if(e&&e.j)Object.assign(lancJust,e.j);   // os motivos já registrados desse evento
@@ -4477,7 +4486,7 @@ async function salvarLancamento(){
   const editando=$("lEv")&&$("lEv").value!=="novo";
   if(!editando&&EV.some(e=>e.d===d&&e.e.trim().toLowerCase()===n.toLowerCase())&&!confirm("Já existe um evento com essa data e esse nome na planilha. Para corrigir a lista dele, escolha o evento no campo Evento. Salvar mesmo assim?"))return;
   const just=Object.fromEntries(Object.entries(lancJust).filter(([m,x])=>lanc[m]==="Não"&&String(x||"").trim()).map(([m,x])=>[m,String(x).trim().slice(0,80)]));
-  const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,criado:new Date().toISOString()};
+  const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,categoria:($("lCat")&&$("lCat").value)||"oficial",criado:new Date().toISOString()};
   if(lancInfo&&!lancInfo.padrao)dados.info=lancResumo();dados.zap=lancZapTexto();
   let flySt="";try{const sobra=44000-JSON.stringify(dados).length-600,tem=!!lancFlyLocal(d),fl=tem&&sobra>8000?await lancFlyPequeno(d,sobra):"";if(fl)dados.fly=fl;
     flySt=fl?"\n\n📎 Fly: foi junto (aparece no aviso do comando).":tem?"\n\n📎 Fly: não foi (a lista ficou grande demais para levar a imagem).":"\n\n📎 Fly: não foi (nenhum fly lido na Lista para este evento)."}catch(_){flySt="\n\n📎 Fly: não foi (erro ao preparar a imagem)."}   // o fly (versão pequena): só o espaço que sobra (o recebedor corta em 45 mil caracteres)   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
