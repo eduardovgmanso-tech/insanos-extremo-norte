@@ -646,6 +646,7 @@ MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu p
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
 INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
+APAGAR_SITE = set()    # arquivos a tirar do site (ex.: flys de eventos com mais de 6 meses)
 APH = []               # APH da regional (aba APH): [{pos, nome, tel, st, quando}]; os irmãos só recebem os autorizados
 ENQ = {}               # enquete do comando (abas Enquetes e Votos): a última; a contagem só vai para o painel do comando
 JUST = {}              # motivos das faltas (aba Justificativas): (data ISO, evento em minúsculas) -> {irmão: motivo}
@@ -3749,6 +3750,9 @@ def _publicar_lote(cfg, token, arquivos, quando):
             continue       # igual ao que já está no link
         blob = _github("POST", f"{rep}/git/blobs", token, {"content": base64.b64encode(dados).decode(), "encoding": "base64"})["sha"]
         itens.append({"path": nome, "mode": "100644", "type": "blob", "sha": blob})
+    for nome in sorted(APAGAR_SITE):   # apagar do site (só pelo envio em lote)
+        if nome in shas and nome not in arquivos:
+            itens.append({"path": nome, "mode": "100644", "type": "blob", "sha": None})
     if not itens:
         return 0
     nova = _github("POST", f"{rep}/git/trees", token, {"base_tree": arvore, "tree": itens})["sha"]

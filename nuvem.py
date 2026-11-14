@@ -158,6 +158,25 @@ def gravar_info_evento(api, pid, d, quem=""):
     api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW",
                                        body={"values": [cab] + outros + [linha]}).execute()
 
+def limpar_flys(g):
+    """Apaga os flys de eventos com mais de 6 meses (da pasta e do site)."""
+    try:
+        idx = _json_ler("fly_indice.json", {})
+        limite = (datetime.date.today() - datetime.timedelta(days=183)).isoformat()
+        velhos = [n for n, dt in idx.items() if dt and dt < limite]
+        for n in velhos:
+            try:
+                os.remove(os.path.join(PASTA, n))
+            except Exception:
+                pass
+            getattr(g, "APAGAR_SITE", set()).add(n)
+            idx.pop(n, None)
+        if velhos:
+            _json_gravar("fly_indice.json", idx)
+            print(f"Flys antigos apagados: {len(velhos)}.")
+    except Exception as e:
+        print(f"Aviso: limpeza dos flys não feita ({type(e).__name__}: {e}).")
+
 def fly_nome(d):
     """O nome do arquivo do fly de um lançamento (o mesmo evento e data dão sempre o mesmo nome)."""
     import hashlib
@@ -1365,6 +1384,9 @@ def processar_fila(api, pid):
                         nome_f = fly_nome(d)
                         with open(os.path.join(PASTA, nome_f), "wb") as f_:
                             f_.write(base64.b64decode(fl.split(",", 1)[1]))
+                        idx = _json_ler("fly_indice.json", {})   # o índice dos flys (para apagar os de eventos com mais de 6 meses)
+                        idx[nome_f] = str(d.get("data", ""))[:10]
+                        _json_gravar("fly_indice.json", idx)
                 except Exception as e:
                     print(f"Aviso: fly do lançamento não guardado ({type(e).__name__}: {e}).")
                 try:
@@ -1487,7 +1509,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
-ESTADO = ["geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -1687,6 +1709,10 @@ def main():
     migrar_entradas(api, planilha_id)
     resumo_fila = processar_fila(api, planilha_id)
     try:
+        limpar_flys(g)   # os flys de eventos com mais de 6 meses saem da pasta e do site
+    except Exception as e:
+        print(f"Aviso: limpeza dos flys ({type(e).__name__}: {e}).")
+    try:
         g.FILA_RECENTE[:] = fila_recente(api, planilha_id)     # "Meus envios" do protótipo do novo layout
     except Exception as e:
         print(f"Aviso: resumo da Fila não montado ({type(e).__name__}: {e}).")
@@ -1865,7 +1891,7 @@ def main():
                 teste = " (Possível teste ou melhoria)" if any(str(q).strip().lower() in resp_ for q in quem) else ""   # lançado pelo responsável pelo painel
                 fly_u = None   # o fly do último lançamento com fly (o arquivo já foi publicado nesta rodada)
                 for _, _, d_ in resumo_fila:
-                    if d_.get("tipo") == "lancamento_presenca" and str(d_.get("fly") or "").startswith("data:image/") and os.path.exists(os.path.join(PASTA, fly_nome(d_))):
+                    if d_.get("tipo") == "lancamento_presenca" and os.path.exists(os.path.join(PASTA, fly_nome(d_))):   # o fly novo ou o que o evento já tinha
                         fly_u = getattr(g, "SITE_URL", "") + fly_nome(d_)
                 g.notificar(f"{emoji} Painel atualizado", corpo + (f" (lançado por {', '.join(quem)})" if quem else "") + teste, "atualizacao",
                             zap=zaps[-1] if zaps else None, icone=icone, imagem=fly_u)      # a mensagem pronta do último lançamento com lista

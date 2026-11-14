@@ -3539,7 +3539,7 @@ function montarListas(){
   lwCampos();lwListaUI();lwAtualiza();
   {const s=$("lwTipoSel");s.innerHTML=Object.entries(LW_TIPOS).map(([k,x])=>`<option value="${k}">${esc(x.nome)}</option>`).join("");s.value=lw.tipo;
     s.onchange=()=>{const b=$("lwTipos").querySelector(`[data-lwt="${s.value}"]`);if(b)b.click();setTimeout(lwFlyBotao,50)};setTimeout(lwFlyBotao,300);
-    $("lwTipos").addEventListener("click",()=>setTimeout(()=>{s.value=lw.tipo},0))}   // quando o fly troca o tipo sozinho, o filtro acompanha
+    $("lwTipos").addEventListener("click",()=>setTimeout(()=>{s.value=lw.tipo;lwFlyMover();lwFlyBotao()},0))}   // quando o fly troca o tipo sozinho, o filtro acompanha
   document.getElementById("listasView").addEventListener("click",ev=>{
     const b=ev.target.closest(".lw-seg button");
     if(b){lw.marca[b.dataset.n]=lw.marca[b.dataset.n]===b.dataset.v?"":b.dataset.v;lwListaUI();lwAtualiza();return}
@@ -3561,7 +3561,7 @@ function montarListas(){
     Object.keys(LW_TIPOS).forEach(k=>{try{["lw_","lw_m_","lw_j_"].forEach(pf=>localStorage.removeItem(pf+k))}catch(e){}});
     lw.f={};lw.marca={};lw.just={};$("lwColar").value="";$("lwLido").textContent="";
     lwCampos();lwListaUI();lwAtualiza();alert("Todas as listas foram limpas.")};
-  $("lwLimpar").onclick=()=>{try{localStorage.removeItem(lwFlyChave())}catch(_){}setTimeout(lwFlyBotao,0);const nome=LW_TIPOS[lw.tipo].nome;
+  $("lwLimpar").onclick=()=>{try{localStorage.removeItem(lwFlyChave());localStorage.removeItem("lw_flymeta_"+lwFlyChave().slice(7))}catch(_){}setTimeout(lwFlyBotao,0);const nome=LW_TIPOS[lw.tipo].nome;
     if(!confirm(`Limpar todos os dados da lista "${nome}"? Os campos voltam ao padrão e as marcações ✅/❌ são apagadas.`))return;
     try{localStorage.removeItem("lw_"+lw.tipo);localStorage.removeItem("lw_m_"+lw.tipo)}catch(e){}
     try{localStorage.removeItem("lw_j_"+lw.tipo)}catch(e){}
@@ -3657,7 +3657,7 @@ async function flyCompartilhado(){if(location.hash!=="#fly-compartilhado"||MODO!
     irPara("listas");setTimeout(()=>lwLerFly(new File([b],"fly."+((b.type||"image/jpeg").split("/")[1]||"jpg"),{type:b.type||"image/jpeg"})),500)}catch(_){}}
 setTimeout(flyCompartilhado,1200);
 setTimeout(()=>{try{if(MODO==="adm"&&window.reinstAviso)reinstAviso(DADOS.reinst)}catch(_){}},2200);   // aviso de reinstalar, quando uma atualização pedir
-function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;try{localStorage.removeItem(lwFlyChave())}catch(_){}setTimeout(lwFlyBotao,0);const F=lw.f[lw.tipo]||{},assin=F.assin;
+function lwFlyLimpar(){const T=LW_TIPOS[lw.tipo];if(!T)return;try{localStorage.removeItem(lwFlyChave());localStorage.removeItem("lw_flymeta_"+lwFlyChave().slice(7))}catch(_){}setTimeout(lwFlyBotao,0);const F=lw.f[lw.tipo]||{},assin=F.assin;
   lw.f[lw.tipo]=Object.fromEntries(T.campos.map(([k,,d])=>[k,d]));if(assin!==undefined)lw.f[lw.tipo].assin=assin;
   lwFlyCampos=new Set();lwGuardar();lwCampos();lwAtualiza();$("lwFlyLido").textContent="";$("lwFlyLimpar").hidden=true;avisoRapido("🗑️ Leitura e campos apagados.")}
 async function flyImagem64(f,camera){const img=await _img(URL.createObjectURL(f));if(!img)return null;
@@ -3736,6 +3736,15 @@ async function flyOcrGoogle(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return n
     if(j&&j.ok&&j.texto&&j.texto.trim())return j.texto;
     flyOcrGoogle.erro=j&&j.ok?"o Google não achou texto na imagem":(j&&j.erro?j.erro:"sem resposta");return null}
   catch(e){flyOcrGoogle.erro=e&&e.name==="AbortError"?"demorou demais (mais de 30 s)":"sem conexão com o Apps Script";return null}finally{clearTimeout(to)}}
+// o fly do evento no Lançar: o da Lista (se for o mesmo evento) ou o guardado no site (fly-<código do evento>.jpg)
+let lancFlyArq=null,lancFlyChave="";
+async function lancFlyNome(d,n){const h=await crypto.subtle.digest("SHA-1",new TextEncoder().encode(d+"|"+String(n).trim().toLowerCase()));
+  return "fly-"+[...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("").slice(0,12)+".jpg"}
+async function lancFlyChecar(){const d=$("lData")&&$("lData").value,n=$("lNome")&&$("lNome").value.trim(),k=d+"|"+n;if(!d||!n||k===lancFlyChave)return;lancFlyChave=k;lancFlyArq=null;lancFlyBotao();
+  try{const pq=await lancFlyPequeno(d);if(pq&&k===lancFlyChave){const lis=lwFlyLer();lancFlyArq=lwFlyArquivoDe(lis||pq);lancFlyBotao();return}}catch(_){}   // a lista desse evento ainda tem o fly
+  try{const r=await fetch(await lancFlyNome(d,n),{cache:"no-store"});if(r.ok&&k===lancFlyChave){const bl=await r.blob();if(bl.size>1000&&/^image\//.test(bl.type)){lancFlyArq=new File([bl],"fly.jpg",{type:bl.type});lancFlyBotao()}}}catch(_){}}
+function lwFlyArquivoDe(d){if(!d||d.indexOf(",")<0)return null;try{const b=atob(d.split(",")[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new File([u],"fly.jpg",{type:"image/jpeg"})}catch(_){return null}}
+function lancFlyBotao(){const z=$("lZapBtn");if(!z)return;z.innerHTML=lancFlyArq?`<img src="${URL.createObjectURL(lancFlyArq)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Enviar a lista alterada (com o fly)`:"📲 Enviar a lista alterada"}
 // o fly da lista para o aviso do comando: só se o lançamento for do mesmo evento da lista; versão pequena (cabe na planilha)
 async function lancFlyPequeno(d){if(!lancInfo||lancInfo.padrao)return "";const tp=lancInfo.tipo||(lw&&lw.tipo);let src="";try{src=localStorage.getItem("lw_fly_"+tp)||""}catch(_){}
   if(!src)return "";const F=lancInfo.f||{},dl=String(F.data||F.dt||"").slice(0,10);if(dl&&dl!==d)return "";
@@ -3743,14 +3752,26 @@ async function lancFlyPequeno(d){if(!lancInfo||lancInfo.padrao)return "";const t
   for(const [w,q] of [[640,.6],[560,.5],[480,.45],[400,.4]]){const k=Math.min(1,w/im.width),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
     c.getContext("2d").drawImage(im,0,0,c.width,c.height);const u=c.toDataURL("image/jpeg",q);if(u.length<38000)return u}
   return ""}
+// o fly é guardado DEPOIS da leitura: a IA pode trocar o tipo da lista (ex.: Reunião › Evento/Bonde), e ele fica no tipo certo
+setTimeout(()=>{if(typeof lwLerFly!=="function"||lwLerFly.__comFly)return;const orig=lwLerFly;
+  lwLerFly=async function(f,camera){let r;try{r=await orig(f,camera)}finally{try{lwFlyGuardar(f)}catch(_){}}return r};lwLerFly.__comFly=1},0);
 // ---- o fly junto da lista: guardado ao ler (versão reduzida) e enviado com a lista como legenda ----
 function lwFlyChave(){return "lw_fly_"+(lw&&lw.tipo||"x")}
-function lwFlyLer(){try{return localStorage.getItem(lwFlyChave())||""}catch(_){return ""}}
-function lwFlyArquivo(){const d=lwFlyLer();if(!d||d.indexOf(",")<0)return null;try{const b=atob(d.split(",")[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
-  return new File([u],"fly.jpg",{type:"image/jpeg"})}catch(_){return null}}   // na hora do toque, sem espera (o Android exige)
+function lwFlyId(){const F=(lw&&lw.f&&lw.f[lw.tipo])||{};return {tit:String(F.titulo||"").trim(),data:String(F.data||"").trim()}}
+function lwFlyLer(){try{const d=localStorage.getItem(lwFlyChave())||"";if(!d)return "";let m=null;try{m=JSON.parse(localStorage.getItem("lw_flymeta_"+lwFlyChave().slice(7))||"null")}catch(_){}
+  const a=lwFlyId();if(m&&!m.tit&&!m.data&&(a.tit||a.data)){m=a;localStorage.setItem("lw_flymeta_"+lwFlyChave().slice(7),JSON.stringify(a))}   // a leitura terminou depois: guarda a identidade da lista
+  if(m&&(m.tit||m.data)&&!((m.data&&m.data===a.data)||(m.tit&&m.tit===a.tit)))return "";   // é de outra lista (título e data diferentes): não vai junto
+  return d}catch(_){return ""}}
+function lwFlyArquivo(){return lwFlyArquivoDe(lwFlyLer())}   // na hora do toque, sem espera (o Android exige)
 function lwFlyGuardar(f){const tipo=lwFlyChave(),r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement("canvas");
     c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
-    try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.82))}catch(_){try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.6))}catch(_){}}lwFlyBotao()};im.src=r.result};r.readAsDataURL(f)}
+    try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.82))}catch(_){try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.6))}catch(_){}}
+    try{localStorage.setItem("lw_flymeta_"+tipo.slice(7),JSON.stringify(lwFlyId()))}catch(_){}
+    window.__flyRecente={tipo,t:Date.now()};lwFlyMover();lwFlyBotao()};im.src=r.result};r.readAsDataURL(f)}
+// se o tipo da lista mudou logo depois de ler o fly (a IA troca sozinha, ou você troca), o fly vai junto para o tipo novo
+function lwFlyMover(){const R=window.__flyRecente,k=lwFlyChave();if(!R||R.tipo===k||Date.now()-R.t>15*60e3)return;
+  try{const d=localStorage.getItem(R.tipo);if(d){localStorage.setItem(k,d);localStorage.removeItem(R.tipo);const mm=localStorage.getItem("lw_flymeta_"+R.tipo.slice(7));
+    if(mm)localStorage.setItem("lw_flymeta_"+k.slice(7),mm);localStorage.removeItem("lw_flymeta_"+R.tipo.slice(7));window.__flyRecente={tipo:k,t:R.t}}}catch(_){}}
 function lwFlyBotao(){const z=$("lwZap");if(!z)return;const d=lwFlyLer();
   z.classList.toggle("zap",!!d);z.innerHTML=d?`<img src="${d}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Mandar no WhatsApp (com o fly)`:"Abrir no WhatsApp";
 }
@@ -3760,7 +3781,6 @@ function lwMandarComFly(){if(lwSemAssinatura()){lwAvisoAssin();return}
   if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],text:tx}).then(copia).catch(e=>{copia();if(!(e&&e.name==="AbortError"))avisoRapido("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")});return}
   copia();alert("Este celular não deixou mandar a imagem junto com o texto.\n\nA lista já foi copiada: no WhatsApp, mande o fly e cole a lista logo abaixo.")}
 async function lwLerFly(f,camera){
-  try{lwFlyGuardar(f)}catch(_){}   // guarda o fly para mandar junto com a lista
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
   st.innerHTML=`<span class="lendo"><span class="cav-mini" aria-hidden="true" style="--cav:url('${CAVEIRA}');--p:0%;--c:${corFaixa(0)[1]}"></span><b>Lendo o fly<span class="pontos"><i>.</i><i>.</i><i>.</i></span> <span class="lendo-pct">0%</span></b>${usaGoogle?'<small class="by-google">Leitura com IA</small>':""}</span>`;
@@ -4350,6 +4370,11 @@ function montarLancamento(){
   $("lZapCopiar").onclick=async()=>{try{await navigator.clipboard.writeText(lancZapTexto());$("lZapCopiar").textContent="Copiado ✓";setTimeout(()=>$("lZapCopiar").textContent="📋 Copiar",2500)}catch(_){alert("Não consegui copiar. Toque em Enviar a lista alterada.")}};
   lancCamposUI();
   $("lSalvar").addEventListener("click",salvarLancamento);
+  // com o fly do evento: o botão manda a imagem e a lista (na hora do toque); sem fly, o link (só o texto)
+  $("lZapBtn").addEventListener("click",ev=>{if(!lancFlyArq)return;const tx=lancZapTexto(),f=lancFlyArq;
+    if(navigator.canShare&&navigator.canShare({files:[f]})){ev.preventDefault();navigator.share({files:[f],text:tx}).then(()=>{try{navigator.clipboard.writeText(tx)}catch(_){}}).catch(e=>{try{navigator.clipboard.writeText(tx)}catch(_){}
+      if(!(e&&e.name==="AbortError"))alert("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")})}});
+  setInterval(lancFlyChecar,1500);
 }
 function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
