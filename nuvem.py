@@ -1794,7 +1794,11 @@ def main():
                     onde = "pelo Run workflow do GitHub"
                 resp_ = {str(x).strip().lower() for x in (getattr(g, "ACESSOS_SOMENTE", []) or [])}
                 teste = " (Possível teste ou melhoria)" if str(nome).strip().lower() in resp_ else ""   # o responsável pelo painel: pode ser teste
-                g.notificar("🔄 Verificação manual dos pagamentos", f"Pedida por {nome}, às {hora}.{teste}", "verif-manual", icone="notif-pag.png")
+                if VERIFICAR_AGORA:   # o botão Ver. Agora: é mesmo uma verificação dos pagamentos
+                    g.notificar("🔄 Verificação manual dos pagamentos", f"Pedida por {nome}, às {hora}.{teste}", "verif-manual", icone="notif-pag.png")
+                else:                 # o Run workflow do GitHub: é uma atualização do app
+                    g.notificar("🛠️ App em manutenção", "Estamos atualizando o app. Em alguns instantes ele já estará liberado para uso. 🤝",
+                                "manutencao", icone="notif-importante.png")
             except Exception as e:
                 print(f"Aviso: aviso da verificação manual não enviado ({type(e).__name__}: {e}).")
         for aviso in AVISOS_PAG:
