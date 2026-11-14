@@ -4,12 +4,12 @@ Painel Insanos na nuvem (GitHub Actions).
 2) Roda o mesmo programa do painel (painel.py) e publica neste repositório.
 Nada de dados pessoais fica no repositório: a planilha temporária existe só durante a execução.
 """
-import os, sys, json, datetime, unicodedata, re, base64
+import os, sys, json, datetime, unicodedata, re, base64, hashlib
 import urllib.parse
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
-ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos", "APH"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
+ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos", "APH", "Excluidos"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
 COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17]}   # colunas de data (0 = A): B, J e R
 
 def _serial_para_data(v):
@@ -181,6 +181,105 @@ def fly_nome(d):
     """O nome do arquivo do fly de um lançamento (o mesmo evento e data dão sempre o mesmo nome)."""
     import hashlib
     return "fly-" + hashlib.sha1(f"{d.get('data', '')}|{str(d.get('evento', '')).strip().lower()}".encode("utf-8")).hexdigest()[:12] + ".jpg"
+
+# ---- 🗑️ excluir um evento (pelo Lançar) e ♻️ restaurar (Gestão › Eventos excluídos) ----
+#  A linha do evento na aba de presença é ESVAZIADA (data, nome e marcações; as fórmulas ficam); as justificativas e a lista
+#  dele (aba Eventos) saem; antes, uma cópia completa vai para a aba "Excluidos", para restaurar se foi engano.
+def _ev_presenca(api, pid):
+    aba = _aba_real(api, pid, "Presenca")
+    v = _ler(api, pid, f"'{aba}'!A1:BZ60") if aba else []
+    lin = lambda r: v[r - 1] if len(v) >= r else []
+    cols, c = {}, 4
+    while True:
+        nome = str((lin(6) + [""] * 80)[c - 1]).strip()
+        if not nome or nome.lower().startswith("presen"):
+            break
+        cols[nome] = c; c += 1
+    def data_da_linha(r):
+        x = (lin(r) + ["", "", ""])[1]
+        if isinstance(x, (int, float)) and x > 20000:
+            return (datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(x))).date()
+        return None
+    return aba, lin, cols, data_da_linha
+
+def _excluidos_aba(api, pid):
+    aba = _aba_real(api, pid, "Excluidos")
+    if not aba:
+        _estrutura(api, pid, [{"addSheet": {"properties": {"title": "Excluidos"}}}]); aba = "Excluidos"
+        api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW",
+            body={"values": [["ID", "Quando", "Por", "Data", "Evento", "Cópia (não editar)", "Situação"]]}).execute()
+    return aba
+
+def excluir_evento(api, pid, d, quem=""):
+    aba, lin, cols, data_da_linha = _ev_presenca(api, pid)
+    if not aba:
+        return "aba de presença não encontrada"
+    alvo = datetime.datetime.strptime(d["data"], "%Y-%m-%d").date()
+    ev = str(d.get("evento") or "").strip()
+    linha = next((r for r in range(8, 43) if data_da_linha(r) == alvo and _sa((lin(r) + ["", "", ""])[2]) == _sa(ev)), None)
+    if linha is None:
+        return "evento não encontrado na planilha (talvez já tenha sido excluído)"
+    row = lin(linha) + [""] * 80
+    ev = str(row[2]).strip() or ev   # o nome como está na planilha (maiúsculas e acentos)
+    marcas = {n: row[c - 1] for n, c in cols.items() if str(row[c - 1]).strip()}
+    data_s = str(d["data"])[:10]
+    def pega(nome_aba, rng, ncol):
+        a = _aba_real(api, pid, nome_aba)
+        if not a:
+            return None, [], [], []
+        v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{a}'!{rng}").execute().get("values", [])
+        dele = [list(r) + [""] * (ncol - len(r)) for r in v[1:] if r and str(r[0])[:10] == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower()]
+        outros = [list(r) + [""] * (ncol - len(r)) for r in v[1:] if r and not (str(r[0])[:10] == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+        return a, v[:1], dele, outros
+    aj, cab_j, just, outros_j = pega("Justificativas", "A1:G5000", 7)
+    ae, cab_e, info, outros_e = pega("Eventos", "A1:J3000", 10)
+    copia = json.dumps({"aba": aba, "linha": linha, "marcas": marcas, "just": just, "info": info}, ensure_ascii=False)[:45000]
+    ax = _excluidos_aba(api, pid)
+    ident = hashlib.sha1(f"{data_s}|{ev}|{datetime.datetime.now().isoformat()}".encode("utf-8")).hexdigest()[:10]
+    api.spreadsheets().values().append(spreadsheetId=pid, range=f"'{ax}'!A1", valueInputOption="RAW", insertDataOption="INSERT_ROWS",
+        body={"values": [[ident, datetime.datetime.now().strftime("%d/%m/%Y %H:%M"), str(quem or "").split("@")[0], data_s, ev, copia, "excluído"]]}).execute()
+    # esvazia a linha (data, nome e as colunas dos irmãos; as fórmulas depois delas ficam)
+    _gravar(api, pid, [(f"'{aba}'!B{linha}", ""), (f"'{aba}'!C{linha}", "")] + [(f"'{aba}'!{_col(c)}{linha}", "") for c in cols.values()])
+    for a, cab, outros, rng in ((aj, cab_j, outros_j, "A1:G5000"), (ae, cab_e, outros_e, "A1:J3000")):
+        if a and (just if a == aj else info):
+            api.spreadsheets().values().clear(spreadsheetId=pid, range=f"'{a}'!{rng}").execute()
+            api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", body={"values": cab + outros}).execute()
+    # o fly guardado do evento sai também
+    try:
+        nf = fly_nome({"data": data_s, "evento": ev})
+        if os.path.exists(os.path.join(PASTA, nf)):
+            os.remove(os.path.join(PASTA, nf))
+        idx = _json_ler("fly_indice.json", {})
+        if idx.pop(nf, None) is not None:
+            _json_gravar("fly_indice.json", idx)
+        FLYS_APAGAR.add(nf)
+    except Exception as e:
+        print(f"Aviso: fly do evento excluído ({type(e).__name__}: {e}).")
+    return f"evento excluído (linha {linha} esvaziada; cópia {ident} na aba Excluidos)"
+
+def restaurar_evento(api, pid, d, quem=""):
+    ax = _aba_real(api, pid, "Excluidos")
+    if not ax:
+        return "nada para restaurar"
+    v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{ax}'!A1:G2000").execute().get("values", [])
+    i = next((k for k in range(1, len(v)) if v[k] and str(v[k][0]) == str(d.get("id")) and str((v[k] + [""] * 7)[6]).startswith("excluído")), None)
+    if i is None:
+        return "cópia não encontrada (talvez já restaurada)"
+    r = v[i] + [""] * 7
+    c = json.loads(r[5])
+    res = aplicar_evento(api, pid, {"data": r[3], "evento": r[4], "marcacoes": c.get("marcas") or {}, "atualizar": True, "aba": "Presenca"})
+    for nome_aba, chave, ncab in (("Justificativas", "just", ["Data", "Evento", "Aba", "Irmão", "Motivo", "Lançado por", "Quando"]),
+                                  ("Eventos", "info", ["Data", "Evento", "Tipo", "Horário", "Local", "Endereço", "Observação", "Detalhes da lista", "Lançado por", "Quando"])):
+        linhas = c.get(chave) or []
+        if not linhas:
+            continue
+        a = _aba_real(api, pid, nome_aba)
+        if not a:
+            _estrutura(api, pid, [{"addSheet": {"properties": {"title": nome_aba}}}]); a = nome_aba
+            api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", body={"values": [ncab]}).execute()
+        api.spreadsheets().values().append(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", insertDataOption="INSERT_ROWS", body={"values": linhas}).execute()
+    _gravar(api, pid, [(f"'{ax}'!G{i + 1}", f"restaurado em {datetime.datetime.now():%d/%m/%Y %H:%M} por {str(quem or '').split('@')[0]}")])
+    return f"evento restaurado ({res})"
 
 def aplicar_enquete(api, pid, d, quem=""):
     """Enquete do comando (aba Enquetes, criada sozinha): uma linha por enquete; a nova encerra a que estava aberta.
@@ -1406,6 +1505,10 @@ def processar_fila(api, pid):
             elif tp == "verificar_pagamentos":
                 VERIFICAR_AGORA.append(str(row[1]).strip().lower() or "?")   # guarda quem pediu (para o aviso ao comando)
                 res, sit = "verificação dos boletos pedida pela tela Pagamentos", "feito"
+            elif tp == "excluir_evento":
+                res, sit = excluir_evento(api, pid, d, row[1]), "feito"
+            elif tp == "restaurar_evento":
+                res, sit = restaurar_evento(api, pid, d, row[1]), "feito"
             elif tp in ("enquete_nova", "enquete_fim"):
                 res, sit = aplicar_enquete(api, pid, d, row[1]), "feito"
             elif tp == "boletos_aviso":
@@ -1478,6 +1581,9 @@ def _resumo_item(d):
     """Texto curto do lançamento, para a notificação."""
     tp = d.get("tipo")
     try:
+        if tp in ("excluir_evento", "restaurar_evento"):
+            dt = datetime.datetime.strptime(str(d.get("data", ""))[:10], "%Y-%m-%d").strftime("%d/%m") if d.get("data") else ""
+            return ("🗑️ Evento excluído: " if tp == "excluir_evento" else "♻️ Evento restaurado: ") + f"{d.get('evento', '')}" + (f" ({dt})" if dt else "")
         if tp == "lancamento_presenca":
             dt = datetime.datetime.strptime(d["data"], "%Y-%m-%d").strftime("%d/%m")
             # adesão no momento: SIM (e Staff) ÷ todos os integrantes marcados no lançamento (igual ao painel)
@@ -1509,6 +1615,7 @@ def _resumo_item(d):
 #  Memória entre execuções (na nuvem cada execução começa do zero):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
+FLYS_APAGAR = set()   # flys de eventos excluídos (saem do site na publicação)
 ESTADO = ["fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
@@ -1710,6 +1817,7 @@ def main():
     resumo_fila = processar_fila(api, planilha_id)
     try:
         limpar_flys(g)   # os flys de eventos com mais de 6 meses saem da pasta e do site
+        getattr(g, "APAGAR_SITE", set()).update(FLYS_APAGAR)   # e os dos eventos excluídos
     except Exception as e:
         print(f"Aviso: limpeza dos flys ({type(e).__name__}: {e}).")
     try:

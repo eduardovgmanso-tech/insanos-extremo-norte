@@ -647,6 +647,7 @@ LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes 
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
 INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
 APAGAR_SITE = set()    # arquivos a tirar do site (ex.: flys de eventos com mais de 6 meses)
+EXCLUIDOS = []         # eventos excluídos (aba Excluidos), para restaurar pela Gestão
 APH = []               # APH da regional (aba APH): [{pos, nome, tel, st, quando}]; os irmãos só recebem os autorizados
 ENQ = {}               # enquete do comando (abas Enquetes e Votos): a última; a contagem só vai para o painel do comando
 JUST = {}              # motivos das faltas (aba Justificativas): (data ISO, evento em minúsculas) -> {irmão: motivo}
@@ -4385,6 +4386,17 @@ def main():
             APH.sort(key=lambda x: x["pos"])
     except Exception as e:
         print(f"Aviso: APH não lidos ({type(e).__name__}: {e}).")
+    # eventos excluídos (cópia guardada pela nuvem): os que ainda podem ser restaurados, os mais novos primeiro
+    global EXCLUIDOS
+    EXCLUIDOS = []
+    try:
+        if "Excluidos" in wb.sheetnames:
+            for r in wb["Excluidos"].iter_rows(min_row=2, max_col=7, values_only=True):
+                if r and r[0] and str(r[6] or "").startswith("excluído"):
+                    EXCLUIDOS.append({"id": str(r[0]), "quando": str(r[1] or ""), "por": str(r[2] or ""), "data": str(r[3] or "")[:10], "evento": str(r[4] or "")})
+            EXCLUIDOS = EXCLUIDOS[::-1][:30]
+    except Exception as e:
+        print(f"Aviso: eventos excluídos não lidos ({type(e).__name__}: {e}).")
     # enquete do comando: a última da aba Enquetes, com os votos da aba Votos (um por irmão; vale o último)
     global ENQ
     ENQ = {}
@@ -4746,10 +4758,10 @@ def main():
         _ap = str(EMAIL_APELIDO.get(_por, "") or (_por if "@" not in _por else _por.split("@")[0]))
         enq_adm["por"] = nomes_.get(_ap.lower(), _ap)   # o apelido de quem criou
         enq_adm.update({"res": res_, "total": len(membros)})
-    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]

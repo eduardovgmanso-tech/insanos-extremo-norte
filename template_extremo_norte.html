@@ -1264,7 +1264,7 @@ html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none
         <span id="lCont" class="lanc-cont"></span>
       </div>
       <div id="lLista"></div>
-      <div class="lw-bts" style="margin-top:16px"><button type="button" class="btn" id="lSalvar">💾 Salvar na nuvem</button></div>
+      <div class="lw-bts" style="margin-top:16px"><button type="button" class="btn" id="lSalvar">💾 Salvar na nuvem</button><button type="button" class="btn lw-limpar" id="lExcluir" style="display:none">🗑️ Excluir este evento</button></div>
       <div class="lanc-zap" id="lZapBox"><div class="lanc-g">MENSAGEM PARA O WHATSAPP</div><p class="nota" id="lZapAviso" style="margin:0 0 8px"></p>
         <pre class="lanc-zap-prev" id="lZapPrev"></pre>
         <div class="lw-bts"><a class="btn zap" id="lZapBtn" target="_blank" rel="noopener">📲 Enviar a lista alterada</a><button type="button" class="btn" id="lZapCopiar">📋 Copiar</button></div></div>
@@ -2870,6 +2870,28 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
     v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
 
+// ---- 🗑️ excluir um evento (Lançar) e ♻️ restaurar (Gestão › Eventos excluídos) ----
+function lancExclVer(){const b=$("lExcluir");if(b)b.style.display=($("lEv")&&$("lEv").value&&$("lEv").value!=="novo")?"":"none"}
+function lancExcluir(){const n=$("lNome").value.trim(),d=$("lData").value;if(!n||!d)return;
+  const v=Object.values(lanc),sim=v.filter(x=>x==="Sim").length,nao=v.filter(x=>x==="Não").length,st=v.filter(x=>x==="Staff").length;
+  const br=d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4),w=document.createElement("div");w.className="fa-veu";
+  w.innerHTML=`<div class="fa-cx" role="dialog" aria-label="Excluir evento"><h3 style="margin:0 0 6px">🗑️ Excluir este evento?</h3>
+    <p style="margin:0 0 4px"><b>${esc(n)}</b> · ${br}</p><p class="nota" style="margin:0 0 10px">${sim} presente(s), ${st} staff, ${nao} falta(s). Saem a linha do evento, as justificativas, a lista guardada e o fly. As porcentagens são recalculadas.</p>
+    <p class="nota" style="margin:0 0 10px">Fica uma <b>cópia</b> na planilha: dá para <b>restaurar</b> em Gestão › ♻️ Eventos excluídos.</p>
+    <label class="enq-f">Para confirmar, digite <b>EXCLUIR</b><input type="text" id="exConf" autocomplete="off" autocapitalize="characters"></label>
+    <button type="button" class="btn" id="exOk" disabled style="width:100%;margin-top:8px;background:#B3261E;color:#fff;opacity:.5">🗑️ Excluir de vez</button><button type="button" class="fa-fechar">Cancelar</button></div>`;
+  w.onclick=e=>{if(e.target===w||e.target.closest(".fa-fechar"))w.remove()};document.body.appendChild(w);
+  const c=w.querySelector("#exConf"),ok=w.querySelector("#exOk");c.oninput=()=>{const sim_=c.value.trim().toUpperCase()==="EXCLUIR";ok.disabled=!sim_;ok.style.opacity=sim_?1:.5};setTimeout(()=>c.focus(),80);
+  ok.onclick=async()=>{ok.disabled=true;w.remove();if(await nuvemEnviar({tipo:"excluir_evento",data:d,evento:n,criado:new Date().toISOString()},`Exclusão de "${n}" enviada. A cópia fica guardada para restaurar.`)){$("lEv").value="novo";$("lEv").dispatchEvent(new Event("change"));lancExclVer()}}}
+function excluidosAbrir(){if(document.querySelector(".exc-cx"))return;const L=DADOS.excluidos||[],v=document.createElement("div");v.className="fa-veu";
+  const br=d=>d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";
+  v.innerHTML=`<div class="fa-cx exc-cx" role="dialog" aria-label="Eventos excluídos"><h3 style="margin:0 0 4px">♻️ Eventos excluídos</h3>
+    <p class="nota" style="margin:0 0 12px">Restaurar devolve a linha do evento, as marcações, as justificativas e a lista. A volta aparece no painel em 1 a 3 minutos.</p>
+    ${L.length?L.map((x,i)=>`<div class="aph-b"><b>${esc(x.evento)}</b> · ${br(x.data)}<div class="nota" style="margin:2px 0 8px">Excluído em ${esc(x.quando)}${x.por?" por "+esc(x.por):""}</div><button type="button" class="btn" data-rest="${i}">♻️ Restaurar</button></div>`).join(""):`<p class="nota">Nenhum evento excluído.</p>`}
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);
+  v.querySelectorAll("[data-rest]").forEach(b=>b.onclick=async()=>{const x=L[+b.dataset.rest];if(!confirm(`Restaurar "${x.evento}" (${br(x.data)})?`))return;
+    if(await nuvemEnviar({tipo:"restaurar_evento",id:x.id,data:x.data,evento:x.evento,criado:new Date().toISOString()},`Restauração de "${x.evento}" enviada.`)){b.disabled=true;b.textContent="♻️ Restauração enviada"}})}
 // ---- 📤 "Mandar com o fly" (botão do aviso "Painel atualizado"): o fly e a lista prontos; um toque abre o compartilhar ----
 async function zapFlyAbrir(){let o=null;try{const c=await caches.open("insanos-zap"),r=await c.match("zapfly");if(r){o=await r.json();await c.delete("zapfly")}}catch(_){}
   if(!o||!o.txt)return;const v=document.createElement("div");v.className="fa-veu";
@@ -2965,6 +2987,7 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
       it.push({ico:"✉️",t:"Mensagens",d:"Mandar para todos, um grupo ou um irmão, e ver as respostas",fn:()=>abrirMensagens(msgCfgAdm())});
       it.push({ico:"🔔",t:"Notificações neste aparelho",d:(($("pushStatus")||{}).textContent||"Ativar ou desativar os avisos neste celular").slice(0,90),fn:pushFolha});
       it.push({ico:"🚑",t:"APH da regional",d:"Os dois APH que recebem o SOS por SMS",fn:aphAbrir});
+      if((DADOS.excluidos||[]).length)it.push({ico:"♻️",t:"Eventos excluídos",d:"Restaurar um evento excluído pelo Lançar",fn:excluidosAbrir});
       if(window.TEM_ACESSOS)it.push({ico:"👁️",t:"Ver como irmão",d:"Abre o seu Meu painel, do jeito que os irmãos veem",fn:()=>{try{sessionStorage.setItem("ver_irmao","1")}catch(_){}location.href=location.pathname}});
       if(window.TEM_ACESSOS)it.push({ico:'<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#E9B949" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#E9B949" stroke-width="2" stroke-linecap="round"/></svg>',t:"Acessos",d:"Quem entrou, avisos, ADM e visitantes",fn:()=>irPara("acessos")});
       folhaAtalhos("📊 Gestão e Notificações",it)}}}
@@ -3583,7 +3606,8 @@ function montarListas(){
     M.forEach(m=>{const v=lw.marca[m.n]||"";lanc[m.n]=v.startsWith("✅")?"Sim":v==="❌"?"Não":""});
     Object.keys(lancJust).forEach(n=>delete lancJust[n]);M.forEach(m=>{if(lanc[m.n]==="Não"){const x=lwJustTexto(m.n);if(x)lancJust[m.n]=x}});
     if($("lEv"))$("lEv").value="novo";
-    lancInfo={tipo:lw.tipo==="original"?"reuniao":lw.tipo,f:Object.assign({},lw.f[lw.tipo]||{}),mapas:!!lw.mapas};   // a lista inteira vai para o Lançar
+    lancInfo={tipo:lw.tipo==="original"?"reuniao":lw.tipo,f:Object.assign({},lw.f[lw.tipo]||{}),mapas:!!lw.mapas};
+    try{const fl=lwFlyLer();if(fl){localStorage.setItem("lanc_fly",fl);localStorage.setItem("lanc_fly_data",iso||"")}else{localStorage.removeItem("lanc_fly");localStorage.removeItem("lanc_fly_data")}}catch(_){}   // o fly acompanha o evento   // a lista inteira vai para o Lançar
     // e a Lista fica limpa, pronta para a próxima
     try{localStorage.removeItem("lw_"+lw.tipo);localStorage.removeItem("lw_m_"+lw.tipo);localStorage.removeItem("lw_j_"+lw.tipo)}catch(_){}
     delete lw.f[lw.tipo];lw.marca={};lw.just={};if($("lwColar"))$("lwColar").value="";if($("lwLido"))$("lwLido").textContent="";
@@ -3741,13 +3765,13 @@ let lancFlyArq=null,lancFlyChave="";
 async function lancFlyNome(d,n){const h=await crypto.subtle.digest("SHA-1",new TextEncoder().encode(d+"|"+String(n).trim().toLowerCase()));
   return "fly-"+[...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("").slice(0,12)+".jpg"}
 async function lancFlyChecar(){const d=$("lData")&&$("lData").value,n=$("lNome")&&$("lNome").value.trim(),k=d+"|"+n;if(!d||!n||k===lancFlyChave)return;lancFlyChave=k;lancFlyArq=null;lancFlyBotao();
-  try{const pq=await lancFlyPequeno(d);if(pq&&k===lancFlyChave){const lis=lwFlyLer();lancFlyArq=lwFlyArquivoDe(lis||pq);lancFlyBotao();return}}catch(_){}   // a lista desse evento ainda tem o fly
+  try{const lo=lancFlyLocal(d);if(lo&&k===lancFlyChave){lancFlyArq=lwFlyArquivoDe(lo);lancFlyBotao();return}}catch(_){}   // o fly que veio da Lista (qualidade boa)
   try{const r=await fetch(await lancFlyNome(d,n),{cache:"no-store"});if(r.ok&&k===lancFlyChave){const bl=await r.blob();if(bl.size>1000&&/^image\//.test(bl.type)){lancFlyArq=new File([bl],"fly.jpg",{type:bl.type});lancFlyBotao()}}}catch(_){}}
 function lwFlyArquivoDe(d){if(!d||d.indexOf(",")<0)return null;try{const b=atob(d.split(",")[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new File([u],"fly.jpg",{type:"image/jpeg"})}catch(_){return null}}
 function lancFlyBotao(){const z=$("lZapBtn");if(!z)return;z.innerHTML=lancFlyArq?`<img src="${URL.createObjectURL(lancFlyArq)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Enviar a lista alterada (com o fly)`:"📲 Enviar a lista alterada"}
 // o fly da lista para o aviso do comando: só se o lançamento for do mesmo evento da lista; versão pequena (cabe na planilha)
-async function lancFlyPequeno(d){if(!lancInfo||lancInfo.padrao)return "";const tp=lancInfo.tipo||(lw&&lw.tipo);let src="";try{src=localStorage.getItem("lw_fly_"+tp)||""}catch(_){}
-  if(!src)return "";const F=lancInfo.f||{},dl=String(F.data||F.dt||"").slice(0,10);if(dl&&dl!==d)return "";
+function lancFlyLocal(d){try{const s=localStorage.getItem("lanc_fly")||"",dl=localStorage.getItem("lanc_fly_data")||"";return s&&(!dl||dl===d)?s:""}catch(_){return ""}}   // o fly que veio da Lista, só para o mesmo evento (data)
+async function lancFlyPequeno(d){const src=lancFlyLocal(d);if(!src)return "";
   const im=await new Promise((ok,er)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=er;i.src=src});
   for(const [w,q] of [[640,.6],[560,.5],[480,.45],[400,.4]]){const k=Math.min(1,w/im.width),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
     c.getContext("2d").drawImage(im,0,0,c.width,c.height);const u=c.toDataURL("image/jpeg",q);if(u.length<38000)return u}
@@ -4374,7 +4398,8 @@ function montarLancamento(){
   $("lZapBtn").addEventListener("click",ev=>{if(!lancFlyArq)return;const tx=lancZapTexto(),f=lancFlyArq;
     if(navigator.canShare&&navigator.canShare({files:[f]})){ev.preventDefault();navigator.share({files:[f],text:tx}).then(()=>{try{navigator.clipboard.writeText(tx)}catch(_){}}).catch(e=>{try{navigator.clipboard.writeText(tx)}catch(_){}
       if(!(e&&e.name==="AbortError"))alert("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")})}});
-  setInterval(lancFlyChecar,1500);
+  setInterval(()=>{lancFlyChecar();lancExclVer()},1500);
+  $("lExcluir").onclick=lancExcluir;
 }
 function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
