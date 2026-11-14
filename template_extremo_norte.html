@@ -330,6 +330,7 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 .lw-filtro{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.lw-filtro button{padding:7px 11px;border-radius:999px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-size:13px;font-weight:600}
 .lw-filtro button span{opacity:.7;font-weight:800;margin-left:2px}.lw-filtro button[aria-pressed="true"]{background:#ECE7DC;color:#111}
 .ver-todos{display:block;margin:0 0 10px auto;padding:7px 12px;border-radius:999px;border:1px solid rgba(233,185,73,.6);background:rgba(233,185,73,.12);color:#F1CF6E;font:inherit;font-size:13px;font-weight:700}.ver-todos[hidden]{display:none}
+.aph-b{padding:12px;border-radius:14px;background:rgba(236,231,220,.04);border:1px solid rgba(236,231,220,.12);margin-bottom:10px}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
 .lanc-zap{margin-top:18px}.lanc-zap-prev{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.4);border:1px solid rgba(236,231,220,.15);border-radius:12px;padding:12px;max-height:380px;overflow:auto;color:var(--osso)}.lanc-just-txt{font-size:12.5px;color:#E07472;margin:4px 2px 2px;font-weight:600}
 .seta-tela{position:fixed;top:50%;z-index:850;width:42px;height:42px;margin-top:-21px;padding:0;border:0;border-radius:50%;cursor:pointer;
@@ -2869,6 +2870,33 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
     v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
 
+// ---- 🚑 APH da regional (Gestão): o comando cadastra os dois; o app abre o SMS com o pedido de autorização ----
+try{localStorage.setItem("aph_ok",JSON.stringify((DADOS.aph||[]).filter(a=>a.st==="autorizado").map(a=>({nome:a.nome,tel:a.tel}))))}catch(_){}
+function aphAbrir(){if(document.querySelector(".aph-cx"))return;const L=DADOS.aph||[],v=document.createElement("div");v.className="fa-veu";
+  const st=a=>!a?"":a.st==="autorizado"?`<span style="color:#8FD9A3">✅ Autorizado${a.quando?" em "+esc(a.quando):""}</span>`:a.st==="não autorizou"?`<span style="color:#F28B82">❌ Não autorizou${a.quando?" em "+esc(a.quando):""}</span>`:`<span style="color:#E9B949">⏳ Aguardando a autorização${a.quando?" (pedido em "+esc(a.quando)+")":""}</span>`;
+  const bloco=pos=>{const a=L.find(x=>x.pos===pos);return `<div class="aph-b" data-pos="${pos}"><b style="display:block;margin-bottom:6px">APH ${pos}</b>
+    <label class="enq-f">Nome<input type="text" data-n maxlength="40" value="${a?esc(a.nome):""}" placeholder="Ex.: Fulano (APH)"></label>
+    <label class="enq-f">Telefone (com DDD)<input type="tel" data-t maxlength="16" value="${a?esc(a.tel):""}" placeholder="(11) 99999-0000"></label>
+    <div style="font-size:13px;margin:2px 0 8px">${st(a)}</div>
+    <div class="lw-bts"><button type="button" class="btn" data-salva>💾 Salvar e pedir autorização (SMS)</button>${a?'<button type="button" class="btn lw-limpar" data-rem>🗑️ Remover</button>':""}</div></div>`};
+  v.innerHTML=`<div class="fa-cx aph-cx" role="dialog" aria-label="APH da regional"><h3 style="margin:0 0 4px">🚑 APH da regional</h3>
+    <p class="nota" style="margin:0 0 12px">No SOS, os irmãos veem um botão para mandar SMS com a localização para os APH que <b>autorizaram</b>. Ao salvar, o app abre o SMS pronto com o pedido de autorização: é só tocar em Enviar.</p>
+    ${bloco(1)}${bloco(2)}<p class="nota" style="margin:10px 0 0;font-size:12.5px">A situação (aguardando, autorizado) atualiza no painel em 1 a 3 minutos depois da resposta do APH.</p>
+    <button type="button" class="fa-fechar">Fechar</button></div>`;
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);
+  const envia=async d=>{const q=typeof sosQuem==="function"?sosQuem():null;if(!q||!window.SOS_URL){alert("Para cadastrar, entre uma vez no app com o seu e-mail e o código, neste celular.");return false}
+    try{const r=await fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({...d,email:q.email,s:q.s})});const j=await r.json();if(!j.ok){alert(j.erro||"Não consegui salvar.");return false}return true}
+    catch(_){alert("Não consegui salvar agora (sem internet?).");return false}};
+  v.querySelectorAll(".aph-b").forEach(bx=>{const pos=+bx.dataset.pos;
+    bx.querySelector("[data-salva]").onclick=async()=>{const nome=bx.querySelector("[data-n]").value.trim(),tel=bx.querySelector("[data-t]").value.replace(/[^0-9+]/g,"");
+      if(!nome||tel.length<10){alert("Preencha o nome e o telefone com DDD.");return}
+      const tok=[...crypto.getRandomValues(new Uint8Array(16))].map(x=>x.toString(16).padStart(2,"0")).join("");
+      if(!await envia({tipo:"aph_salvar",pos,nome,tel,tok}))return;
+      const txt=`Olá, ${nome}! O comando do Insanos M.C. (Divisão ${DIV_NOME}) quer cadastrar você como APH da regional no app dos irmãos, para receber pedidos de SOS por SMS com a localização. Para autorizar (ou não), abra: ${window.SOS_URL}?aph=${tok}`;
+      location.href="sms:"+tel+"?&body="+encodeURIComponent(txt);
+      bx.querySelector("div[style*='font-size:13px']").innerHTML='<span style="color:#E9B949">⏳ Pedido enviado: aguardando a autorização</span>'};
+    const rm=bx.querySelector("[data-rem]");if(rm)rm.onclick=async()=>{if(!confirm("Remover este APH? Ele deixa de aparecer no SOS."))return;if(await envia({tipo:"aph_salvar",pos,remover:true})){alert("Removido. Some do SOS em 1 a 3 minutos.");v.remove()}}})}
+
 // ---- 📊 enquete do comando: criar, acompanhar (só o comando vê o resultado) e encerrar ----
 function enqAbrir(){const E=DADOS.enq,v=document.createElement("div");v.className="fa-veu";
   const res=()=>{const tot=Object.values(E.res||{}).reduce((a,x)=>a+x.length,0),mx=Math.max(1,...Object.values(E.res||{}).map(x=>x.length));
@@ -2922,6 +2950,7 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
       const pl=$("plan18");if(pl&&!pl.hidden&&pl.getAttribute("href"))it.push({ico:ico("plan18"),t:"Planilha",d:"Abrir a planilha do Google",href:pl.getAttribute("href")});
       it.push({ico:"✉️",t:"Mensagens",d:"Mandar para todos, um grupo ou um irmão, e ver as respostas",fn:()=>abrirMensagens(msgCfgAdm())});
       it.push({ico:"🔔",t:"Notificações neste aparelho",d:(($("pushStatus")||{}).textContent||"Ativar ou desativar os avisos neste celular").slice(0,90),fn:pushFolha});
+      it.push({ico:"🚑",t:"APH da regional",d:"Os dois APH que recebem o SOS por SMS",fn:aphAbrir});
       if(window.TEM_ACESSOS)it.push({ico:"👁️",t:"Ver como irmão",d:"Abre o seu Meu painel, do jeito que os irmãos veem",fn:()=>{try{sessionStorage.setItem("ver_irmao","1")}catch(_){}location.href=location.pathname}});
       if(window.TEM_ACESSOS)it.push({ico:'<svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="#E9B949" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="#E9B949" stroke-width="2" stroke-linecap="round"/></svg>',t:"Acessos",d:"Quem entrou, avisos, ADM e visitantes",fn:()=>irPara("acessos")});
       folhaAtalhos("📊 Gestão e Notificações",it)}}}

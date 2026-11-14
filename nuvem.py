@@ -9,7 +9,7 @@ import urllib.parse
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
-ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
+ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos", "APH"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
 COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17]}   # colunas de data (0 = A): B, J e R
 
 def _serial_para_data(v):

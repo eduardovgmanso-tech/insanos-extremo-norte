@@ -481,11 +481,12 @@ document.getElementById("sosConfSim").onclick=async()=>{const q=sosQuem();if(!q|
     if(sosBlob){const pv=document.getElementById("sosMapaPv");if(pv){pv.src=URL.createObjectURL(sosBlob);pv.style.display="block"}}}):Promise.resolve();   // o bairro e o mapa chegam em seguida
   sosTexto=monta(localStorage.getItem("sos_nome")||"");
   try{await navigator.clipboard.writeText(sosTexto)}catch(_){}
-  m.textContent="Enviando o alerta para os irmãos…";
+  m.textContent="Enviando o alerta para os irmãos…";let sosOk=false;
   try{const j=await otpPost({tipo:"sos",email:q.email,s:q.s,categoria:cat,lat:l?l.lat:null,lng:l?l.lng:null,ficha:(window.fichaSOS?fichaSOS(q.email):"")});
     if(j.ok&&j.nome){try{localStorage.setItem("sos_nome",j.nome)}catch(_){}sosTexto=monta(j.nome);try{await navigator.clipboard.writeText(sosTexto)}catch(_){}}
-    m.innerHTML=j.ok?"✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:":"⚠️ "+(j.erro||"Não consegui enviar o alerta.")+" Mande nos grupos:"}
+    m.innerHTML=j.ok?"✅ <b>Alerta enviado!</b> Os irmãos recebem em 1 a 3 minutos. Agora mande também nos grupos:":"⚠️ "+(j.erro||"Não consegui enviar o alerta.")+" Mande nos grupos:";sosOk=!!j.ok}
   catch(e){m.innerHTML="⚠️ Não consegui enviar o alerta (sem internet?). <b>Mande nos grupos:</b>"}
+  aphColocar(document.getElementById("sosAcoes"),!sosOk,!sosOk,()=>({quem:localStorage.getItem("sos_nome")||"",nome,l,bairro:sosB,email:q.email}));   // 🚑 SMS para o APH
   if(!document.getElementById("sosMapaPv"))document.getElementById("sosAcoes").insertAdjacentHTML("beforebegin",`<img id="sosMapaPv" alt="Mapa do SOS" style="display:none;width:100%;max-width:340px;margin:10px auto;border-radius:12px">`);
   document.getElementById("sosAcoes").style.display="flex";document.querySelectorAll(".sosT").forEach(x=>x.disabled=false)};
 document.getElementById("sosZap").onclick=()=>sosEnviarZap(sosTexto,window.__sosBlob);   // a imagem do mapa vai junto com o texto
@@ -522,6 +523,20 @@ window.sosMapaBlob=function(lat,lng,quem,bairro){return new Promise(ok=>{let fim
 window.sosEnviarZap=async function(tx,blob){if(blob&&navigator.canShare){const f=new File([blob],"sos-mapa.png",{type:"image/png"});
     if(navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}}
   if(navigator.share){try{await navigator.share({text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}window.open("https://wa.me/?text="+encodeURIComponent(tx),"_blank")};
+// ---- 🚑 APH da regional no SOS: SMS pronto com a localização e a ficha (só os APH que autorizaram; funciona sem internet) ----
+window.aphLista=function(){try{return (JSON.parse(localStorage.getItem("aph_ok")||"[]")||[]).filter(a=>a&&a.tel)}catch(_){return []}};
+window.aphSmsTexto=function(o){const P=[];P.push("SOS Insanos M.C.: "+(o.quem||"um irmão")+" precisa de ajuda ("+String(o.nome||"").replace(/^[^A-Za-zÀ-ú]+/,"").trim()+").");
+  P.push(o.l?"Local: https://maps.google.com/?q="+o.l.lat+","+o.l.lng+(o.bairro?" ("+o.bairro+")":""):"Sem localização no momento.");
+  try{const j=window.fichaSOS?fichaSOS(o.email):"";if(j){const f=JSON.parse(j);if(f.sangue)P.push("Tipo sanguíneo: "+f.sangue+".");if(f.alerg)P.push("Alergia: "+f.alerg+".");if(f.rem)P.push("Remédios: "+f.rem+".");
+    (f.c||[]).slice(0,1).forEach(c=>P.push("Contato: "+(c.n||"")+" "+c.t+"."))}}catch(_){}
+  return P.join(" ")};
+window.aphColocar=function(alvo,antes,semNet,info){const L=aphLista();const ant=alvo.querySelector("[data-aph-box]");if(ant)ant.remove();if(!L.length)return;
+  const d=document.createElement("div");d.setAttribute("data-aph-box","1");d.style.cssText="flex:1 1 100%;box-sizing:border-box;margin:8px 0;padding:10px;border-radius:12px;"+(semNet?"background:rgba(198,40,40,.18);border:1px solid #E5484D":"background:rgba(255,255,255,.05)");
+  d.innerHTML=(semNet?`<div style="font-weight:800;margin-bottom:6px">📵 Sem internet? Mande SMS para o APH da regional:</div>`:`<div style="font-weight:700;margin-bottom:6px">🚑 SMS para o APH da regional</div>`)+
+    L.map((a,i)=>`<button type="button" class="sosm-b${semNet?" verm":""}" data-aph="${i}" style="display:block;width:100%;margin:6px 0">🚑 SMS para ${String(a.nome).replace(/[&<>"]/g,"")} (APH)</button>`).join("")+
+    `<div style="font-size:12px;opacity:.75">Abre o SMS pronto com a sua localização; é só tocar em Enviar. SMS só precisa de sinal de celular.</div>`;
+  if(antes&&alvo.firstChild)alvo.insertBefore(d,alvo.firstChild);else alvo.appendChild(d);
+  d.querySelectorAll("[data-aph]").forEach(b=>b.onclick=()=>{const a=L[+b.dataset.aph];location.href="sms:"+String(a.tel).replace(/[^0-9+]/g,"")+"?&body="+encodeURIComponent(aphSmsTexto(info()))})};
 // ---- resposta ao SOS (aberta pela notificação): distância exata, "Estou indo" com aviso, grupos e rota
 (function(){const h=location.hash;if(!h.startsWith("#sos="))return;let S=null;
   try{const b=h.slice(5).split("&")[0].replace(/-/g,"+").replace(/_/g,"/");S=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b+"=".repeat((4-b.length%4)%4)),c=>c.charCodeAt(0))))}catch(e){return}
@@ -631,6 +646,7 @@ MEU_PUSH = None        # {"pub", "url"}: para o irmão ativar os avisos no Meu p
 LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes nos horários)
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
 INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
+APH = []               # APH da regional (aba APH): [{pos, nome, tel, st, quando}]; os irmãos só recebem os autorizados
 ENQ = {}               # enquete do comando (abas Enquetes e Votos): a última; a contagem só vai para o painel do comando
 JUST = {}              # motivos das faltas (aba Justificativas): (data ISO, evento em minúsculas) -> {irmão: motivo}
 ZAP_CTX = {}           # o que a mensagem do evento para o WhatsApp precisa (integrantes, entrada de cada um na divisão)
@@ -1505,6 +1521,7 @@ async function cartCompartilhar(){
     b.disabled=true;try{await fetch(window.SOS_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({tipo:"bomdia",email:q.email,s:q.s,ativo:off})});
       off=!off;try{localStorage.setItem(k,off?"1":"0")}catch(_){}rot();alert(off?"🔕 Pronto: você não recebe mais o bom-dia (os outros avisos continuam).":"🔔 Pronto: o bom-dia volta amanhã, às 9h.")}
     catch(_){alert("Não consegui agora. Tente de novo em instantes.")}b.disabled=false}})();
+try{localStorage.setItem("aph_ok",JSON.stringify(D.aph||[]))}catch(_){}   // os APH autorizados, guardados para o SOS sem internet
 // ---- 📊 enquete do comando: o irmão vota com um toque (pode trocar enquanto estiver aberta; o resultado só o comando vê) ----
 (function(){const box=document.getElementById("enqOps");if(!box||!D.enq)return;const E=D.enq,k="enq_"+E.id+"_"+D.email;
   let meu=E.meu||"";try{meu=localStorage.getItem(k)||meu}catch(_){}
@@ -1758,6 +1775,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "ev": lista(eventos), "iv": lista(eventos_ins), "ru": ACESSOS_URL,
                  "anivs": anivs_lista,
                  "hist": historia(i), "mapa": MAPA_INFO,
+                 "aph": [{"nome": x["nome"], "tel": x["tel"]} for x in APH if x["st"] == "autorizado"],
                  "enq": ({"id": ENQ["id"], "p": ENQ["p"], "ops": ENQ["ops"], "meu": ENQ["votos"].get(email.strip().lower(), ("", ""))[1]}
                          if ENQ and ENQ.get("aberta") else None),
                  "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
@@ -1864,6 +1882,21 @@ SOS_MODULO = r"""<style>
   if(!window.fichaZap)window.fichaZap=function(em){try{const j=(window.fichaSOS?fichaSOS(em):"");if(!j)return "";const f=JSON.parse(j),N=String.fromCharCode(10),L=[];
     if(f.sangue)L.push("🩸 Tipo sanguíneo: "+f.sangue);if(f.alerg)L.push("⚠️ Alergia: "+f.alerg);if(f.rem)L.push("💊 Remédios: "+f.rem);if(f.obs)L.push("ℹ️ "+f.obs);if(f.plano)L.push("🏥 Plano: "+f.plano);
     (f.c||[]).forEach(c=>L.push("📞 Contato: "+(c.n||"")+(c.p?" ("+c.p+")":"")+" · "+c.t));return L.length?N+N+"🩺 *Ficha de emergência*"+N+L.join(N):""}catch(_){return ""}};
+  if(!window.aphColocar){// ---- 🚑 APH da regional no SOS: SMS pronto com a localização e a ficha (só os APH que autorizaram; funciona sem internet) ----
+window.aphLista=function(){try{return (JSON.parse(localStorage.getItem("aph_ok")||"[]")||[]).filter(a=>a&&a.tel)}catch(_){return []}};
+window.aphSmsTexto=function(o){const P=[];P.push("SOS Insanos M.C.: "+(o.quem||"um irmão")+" precisa de ajuda ("+String(o.nome||"").replace(/^[^A-Za-zÀ-ú]+/,"").trim()+").");
+  P.push(o.l?"Local: https://maps.google.com/?q="+o.l.lat+","+o.l.lng+(o.bairro?" ("+o.bairro+")":""):"Sem localização no momento.");
+  try{const j=window.fichaSOS?fichaSOS(o.email):"";if(j){const f=JSON.parse(j);if(f.sangue)P.push("Tipo sanguíneo: "+f.sangue+".");if(f.alerg)P.push("Alergia: "+f.alerg+".");if(f.rem)P.push("Remédios: "+f.rem+".");
+    (f.c||[]).slice(0,1).forEach(c=>P.push("Contato: "+(c.n||"")+" "+c.t+"."))}}catch(_){}
+  return P.join(" ")};
+window.aphColocar=function(alvo,antes,semNet,info){const L=aphLista();const ant=alvo.querySelector("[data-aph-box]");if(ant)ant.remove();if(!L.length)return;
+  const d=document.createElement("div");d.setAttribute("data-aph-box","1");d.style.cssText="flex:1 1 100%;box-sizing:border-box;margin:8px 0;padding:10px;border-radius:12px;"+(semNet?"background:rgba(198,40,40,.18);border:1px solid #E5484D":"background:rgba(255,255,255,.05)");
+  d.innerHTML=(semNet?`<div style="font-weight:800;margin-bottom:6px">📵 Sem internet? Mande SMS para o APH da regional:</div>`:`<div style="font-weight:700;margin-bottom:6px">🚑 SMS para o APH da regional</div>`)+
+    L.map((a,i)=>`<button type="button" class="sosm-b${semNet?" verm":""}" data-aph="${i}" style="display:block;width:100%;margin:6px 0">🚑 SMS para ${String(a.nome).replace(/[&<>"]/g,"")} (APH)</button>`).join("")+
+    `<div style="font-size:12px;opacity:.75">Abre o SMS pronto com a sua localização; é só tocar em Enviar. SMS só precisa de sinal de celular.</div>`;
+  if(antes&&alvo.firstChild)alvo.insertBefore(d,alvo.firstChild);else alvo.appendChild(d);
+  d.querySelectorAll("[data-aph]").forEach(b=>b.onclick=()=>{const a=L[+b.dataset.aph];location.href="sms:"+String(a.tel).replace(/[^0-9+]/g,"")+"?&body="+encodeURIComponent(aphSmsTexto(info()))})};
+}
   if(!window.sosMontaTexto){// ---- mensagem do SOS para o WhatsApp: espaçada, com o bairro e a imagem do mapa (tudo com limite de tempo: o SOS nunca espera) ----
 window.sosMontaTexto=function(o){const N=String.fromCharCode(10),L=[];
   L.push("🆘 *SOS · "+(o.quem||"Um irmão")+" precisa de ajuda*");L.push("Insanos M.C. · Divisão "+(o.div||""));L.push("");
@@ -1912,6 +1945,9 @@ window.sosEnviarZap=async function(tx,blob){if(blob&&navigator.canShare){const f
         if(l)sosBairro(l.lat,l.lng).then(async b=>{bairro=b;tx=monta(localStorage.getItem("sos_nome")||nomeIrmao);blob=await sosMapaBlob(l.lat,l.lng,localStorage.getItem("sos_nome")||nomeIrmao,b);
           const pv=box.querySelector("[data-pv]");if(blob&&pv){pv.src=URL.createObjectURL(blob);pv.style.display="block"}});   // o bairro e o mapa chegam em seguida
         box.querySelector("[data-z]").onclick=()=>sosEnviarZap(tx,blob);
+        aphColocar(box,false,!ok,()=>({quem:localStorage.getItem("sos_nome")||nomeIrmao,nome,l,bairro,email:q.email}));   // 🚑 SMS para o APH
+        {const ab=box.querySelector("[data-aph-box]"),pv=box.querySelector("[data-pv]"),cp=box.querySelector("[data-c]");
+          if(ab&&!ok&&pv)box.insertBefore(ab,pv);else if(ab&&cp)cp.after(ab)}   // sem internet: o APH vem antes do WhatsApp; com internet, logo depois do Copiar
         box.querySelector("[data-c]").onclick=async e=>{try{await navigator.clipboard.writeText(tx);e.target.textContent="✅ Copiada: cole no WhatsApp"}catch(_){alert(tx)}};
         box.querySelector("[data-f]").onclick=fecha}})};
 })();
@@ -4312,6 +4348,23 @@ def main():
                 INFO_EV[(dj, str(ej).strip().lower())] = inf_ev   # (nome próprio: "info" é o dos integrantes)
     except Exception as e:
         print(f"Aviso: informações dos eventos não lidas ({type(e).__name__}: {e}).")
+    # APH da regional: cadastrados pelo comando (aba APH, gravada pelo Apps Script); só vale o que um ADM cadastrou
+    global APH
+    APH = []
+    try:
+        if "APH" in wb.sheetnames:
+            for r in wb["APH"].iter_rows(min_row=2, max_col=8, values_only=True):
+                if not r or not r[1] or not r[2]:
+                    continue
+                por = str(r[7] or "").strip().lower()
+                if ADM_EMAILS and por not in ADM_EMAILS:
+                    continue
+                q = r[6] or r[5]
+                APH.append({"pos": int(r[0] or 1), "nome": str(r[1]).strip(), "tel": str(r[2]).strip(), "st": str(r[4] or "aguardando").strip(),
+                            "quando": q.strftime("%d/%m/%Y %H:%M") if hasattr(q, "strftime") else str(q or "")})
+            APH.sort(key=lambda x: x["pos"])
+    except Exception as e:
+        print(f"Aviso: APH não lidos ({type(e).__name__}: {e}).")
     # enquete do comando: a última da aba Enquetes, com os votos da aba Votos (um por irmão; vale o último)
     global ENQ
     ENQ = {}
@@ -4673,10 +4726,10 @@ def main():
         _ap = str(EMAIL_APELIDO.get(_por, "") or (_por if "@" not in _por else _por.split("@")[0]))
         enq_adm["por"] = nomes_.get(_ap.lower(), _ap)   # o apelido de quem criou
         enq_adm.update({"res": res_, "total": len(membros)})
-    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "enq": enq_adm, "mapa": MAPA_INFO, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]
