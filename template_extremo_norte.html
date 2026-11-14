@@ -2878,10 +2878,10 @@ async function zapFlyAbrir(){let o=null;try{const c=await caches.open("insanos-z
     <div style="max-height:180px;overflow:auto;white-space:pre-wrap;font-size:13px;background:rgba(0,0,0,.35);border-radius:10px;padding:10px">${esc(o.txt)}</div>
     <button type="button" class="btn zap" id="zfMandar" style="width:100%;margin-top:10px">📤 Mandar no WhatsApp</button><button type="button" class="fa-fechar">Fechar</button></div>`;
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);
-  v.querySelector("#zfMandar").onclick=async()=>{try{await navigator.clipboard.writeText(o.txt)}catch(_){}
-    try{if(o.fly){const bl=await (await fetch(o.fly)).blob(),f=new File([bl],"fly.jpg",{type:bl.type||"image/jpeg"});
-      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:o.txt});return}}}catch(e){if(e&&e.name==="AbortError")return}
-    window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")}}
+  let arq=null;if(o.fly)fetch(o.fly).then(r=>r.blob()).then(bl=>{arq=new File([bl],"fly.jpg",{type:bl.type||"image/jpeg"})}).catch(()=>{});   // a imagem pronta antes do toque
+  v.querySelector("#zfMandar").onclick=()=>{const copia=()=>{try{navigator.clipboard.writeText(o.txt)}catch(_){}};
+    if(arq&&navigator.canShare&&navigator.canShare({files:[arq]})){navigator.share({files:[arq],text:o.txt}).then(copia).catch(e=>{copia();if(!(e&&e.name==="AbortError"))window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")});return}
+    copia();window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")}}
 if(location.hash==="#zapfly"){try{history.replaceState(null,"",location.pathname)}catch(_){}setTimeout(zapFlyAbrir,700)}
 if(navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.zapfly)zapFlyAbrir()});
 // ---- 🚑 APH da regional (Gestão): o comando cadastra os dois; o app abre o SMS com o pedido de autorização ----
@@ -3567,7 +3567,8 @@ function montarListas(){
     try{localStorage.removeItem("lw_j_"+lw.tipo)}catch(e){}
     delete lw.f[lw.tipo];lw.marca={};lw.just={};$("lwColar").value="";$("lwLido").textContent="";
     lwCampos();lwListaUI();lwAtualiza()};
-  $("lwZap").addEventListener("click",ev=>{if(lwSemAssinatura()){ev.preventDefault();lwAvisoAssin()}});
+  $("lwZap").addEventListener("click",ev=>{if(lwSemAssinatura()){ev.preventDefault();lwAvisoAssin();return}
+    if(lwFlyLer()&&window.__lwFlyArq){ev.preventDefault();lwMandarComFly()}});   // com o fly lido: manda a imagem e a lista; sem fly, o link (só o texto)
   $("lwCopiar").onclick=async()=>{if(lwSemAssinatura()){lwAvisoAssin();return}
     const fj=lwFaltaJust();
     if(fj.length&&!confirm(`Falta justificar a ausência de: ${fj.join(", ")}.\n\nCopiar mesmo assim?`))return;
@@ -3748,15 +3749,14 @@ function lwFlyLer(){try{return localStorage.getItem(lwFlyChave())||""}catch(_){r
 function lwFlyGuardar(f){const tipo=lwFlyChave(),r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement("canvas");
     c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
     try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.82))}catch(_){try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.6))}catch(_){}}lwFlyBotao()};im.src=r.result};r.readAsDataURL(f)}
-function lwFlyBotao(){if(!$("lwCopiar"))return;let b=$("lwZapFly");const d=lwFlyLer();
-  if(!b){$("lwCopiar").insertAdjacentHTML("beforebegin",`<button type="button" class="btn zap" id="lwZapFly"></button>`);b=$("lwZapFly");b.onclick=lwMandarComFly}
-  b.hidden=!d;b.innerHTML=d?`<img src="${d}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Mandar com o fly (WhatsApp)`:""}
-async function lwMandarComFly(){if(lwSemAssinatura()){lwAvisoAssin();return}
-  const fj=lwFaltaJust();if(fj.length&&!confirm(`Falta justificar a ausência de: ${fj.join(", ")}. Mandar mesmo assim?`))return;
-  const tx=lwTexto();try{await navigator.clipboard.writeText(tx)}catch(_){}   // o texto também fica copiado (se a legenda vier cortada, é só colar)
-  const d=lwFlyLer();if(!d)return;const bl=await (await fetch(d)).blob(),f=new File([bl],"fly.jpg",{type:"image/jpeg"});
-  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:tx});return}catch(e){if(e&&e.name==="AbortError")return}}
-  avisoRapido("Este celular não deixou mandar a imagem com o texto. A lista já foi copiada: mande o fly e cole a lista logo abaixo.")}
+function lwFlyBotao(){const z=$("lwZap");if(!z)return;const d=lwFlyLer();
+  z.classList.toggle("zap",!!d);z.innerHTML=d?`<img src="${d}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Mandar no WhatsApp (com o fly)`:"Abrir no WhatsApp";
+  window.__lwFlyArq=null;if(d)fetch(d).then(r=>r.blob()).then(bl=>{window.__lwFlyArq=new File([bl],"fly.jpg",{type:"image/jpeg"})}).catch(()=>{})}   // a imagem pronta antes do toque
+function lwMandarComFly(){if(lwSemAssinatura()){lwAvisoAssin();return}
+  const fj=lwFaltaJust();if(fj.length){avisoRapido(`Falta justificar a ausência de: ${fj.join(", ")}.`)}
+  const tx=lwTexto(),f=window.__lwFlyArq,copia=()=>{try{navigator.clipboard.writeText(tx)}catch(_){}};   // o texto também fica copiado (se a legenda vier cortada, é só colar)
+  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],text:tx}).then(copia).catch(e=>{copia();if(!(e&&e.name==="AbortError"))avisoRapido("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")});return}
+  copia();avisoRapido("Este celular não deixou mandar a imagem com o texto. A lista já foi copiada: mande o fly e cole a lista logo abaixo.")}
 async function lwLerFly(f,camera){
   try{lwFlyGuardar(f)}catch(_){}   // guarda o fly para mandar junto com a lista
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
