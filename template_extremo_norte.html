@@ -330,6 +330,8 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 .lw-filtro{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.lw-filtro button{padding:7px 11px;border-radius:999px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-size:13px;font-weight:600}
 .lw-filtro button span{opacity:.7;font-weight:800;margin-left:2px}.lw-filtro button[aria-pressed="true"]{background:#ECE7DC;color:#111}
 .ver-todos{display:block;margin:0 0 10px auto;padding:7px 12px;border-radius:999px;border:1px solid rgba(233,185,73,.6);background:rgba(233,185,73,.12);color:#F1CF6E;font:inherit;font-size:13px;font-weight:700}.ver-todos[hidden]{display:none}
+.vis-tog{display:flex;gap:6px;margin:0 0 12px}.vis-tog button{font:inherit;font-size:14px;font-weight:800;padding:8px 14px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso,#ECE7DC);cursor:pointer}
+.vis-tog button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}
 .cat-vis{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}.cat-vis button{font:inherit;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso,#ECE7DC);cursor:pointer}
 .cat-vis button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}
 .aph-b{padding:12px;border-radius:14px;background:rgba(236,231,220,.04);border:1px solid rgba(236,231,220,.12);margin-bottom:10px}
@@ -2956,6 +2958,15 @@ async function zapFlyAbrir(){let o=null;try{const c=await caches.open("insanos-z
     copia();window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")}}
 if(location.hash==="#zapfly"){try{history.replaceState(null,"",location.pathname)}catch(_){}setTimeout(zapFlyAbrir,700)}
 if(navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.zapfly)zapFlyAbrir()});
+// ---- 👑 Comando · 👤 Irmão: o seletor no topo (um toque troca de visão; o app abre na última usada) ----
+function visaoTog(){const q=$("quadros3");if(MODO!=="adm"||document.querySelector(".adm-vis"))return;if(!q){if((visaoTog.n=(visaoTog.n||0)+1)<25)setTimeout(visaoTog,400);return}
+  const d=document.createElement("div");d.className="vis-tog adm-vis";d.setAttribute("role","group");d.setAttribute("aria-label","Visão");
+  d.innerHTML='<button type="button" aria-pressed="true">👑 Comando</button><button type="button" id="irVisao">👤 Irmão</button>';q.parentNode.insertBefore(d,q);
+  const semMeu="Não achei o seu Meu painel com o e-mail desta entrada.\n\nConfira se o e-mail do seu cadastro de irmão (na planilha) é o mesmo que você usa para entrar no comando.";
+  $("irVisao").onclick=()=>{let tm="";try{tm=sessionStorage.getItem("tem_meu")||""}catch(_){}if(tm==="0"){alert(semMeu);return}
+    try{sessionStorage.setItem("ver_irmao","1");localStorage.setItem("ultima_visao","irm");const em=sessionStorage.getItem("painel_email");if(em)sessionStorage.setItem("reentrar",em)}catch(_){}location.href=location.pathname};
+  let sm="";try{sm=sessionStorage.getItem("sem_meu")||"";sessionStorage.removeItem("sem_meu")}catch(_){}if(sm==="1")setTimeout(()=>alert(semMeu),900)}
+setTimeout(visaoTog,400);
 // ---- 🚑 APH da regional (Gestão): o comando cadastra os dois; o app abre o SMS com o pedido de autorização ----
 try{localStorage.setItem("aph_ok",JSON.stringify((DADOS.aph||[]).filter(a=>a.st==="autorizado").map(a=>({nome:a.nome,tel:a.tel}))))}catch(_){}
 function aphAbrir(){if(document.querySelector(".aph-cx"))return;const L=DADOS.aph||[],v=document.createElement("div");v.className="fa-veu";
