@@ -920,7 +920,7 @@ html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none
     <details class="pag-prev"><summary>Ver a mensagem que será enviada</summary><pre id="izPrev" class="iz-prev"></pre></details>
   </section>
   <section class="filtros js" aria-label="Filtros">
-    <div class="ez-ler so-adm ler-full" id="ezLerBox" hidden><button type="button" class="btn" id="ezLerImg">📷 Ler imagem (card com QR)</button><input type="file" id="ezLerArq" accept="image/*" hidden><span class="nota" id="ezLidoGeral"></span></div>
+    <div class="ez-ler so-adm ler-full" id="ezLerBox" hidden><button type="button" class="btn" id="ezLerImg">📷 Ler imagem (card com QR)</button><button type="button" class="btn" id="ezGerarImg">📸 Gerar imagem</button><button type="button" class="btn" id="ezLancar" style="display:none">✏️ Alterar no Lançar</button><input type="file" id="ezLerArq" accept="image/*" hidden><span class="nota" id="ezLidoGeral"></span></div>
     <label class="so-geral">Integrante<select id="fNome"></select></label>
     <label class="so-geral">Cargo / função<div class="multi" id="fCargoM"><button type="button" class="multi-bt" id="fCargoBt">Todos os cargos</button><div class="multi-op" id="fCargoOp" hidden></div></div><select id="fCargo" hidden></select></label>
     <label>Mês<select id="fMes"></select></label>
@@ -1004,7 +1004,7 @@ html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none
       <button type="button" class="btn" id="ezImg">📸 Gerar imagem do evento</button>
       <button type="button" class="btn" id="ezSalvar">💾 Salvar na nuvem</button>
       <button type="button" class="btn zap" id="ezCopiar">Copiar para o WhatsApp</button>
-      <button type="button" class="btn" id="ezLancar">✏️ Alterar no Lançar</button>
+
       <a class="btn" id="ezZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
     </div>
     <p class="nota" id="ezAviso" style="margin:2px 0 8px"></p>
@@ -1380,8 +1380,16 @@ function ezCarregar(){const e=(EV_SETS[ezTipo()]||[])[ez.k];ez.marca={};ez.impor
   M_FULL.forEach((m,i)=>{ez.marca[m.n]=e?(e.p[i]===undefined?null:e.p[i]):null;if(e&&e.st&&e.st[i]&&ez.marca[m.n]===1)ez.marca[m.n]="S";
     if(ezTipo()==="ins"&&ez.marca[m.n]==null&&grupoDe(m)!=="Comando")ez.marca[m.n]=0});
   $("ezTit").value=e?e.e:"";$("ezData").value=e?e.d:"";$("ezObs").value="";ezListaUI();ezAtualiza()}
+function ezGerarRot(){const b=$("ezGerarImg");if(!b)return;const ev=!!(st.data&&ANAL==="pres");
+  const tem=!!(st.data||st.nome||st.cargos.length||st.mes);b.style.display=tem?"":"none";   // só com um filtro (evento, irmão, mês ou função)
+  b.textContent=st.data?"📸 Gerar imagem do evento":st.nome?"📸 Gerar imagem do irmão":"📸 Gerar imagem do filtro";
+  if($("ezLancar"))$("ezLancar").style.display=ev?"":"none";if(st.data)setTimeout(()=>ezFlyPreparar(),50)}
+function ezGerarClique(){const b=$("ezGerarImg");
+  if(st.data){entregarImagemEvento(b);return}
+  if(st.nome){const m=M.find(x=>x.n===st.nome);if(m){entregarImagem(m,b);return}}
+  if(st.cargos.length||st.mes)entregarImagemFiltro(b)}
 function ezChecar(){const s=$("evZap");if(!s)return;   // Presença: o quadro do evento só para consulta e imagem (alterar é no Lançar)
-  if($("ezLancar"))$("ezLancar").style.display=ANAL==="pres"?"":"none";
+  setTimeout(()=>{s.hidden=true;ezGerarRot()},0);   // o quadro fica escondido: só prepara a imagem do evento
   if(ez.importado&&(ANAL==="pres"||ANAL==="ins")){s.hidden=false;return}
   const mostrar=(ANAL==="pres"||ANAL==="ins")&&!!st.data&&!st.nome&&!st.cargos.length&&!st.mes&&ezEventosDaData(st.data).length>0;
   s.hidden=!mostrar;if(!mostrar)return;
@@ -1405,7 +1413,8 @@ function ezMontar(){if(!$("evZap")||MODO!=="adm")return;if($("ezLerBox"))$("ezLe
     $("ezCopiar").textContent=ok?"Copiado! Cole no grupo":"Não consegui copiar";setTimeout(()=>$("ezCopiar").textContent="Copiar para o WhatsApp",2500)};
   $("ezZap").addEventListener("click",ev=>{if(!$("ezAssin").value){ev.preventDefault();alert("Escolha a Assinatura antes de enviar.");$("ezAssin").focus()}});
   ezComListaIniciar();$("ezImg").onclick=()=>entregarImagemEvento($("ezImg"));$("ezSalvar").onclick=ezSalvar;
-  $("ezLancar").onclick=()=>{const e=(EV_SETS.pres||[])[ez.k];if(!e)return;   // abre o Lançar já com esse evento escolhido
+  if($("ezGerarImg"))$("ezGerarImg").onclick=ezGerarClique;
+  if($("ezLancar"))$("ezLancar").onclick=()=>{const e=(EV_SETS.pres||[])[ez.k];if(!e)return;   // abre o Lançar já com esse evento escolhido
     const b=[...document.querySelectorAll(".lateral button")].find(x=>/Lançar/.test(x.textContent));if(b)b.click();
     setTimeout(()=>{try{lancTipo("evento")}catch(_){}const s=$("lEv");if(!s)return;const k=EV_TODOS.findIndex(x=>x.d===e.d&&x.e===e.e);
       if(k>=0){s.value=String(k);s.dispatchEvent(new Event("change"));window.scrollTo({top:0,behavior:"smooth"})}},350)};
@@ -1980,9 +1989,20 @@ async function imagemEvento(){
   T("INSANOS M.C.",176,92,40,"#ECE7DC",800,tit);T($("ezBase").value.trim()||`Divisão ${DIV_NOME} · Regional ${DIV_REG}`,176,134,26,"#B8B2A6",500);
   g.fillStyle="rgba(236,231,220,.18)";g.fillRect(60,182,W-120,2);
   // evento
-  const tl=linhas(($("ezTit").value.trim()||"Evento").toUpperCase(),W-120,76,800,tit,2);
-  tl.forEach((l,k)=>T(l,60,268+k*80,76,"#ECE7DC",800,tit));let y=268+(tl.length-1)*80+56;
-  T(`🗓️ ${lwBR($("ezData").value)}`,60,y,34,"#D9B26A",700);
+  const fly=ezTipo()==="pres"?await ezFlyImg():null,FH=230,FW=fly?Math.round(Math.min(fly.width*FH/fly.height,300)):0,fh=fly?Math.round(fly.height*FW/fly.width):0;
+  // o título diminui até caber inteiro em até 2 linhas (sem cortar com "…")
+  const tTxt=($("ezTit").value.trim()||"Evento").toUpperCase(),tMax=W-120-(fly?FW+30:0);let ts=76,tl=[];
+  for(const sz of [76,68,60,54,48,42]){ts=sz;tl=linhas(tTxt,tMax,sz,800,tit,2);if(!tl.some(l=>/…$/.test(l)))break}
+  if(tl.some(l=>/…$/.test(l)))tl=linhas(tTxt,tMax,42,800,tit,3);   // nome muito comprido: até 3 linhas no tamanho menor
+  const lh=Math.round(ts*1.05),y0=196+ts;
+  tl.forEach((l,k)=>T(l,60,y0+k*lh,ts,"#ECE7DC",800,tit));let y=y0+(tl.length-1)*lh+56;
+  if(fly){const fx=W-60-FW,fy=204,r=18;   // o fly do evento: pequeno, no canto, com cantos arredondados
+    g.save();g.beginPath();g.moveTo(fx+r,fy);g.arcTo(fx+FW,fy,fx+FW,fy+fh,r);g.arcTo(fx+FW,fy+fh,fx,fy+fh,r);g.arcTo(fx,fy+fh,fx,fy,r);g.arcTo(fx,fy,fx+FW,fy,r);g.closePath();
+    g.shadowColor="rgba(0,0,0,.55)";g.shadowBlur=18;g.fillStyle="#000";g.fill();g.shadowBlur=0;g.clip();g.drawImage(fly,fx,fy,FW,fh);g.restore();
+    g.save();g.beginPath();g.moveTo(fx+r,fy);g.arcTo(fx+FW,fy,fx+FW,fy+fh,r);g.arcTo(fx+FW,fy+fh,fx,fy+fh,r);g.arcTo(fx,fy+fh,fx,fy,r);g.arcTo(fx,fy,fx+FW,fy,r);g.closePath();
+    g.lineWidth=3;g.strokeStyle="rgba(233,185,73,.55)";g.stroke();g.restore()}
+  const flyFim=fly?204+fh:0;   // os números começam abaixo do fly
+  T(`🗓️ ${lwBR($("ezData").value)}`,60,y,34,"#D9B26A",700);if(flyFim)y=Math.max(y,flyFim-20);
   // números
   const semCmdC=ezTipo()==="ins"&&SEM_CMD,MC=M_FULL.filter(m=>!(semCmdC&&grupoDe(m)==="Comando")),comLista=ezComLista();
   const MV=MC.filter(ezConta);   // quem conta neste evento: marcado ou já tinha entrado (regra da entrada)
@@ -2491,6 +2511,18 @@ async function entregarImagemFiltro(btn){const ant=btn.textContent;btn.textConte
     const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
     btn.textContent="Imagem salva em Downloads";setTimeout(()=>btn.textContent=ant,4000)
   }catch(e){alert("Não consegui gerar a imagem neste navegador.");btn.textContent=ant}finally{btn.disabled=false}}
+// o fly do evento na imagem do evento: buscado ao escolher a data (no site, ou um fly da Lista deste celular do mesmo dia)
+let ezFly={k:"",bl:null};
+async function ezFlyPreparar(){const e=(EV_SETS.pres||[])[ez.k];if(!e)return;const k=e.d+"|"+e.e;if(ezFly.k===k)return;ezFly={k,bl:null,img:null};
+  try{for(const kk of Object.keys(localStorage)){if(!kk.startsWith("lw_fly_"))continue;let m=null;try{m=JSON.parse(localStorage.getItem("lw_flymeta_"+kk.slice(7))||"null")}catch(_){}
+    if(m&&m.data&&lwDataISO(m.data)===e.d){const f=lwFlyArquivoDe(localStorage.getItem(kk));if(f&&ezFly.k===k){ezFly.bl=f;return}}}}catch(_){}   // 1º: o da Lista (qualidade boa)
+  try{const r=await fetch(await lancFlyNome(e.d,e.e),{cache:"no-store"});if(r.ok){const bl=await r.blob();if(bl.size>1000&&/^image\//.test(bl.type)&&ezFly.k===k){ezFly.bl=bl;return}}}catch(_){}}   // 2º: o guardado no site
+async function ezFlyImg(){const e=(EV_SETS.pres||[])[ez.k];if(!e||!ezFly.bl||ezFly.k!==e.d+"|"+e.e)return null;try{if(!ezFly.img)ezFly.img=await createImageBitmap(ezFly.bl);return ezFly.img}catch(_){return null}}
+async function comFly(blob){const e=(EV_SETS.pres||[])[ez.k];if(!e||!ezFly.bl||ezFly.k!==e.d+"|"+e.e)return blob;
+  try{const [card,fly]=await Promise.all([createImageBitmap(blob),createImageBitmap(ezFly.bl)]);const W=card.width,fh=Math.round(Math.min(fly.height*W/fly.width,W*1.4)),fw=Math.round(fly.width*fh/fly.height);
+    const c=document.createElement("canvas");c.width=W;c.height=fh+card.height;const g=c.getContext("2d");g.fillStyle="#0d0b09";g.fillRect(0,0,W,c.height);
+    g.drawImage(fly,Math.round((W-fw)/2),0,fw,fh);g.drawImage(card,0,fh);   // o fly em cima, o resumo da presença embaixo
+    return await new Promise(r=>c.toBlob(r,"image/png"))}catch(_){return blob}}
 async function entregarImagemEvento(btn){
   const ant=btn.textContent;btn.textContent="Gerando…";btn.disabled=true;
   try{const blob=await imagemEvento();
@@ -2510,6 +2542,7 @@ async function entregarImagem(alvo,btn){
     btn.textContent="Imagem salva em Downloads";setTimeout(()=>btn.textContent=ant,4000);
   }catch(e){alert("Não consegui gerar a imagem neste navegador.");btn.textContent=ant}finally{btn.disabled=false}}
 function contato(){
+  try{ezGerarRot()}catch(_){}   // o nome do botão "Gerar imagem" acompanha o filtro
   const box=$("contato");
   const alvo=MODO==="individual"?M[0]:(MODO==="adm"&&st.nome?M.find(m=>m.n===st.nome):null);
   if(!alvo){
