@@ -557,6 +557,8 @@ body.adm[data-view="listas"] .periodo{display:none}
 #insZap{margin-bottom:16px}
 #insZap[hidden]{display:none!important}
 #evZap[hidden]{display:none!important}
+#evZap [data-eztodos],#evZap #ezSalvar{display:none!important}   /* Presença: só consulta (corrigir é no Lançar) */
+#evZap #ezLista{pointer-events:none}
 .cad-bloco{border-top:1px solid var(--linha);margin-top:22px;padding-top:18px}
 .cad-bloco h2{margin:0 0 4px}
 #cadColar{width:100%;box-sizing:border-box;margin-top:8px;background:#111;color:var(--osso);border:1px solid var(--linha);border-radius:10px;padding:10px;font:inherit}
@@ -1002,6 +1004,7 @@ html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none
       <button type="button" class="btn" id="ezImg">📸 Gerar imagem do evento</button>
       <button type="button" class="btn" id="ezSalvar">💾 Salvar na nuvem</button>
       <button type="button" class="btn zap" id="ezCopiar">Copiar para o WhatsApp</button>
+      <button type="button" class="btn" id="ezLancar">✏️ Alterar no Lançar</button>
       <a class="btn" id="ezZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
     </div>
     <p class="nota" id="ezAviso" style="margin:2px 0 8px"></p>
@@ -1377,7 +1380,8 @@ function ezCarregar(){const e=(EV_SETS[ezTipo()]||[])[ez.k];ez.marca={};ez.impor
   M_FULL.forEach((m,i)=>{ez.marca[m.n]=e?(e.p[i]===undefined?null:e.p[i]):null;if(e&&e.st&&e.st[i]&&ez.marca[m.n]===1)ez.marca[m.n]="S";
     if(ezTipo()==="ins"&&ez.marca[m.n]==null&&grupoDe(m)!=="Comando")ez.marca[m.n]=0});
   $("ezTit").value=e?e.e:"";$("ezData").value=e?e.d:"";$("ezObs").value="";ezListaUI();ezAtualiza()}
-function ezChecar(){const s=$("evZap");if(s)s.hidden=true;return;   // Presença: só consulta (a lista do evento é alterada no Lançar)
+function ezChecar(){const s=$("evZap");if(!s)return;   // Presença: o quadro do evento só para consulta e imagem (alterar é no Lançar)
+  if($("ezLancar"))$("ezLancar").style.display=ANAL==="pres"?"":"none";
   if(ez.importado&&(ANAL==="pres"||ANAL==="ins")){s.hidden=false;return}
   const mostrar=(ANAL==="pres"||ANAL==="ins")&&!!st.data&&!st.nome&&!st.cargos.length&&!st.mes&&ezEventosDaData(st.data).length>0;
   s.hidden=!mostrar;if(!mostrar)return;
@@ -1401,6 +1405,10 @@ function ezMontar(){if(!$("evZap")||MODO!=="adm")return;if($("ezLerBox"))$("ezLe
     $("ezCopiar").textContent=ok?"Copiado! Cole no grupo":"Não consegui copiar";setTimeout(()=>$("ezCopiar").textContent="Copiar para o WhatsApp",2500)};
   $("ezZap").addEventListener("click",ev=>{if(!$("ezAssin").value){ev.preventDefault();alert("Escolha a Assinatura antes de enviar.");$("ezAssin").focus()}});
   ezComListaIniciar();$("ezImg").onclick=()=>entregarImagemEvento($("ezImg"));$("ezSalvar").onclick=ezSalvar;
+  $("ezLancar").onclick=()=>{const e=(EV_SETS.pres||[])[ez.k];if(!e)return;   // abre o Lançar já com esse evento escolhido
+    const b=[...document.querySelectorAll(".lateral button")].find(x=>/Lançar/.test(x.textContent));if(b)b.click();
+    setTimeout(()=>{try{lancTipo("evento")}catch(_){}const s=$("lEv");if(!s)return;const k=EV_TODOS.findIndex(x=>x.d===e.d&&x.e===e.e);
+      if(k>=0){s.value=String(k);s.dispatchEvent(new Event("change"));window.scrollTo({top:0,behavior:"smooth"})}},350)};
   $("ezLerImg").onclick=()=>{$("ezLerArq").value="";$("ezLerArq").click()};$("ezLerArq").onchange=()=>{const f=$("ezLerArq").files[0];if(f)lerImagemEvento(f)}}
 function ezListaUI(){const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
   $("ezLista").innerHTML=GRUPOS.map(g=>{const ms=ord.filter(m=>grupoDe(m)===g);if(!ms.length)return "";

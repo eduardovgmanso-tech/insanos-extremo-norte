@@ -1264,7 +1264,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
 #msgIco{margin-left:auto;width:44px;height:44px;border-radius:50%;border:1px solid rgba(236,231,220,.25);background:rgba(236,231,220,.06);font-size:20px;flex:none}
     .tri button{aspect-ratio:auto!important;min-height:0;padding:8px 9px!important;gap:2px!important;border-radius:14px!important}
     .tri .ti{font-size:16px!important;display:inline}.tri .tt{font-size:10.5px!important}.tri .tp{font-size:12.5px!important;-webkit-line-clamp:1!important}.tri .ts{font-size:11px!important}
-    .bols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 14px}
+    .bols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
     .priv-l{margin:0 0 12px;font-size:12.5px;color:#8f887d}.priv-l summary{cursor:pointer;list-style:none;text-align:center}.priv-l summary::-webkit-details-marker{display:none}.priv-l p{margin:6px 0 0;color:#BDB7AA;line-height:1.4}
     .emg-env{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:13.5px;color:#BDB7AA}.emg-env input{width:20px;height:20px;flex:none;margin-top:1px}
     .bol{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px 10px;border-radius:20px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.05);color:inherit;font:inherit;text-align:center}
@@ -1302,6 +1302,28 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     vaiInicio();const tb=document.querySelector('#tri [data-tri="eventos"]'),d=document.getElementById("eventos");
     if(tb&&d&&!d.open)tb.click();else if(d){d.open=true;d.scrollIntoView({behavior:"smooth"})}};
   setTimeout(atalho,250);addEventListener("hashchange",atalho);
+  // ---- 🆘 ficha de emergência (saúde e contatos): aberta pelo botão do SOS; grava nos mesmos dados de antes ----
+  window.emgOk=()=>{const E=M.emg||{};return !!(E.sangue||E.alerg||(E.c||[]).some(c=>c&&c.t))};
+  window.emgAbrir=function(){if(document.querySelector(".emg-folha"))return;M.emg=M.emg||{};const E=M.emg;M.emg.nome=D.n;
+    const c=E.c||[],ct=k=>`<div class="mf"><label class="inteiro">Contato ${k+1}${k?" (opcional)":""}<input type="text" data-emc="${k}n" maxlength="40" placeholder="Nome" value="${es((c[k]||{}).n||"")}"></label>
+        <label>Parentesco<input type="text" data-emc="${k}p" maxlength="20" placeholder="Ex.: esposa" value="${es((c[k]||{}).p||"")}"></label><label>Telefone<input type="tel" data-emc="${k}t" maxlength="20" placeholder="(11) 99999-0000" value="${es((c[k]||{}).t||"")}"></label></div>`;
+    const v=document.createElement("div");v.className="fa-veu emg-folha";v.style.zIndex="2147483100";
+    v.innerHTML=`<div class="fa-cx" role="dialog" aria-label="Dados de saúde e emergência" style="max-height:92vh;overflow:auto"><h2 style="margin:0 0 4px">🩺 Saúde e emergência</h2><p class="nota" style="margin:0 0 10px">Para quem for te socorrer. Fica só neste celular e vai junto com o SOS, se você deixar.</p>
+      <div class="mf"><label>Tipo sanguíneo<select data-emg="sangue">${["","A+","A−","B+","B−","AB+","AB−","O+","O−","Não sei"].map(x=>`<option value="${x}"${(E.sangue||"")===x?" selected":""}>${x||"Escolha…"}</option>`).join("")}</select></label>
+        <label>Plano de saúde<input type="text" data-emg="plano" maxlength="60" placeholder="Ex.: Unimed" value="${es(E.plano||"")}"></label>
+        <label class="inteiro">⚠️ Alergias<input type="text" data-emg="alerg" maxlength="120" placeholder="Ex.: Dipirona" value="${es(E.alerg||"")}"></label>
+        <label class="inteiro">💊 Remédios de uso contínuo<input type="text" data-emg="rem" maxlength="120" placeholder="Ex.: Losartana" value="${es(E.rem||"")}"></label>
+        <label class="inteiro">ℹ️ Outras informações<input type="text" data-emg="obs" maxlength="120" placeholder="Ex.: diabético, usa marca-passo" value="${es(E.obs||"")}"></label></div>
+      <h3 style="margin:14px 0 6px;font-size:16px">📞 Contatos de emergência</h3>${ct(0)}${ct(1)}
+      <label class="emg-env"><input type="checkbox" id="emgEnv"${E.enviar===false?"":" checked"}> <span>Enviar a ficha junto com o <b>SOS</b>: vai na notificação dos irmãos e na <b>mensagem do WhatsApp</b> (tipo sanguíneo, alergias, remédios e plano)</span></label>
+      <label class="emg-env"><input type="checkbox" id="emgCt"${E.enviarCt===false?"":" checked"}> <span>Incluir o <b>contato de emergência</b> (nome e telefone). Desmarcando, o contato não vai, e o resto da ficha continua indo</span></label>
+      <div class="qbts" style="margin-top:12px"><button class="qz" id="emgVer">🩺 Ver a ficha em tela cheia</button></div>
+      <button type="button" class="fa-fechar">Fechar</button></div>`;
+    v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar")){grava(M);v.remove();const st=document.querySelector("[data-emgab] small");if(st)st.textContent=emgOk()?"✅ Ficha preenchida":"⚠️ Preencha a sua ficha"}};document.body.appendChild(v);
+    v.querySelectorAll("[data-emg]").forEach(i=>i.onchange=()=>{const t=String(i.value||"").trim();if(t)M.emg[i.dataset.emg]=t;else delete M.emg[i.dataset.emg];grava(M)});
+    v.querySelectorAll("[data-emc]").forEach(i=>i.onchange=()=>{const k=+i.dataset.emc[0],f=i.dataset.emc[1];M.emg.c=M.emg.c||[{},{}];M.emg.c[k]=M.emg.c[k]||{};M.emg.c[k][f]=String(i.value||"").trim();grava(M)});
+    v.querySelector("#emgEnv").onchange=e=>{M.emg.enviar=e.target.checked;grava(M)};v.querySelector("#emgCt").onchange=e=>{M.emg.enviarCt=e.target.checked;grava(M)};
+    v.querySelector("#emgVer").onclick=()=>{grava(M);if(window.fichaMostrar)fichaMostrar(D.email||"eu")}};
   function consumo(){const L=[...M.abs].sort((a,b)=>a.km-b.km);L.forEach((a,i)=>{a.kml=i>0&&a.km>L[i-1].km&&a.l>0?(a.km-L[i-1].km)/a.l:null});return L}
   // ---- a aba em três bolinhas: Documentos, Abastecimento e Manutenção (por km) ----
   const MAN=[["rev","🔧 Revisão"],["oleo","🛢️ Troca de óleo"],["pneu","🛞 Pneus"],["rel","⛓️ Relação / corrente"]];
@@ -1325,7 +1347,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       <label>Ano<input type="text" inputmode="numeric" id="mtAno" maxlength="4" placeholder="Ex.: 2019" value="${es(M.moto.ano||"")}"></label></div>
       ${mf?'<div class="qbts" style="margin-top:8px"><button type="button" id="mtTroca">🖼️ Trocar a foto</button><button type="button" id="mtRem">🗑️ Remover</button></div>':""}
       <p class="nota" style="margin:8px 0 0">A foto da moto aparece também na sua carteirinha.</p></div>
-    <div class="bols">${bol("doc","📄","Documentos",docAl?`⚠️ ${docAl} vence logo`:docOk?"Em dia":"Cadastrar",docAl)}${bol("abs","⛽","Abastecimento",media?dec(media,1)+" km/l":L.length?L.length+" registro":"Registrar",0)}${bol("man","🔧","Manutenção",manMin==null?(ka==null?"Abasteça 1ª vez":"Cadastrar"):manMin<0?`⚠️ passou ${nKm(-manMin)} km`:`faltam ${nKm(manMin)} km`,manAl)}${bol("emg","🆘","Emergência",emgOk?"Ficha pronta":"Preencher",0)}</div>
+    <div class="bols">${bol("doc","📄","Documentos",docAl?`⚠️ ${docAl} vence logo`:docOk?"Em dia":"Cadastrar",docAl)}${bol("abs","⛽","Abastecimento",media?dec(media,1)+" km/l":L.length?L.length+" registro":"Registrar",0)}${bol("man","🔧","Manutenção",manMin==null?(ka==null?"Abasteça 1ª vez":"Cadastrar"):manMin<0?`⚠️ passou ${nKm(-manMin)} km`:`faltam ${nKm(manMin)} km`,manAl)}</div>
     <div id="bolC"></div>
     <div class="card"><h2>💾 Backup</h2><p class="nota" style="margin:0 0 8px">Guarde uma cópia (por exemplo, mandando para você mesmo no WhatsApp) para não perder os dados ao trocar de celular.</p>
       <div class="qbts"><button id="bkC">📋 Copiar backup</button><button id="bkR">📥 Restaurar backup</button></div></div>
@@ -1935,8 +1957,8 @@ window.sosEnviarZap=async function(tx,blob){if(blob&&navigator.canShare){const f
   window.abrirSOS=function(){
     const url=window.SOS_URL||"",q=quem();
     if(!url||!q){abre(`<h3>🆘 SOS</h3><p>Para usar o SOS por aqui, entre uma vez no app com o seu e-mail e o código que chega no e-mail, neste celular.</p>${tel}<button class="sosm-b" data-f>Fechar</button>`).querySelector("[data-f]").onclick=fecha;return}
-    const v=abre(`<h3>🆘 O que aconteceu?</h3><div class="sosm-g">${[["pane","🛵 Pane/acidente"],["saude","🚑 Saúde"],["seguranca","⚠️ Segurança"],["outro","🆘 Outro"]].map(([k,t])=>`<button class="sosm-t" data-k="${k}">${t}</button>`).join("")}</div>${tel}<button class="sosm-b" data-f>Cancelar</button>`);
-    v.querySelector("[data-f]").onclick=fecha;
+    const v=abre(`<h3>🆘 O que aconteceu?</h3><div class="sosm-g">${[["pane","🛵 Pane/acidente"],["saude","🚑 Saúde"],["seguranca","⚠️ Segurança"],["outro","🆘 Outro"]].map(([k,t])=>`<button class="sosm-t" data-k="${k}">${t}</button>`).join("")}</div>${tel}${window.emgAbrir?`<button class="sosm-b" data-emgab style="display:flex;flex-direction:column;align-items:center;gap:2px">🩺 Meus dados de saúde e emergência<small style="font-weight:600;opacity:.8">${window.emgOk&&emgOk()?"✅ Ficha preenchida":"⚠️ Preencha a sua ficha"}</small></button>`:""}<button class="sosm-b" data-f>Cancelar</button>`);
+    v.querySelector("[data-f]").onclick=fecha;{const eb=v.querySelector("[data-emgab]");if(eb)eb.onclick=()=>emgAbrir()}
     v.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const cat=b.dataset.k,nome=b.textContent.trim(),pg=gps();
       const c=abre(`<h3>Confirmar o SOS de ${nome}?</h3><p>Todos os irmãos com o app serão avisados, com a sua localização.</p><button class="sosm-b verm" data-s>🆘 Sim, enviar o SOS</button><button class="sosm-b" data-f>Cancelar</button>`);
       c.querySelector("[data-f]").onclick=fecha;
