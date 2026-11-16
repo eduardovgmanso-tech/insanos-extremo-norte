@@ -380,7 +380,7 @@ const bioRnd=()=>crypto.getRandomValues(new Uint8Array(32));
 let bioPode=false;
 (async()=>{try{bioPode=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());   // celular: digital/Face ID · computador: Windows Hello
   if(bioPode&&localStorage.getItem("bio_on")){bioB.hidden=false;if(/iPhone|iPad/.test(navigator.userAgent))bioB.textContent="🙂 Entrar com Face ID";
-    const h0=window.__h0||location.hash;if(!h0.startsWith("#sos"))soDigital()}}catch(_){}})();   // a digital abre só com o toque (assim os avisos da tela de entrada ficam à vista e o SOS à mão)   // pelo SOS (notificação ou atalho do ícone) a digital não abre sozinha   // a digital abre sozinha; se falhar, aparece o e-mail   // a digital abre só com o toque (o SOS fica sempre à mão)
+    const h0=window.__h0||location.hash;if(!h0.startsWith("#sos")){soDigital();if(window.__trocaBio)setTimeout(()=>bioEntrar(true),300)}}}catch(_){}})();   // na troca de visão, a digital abre sozinha   // a digital abre só com o toque (assim os avisos da tela de entrada ficam à vista e o SOS à mão)   // pelo SOS (notificação ou atalho do ícone) a digital não abre sozinha   // a digital abre sozinha; se falhar, aparece o e-mail   // a digital abre só com o toque (o SOS fica sempre à mão)
 // com a digital cadastrada neste celular: a entrada mostra só a digital; o e-mail fica a um toque (ou aparece se a digital falhar)
 function soDigital(){["cpf","b"].forEach(id=>{const x=document.getElementById(id);if(x)x.hidden=true});
   document.querySelectorAll('label[for="cpf"]').forEach(x=>x.style.display="none");const l=document.getElementById("emailLink");if(l)l.style.display="block"}
@@ -389,7 +389,10 @@ function mostraEmail(semFoco){["cpf","b"].forEach(id=>{const x=document.getEleme
   const c=document.getElementById("cpf");if(c&&!semFoco)setTimeout(()=>c.focus(),50)}
 document.getElementById("emailLink").onclick=ev=>{ev.preventDefault();mostraEmail()};
 (function(){let re="";try{re=sessionStorage.getItem("reentrar")||"";sessionStorage.removeItem("reentrar")}catch(_){}
-  if(re&&re.includes("@")){cpf.value=re;setTimeout(()=>{try{document.getElementById("f").requestSubmit()}catch(_){}},250)}})();
+  if(re&&re.includes("@")){cpf.value=re;let bo="";try{bo=localStorage.getItem("bio_on")||""}catch(_){}
+    const peloEmail=()=>{try{document.getElementById("f").requestSubmit()}catch(_){}};
+    if(bo&&bo.toLowerCase()===re.toLowerCase()){window.__trocaBio=1;setTimeout(()=>{if(!bioPode)peloEmail()},1500)}   // troca de visão com digital cadastrada: entra pela digital
+    else setTimeout(peloEmail,250)}})();
 const bioB64=x=>btoa(String.fromCharCode(...new Uint8Array(x))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const bioDe64=x=>Uint8Array.from(atob(x.replace(/-/g,"+").replace(/_/g,"/")+"=".repeat((4-x.length%4)%4)),c=>c.charCodeAt(0));
 async function bioEntrar(auto){erro.textContent="";try{
@@ -1303,7 +1306,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
   window.emgAbrir=function(){if(document.querySelector(".emg-folha"))return;M.emg=M.emg||{};const E=M.emg;M.emg.nome=D.n;
     const c=E.c||[],ct=k=>`<div class="mf"><label class="inteiro">Contato ${k+1}${k?" (opcional)":""}<input type="text" data-emc="${k}n" maxlength="40" placeholder="Nome" value="${es((c[k]||{}).n||"")}"></label>
         <label>Parentesco<input type="text" data-emc="${k}p" maxlength="20" placeholder="Ex.: esposa" value="${es((c[k]||{}).p||"")}"></label><label>Telefone<input type="tel" data-emc="${k}t" maxlength="20" placeholder="(11) 99999-0000" value="${es((c[k]||{}).t||"")}"></label></div>`;
-    const v=document.createElement("div");v.className="fa-veu emg-folha";v.style.zIndex="2147483100";
+    const v=document.createElement("div");v.className="fa-veu emg-folha";v.style.zIndex="9999";   // acima do SOS (9998) e abaixo da lista de opções (10000)
     v.innerHTML=`<div class="fa-cx" role="dialog" aria-label="Dados de saúde e emergência" style="max-height:92vh;overflow:auto"><h2 style="margin:0 0 4px">🩺 Saúde e emergência</h2><p class="nota" style="margin:0 0 10px">Para quem for te socorrer. Fica só neste celular e vai junto com o SOS, se você deixar.</p>
       <div class="mf"><label>Tipo sanguíneo<select data-emg="sangue">${["","A+","A−","B+","B−","AB+","AB−","O+","O−","Não sei"].map(x=>`<option value="${x}"${(E.sangue||"")===x?" selected":""}>${x||"Escolha…"}</option>`).join("")}</select></label>
         <label>Plano de saúde<input type="text" data-emg="plano" maxlength="60" placeholder="Ex.: Unimed" value="${es(E.plano||"")}"></label>

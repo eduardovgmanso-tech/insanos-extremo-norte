@@ -332,7 +332,10 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 .ver-todos{display:block;margin:0 0 10px auto;padding:7px 12px;border-radius:999px;border:1px solid rgba(233,185,73,.6);background:rgba(233,185,73,.12);color:#F1CF6E;font:inherit;font-size:13px;font-weight:700}.ver-todos[hidden]{display:none}
 .vis-tog{display:flex;gap:6px;margin:0 0 12px}.vis-tog button{font:inherit;font-size:14px;font-weight:800;padding:8px 14px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso,#ECE7DC);cursor:pointer}
 .vis-tog button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}
-.cat-vis{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}.cat-vis button{font:inherit;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso,#ECE7DC);cursor:pointer}
+.cat-vis{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
+.kpis-novos em{display:block;font-style:normal;font-size:12.5px;color:#B8B2A6;margin-top:2px;line-height:1.3}.kpis-novos b small{font-size:55%;font-weight:600;color:#B8B2A6}
+.kpis.kpis-novos>.kpi-linha{grid-column:1/-1;display:block!important;background:none!important;border:0!important;box-shadow:none!important;min-height:0!important;padding:4px 4px 0!important;font-size:13.5px!important;color:#BDB7AA;line-height:1.45}
+.kpis.kpis-novos>.kpi-linha b{display:inline!important;font-size:inherit!important;line-height:inherit!important;color:#ECE7DC;margin:0!important}.cat-vis button{font:inherit;font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso,#ECE7DC);cursor:pointer}
 .cat-vis button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}
 .aph-b{padding:12px;border-radius:14px;background:rgba(236,231,220,.04);border:1px solid rgba(236,231,220,.12);margin-bottom:10px}
 .lanc-info{margin-top:16px}.lanc-info[hidden]{display:none!important}.lanc-info .lw-tipos{margin:6px 0 10px}
@@ -2621,6 +2624,21 @@ function render(){
       :["",mem.length,mem.length===1?"integrante no filtro":"integrantes no filtro"]
   ].map(([c,v,l])=>`<div><span>${String(l).charAt(0).toUpperCase()+String(l).slice(1)}</span><b style="color:${c==="ok"?"var(--presente)":c==="falta"?"#D25A57":"inherit"}">${v}</b></div>`).join("");
   $("kpis").className="kpis pag-kpis";   // mesmo visual dos números da tela Pagamentos
+  // visão geral (vários eventos): números que respondem perguntas, no lugar dos totais de presenças e faltas
+  if(MODO!=="individual"&&!st.nome&&!st.data&&comReg.length>=2){
+    const MC=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"],f1=x=>(Math.round(x*10)/10).toLocaleString("pt-BR");
+    const porEv=comReg.slice().sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0).map(e=>{let p=0,a=0,j=0;mem.forEach(m=>{const v=e.p[m.i];if(v===1)p++;else if(v===0){a++;const mo=e.j&&e.j[m.n];if(mo&&!/n[aã]o respondeu/i.test(mo))j++}});return {e,p,a,j,pc:pct(p,a)}});
+    const medP=porEv.reduce((s,x)=>s+x.p,0)/porEv.length,ult=[...porEv].reverse().find(x=>x.e.d<=HOJE_ISO&&x.pc!=null);
+    const pm={};porEv.forEach(x=>{const k=x.e.d.slice(0,7);pm[k]=pm[k]||{p:0,a:0};pm[k].p+=x.p;pm[k].a+=x.a});const ms=Object.keys(pm).sort();
+    let tend=null;if(ms.length>=2){const a1=pct(pm[ms[ms.length-1]].p,pm[ms[ms.length-1]].a),a0=pct(pm[ms[ms.length-2]].p,pm[ms[ms.length-2]].a);if(a1!=null&&a0!=null)tend={d:a1-a0,m:ms[ms.length-2]}}
+    const comPc=stats.filter(s=>s.pc!=null),emDia=comPc.filter(s=>s.pc>=75).length,aten=comPc.filter(s=>s.pc<50).length,J=porEv.reduce((s,x)=>s+x.j,0);
+    const caixa=(r,v,sub,cor)=>`<div><span>${r}</span><b style="color:${cor||"inherit"}">${v}</b><em>${sub}</em></div>`;
+    $("kpis").innerHTML=caixa("Média por evento",`${f1(medP)}<small> de ${mem.length}</small>`,"irmãos presentes")
+      +caixa("Último evento",ult?ult.pc+"%":"–",ult?esc(ult.e.e)+" · "+ult.e.d.slice(8,10)+"/"+ult.e.d.slice(5,7):"",ult?corFaixa(ult.pc)[1]:"")
+      +caixa("Tendência",tend?(tend.d>=0?"▲ ":"▼ ")+Math.abs(tend.d):"–",tend?`pontos vs. ${MC[+tend.m.slice(5,7)-1]}`:"precisa de 2 meses",tend?(tend.d>=0?"var(--presente)":"#D25A57"):"")
+      +caixa("Irmãos em dia",`${emDia}<small> de ${comPc.length}</small>`,aten?`com 75% ou mais · ${aten} precisa${aten>1?"m":""} de atenção`:"com 75% ou mais")
+      +(A?`<div class="kpi-linha">❌ ${A} falta${A>1?"s":""} no período: <b>${Math.round(J*100/A)}%</b> com justificativa · <b>${100-Math.round(J*100/A)}%</b> sem</div>`:"");
+    $("kpis").className="kpis pag-kpis kpis-novos"}
 
   // coluna genérica (integrantes, eventos e tops)
   const MARCA={"1":["m1","presente"],"0":["m0","ausente"],"-":["mn","não conta"],"null":["mn","sem registro"]};
