@@ -1655,7 +1655,7 @@ def _resumo_item(d):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
 FLYS_APAGAR = set()   # flys de eventos excluídos (saem do site na publicação)
-ESTADO = ["fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["avisos_vistos.json", "fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -1815,6 +1815,46 @@ def preparar_ambiente():
     with open(tok, "w", encoding="utf-8") as f:
         json.dump({"token": os.environ.get("GITHUB_TOKEN", ""), "usuario": dono, "repo": repo}, f)
     return tok, dono, repo
+
+class _Coletor:
+    """Repete tudo o que a rodada escreve no relatório e guarda as linhas de "Aviso" (os problemas que ninguém via)."""
+    def __init__(self, base):
+        self.base, self.avisos, self._buf = base, [], ""
+    def write(self, s):
+        self.base.write(s); self._buf += s
+        while "\n" in self._buf:
+            linha, self._buf = self._buf.split("\n", 1)
+            if linha.strip().startswith("Aviso"):
+                self.avisos.append(linha.strip())
+    def flush(self):
+        self.base.flush()
+
+def avisar_problemas(g, avisos):
+    """Os avisos novos da rodada (os mesmos não se repetem por 7 dias) viram uma notificação para o responsável."""
+    if not avisos:
+        return
+    vistos = _json_ler("avisos_vistos.json", {})
+    hoje = datetime.date.today()
+    vistos = {k: v for k, v in vistos.items() if (hoje - datetime.date.fromisoformat(v)).days < 7}
+    novos = []
+    for a in avisos:
+        chave = re.sub(r"\s+", " ", a.split("(")[0]).strip()[:120]
+        if chave and chave not in vistos and chave not in novos:
+            novos.append(chave)
+    for k in novos:
+        vistos[k] = hoje.isoformat()
+    _json_gravar("avisos_vistos.json", vistos)
+    if not novos:
+        return
+    try:
+        inv = getattr(g, "EMAIL_APELIDO_INV", {}) or {}   # o responsável (acessos_somente) está pelo apelido: vira e-mail
+        resp = [e for e in ((str(n) if "@" in str(n) else inv.get(str(n).lower(), "")) for n in (getattr(g, "ACESSOS_SOMENTE", None) or [])) if "@" in e]
+        g.notificar("⚠️ A nuvem registrou um problema", "\n".join("• " + n.replace("Aviso:", "").strip() for n in novos[:3])
+                    + (f"\n(+{len(novos) - 3} outro(s) no relatório do GitHub)" if len(novos) > 3 else ""), "problema-nuvem",
+                    icone="notif-importante.png", so_para=resp or None)
+        print(f"Problemas novos avisados ao responsável: {len(novos)}.")
+    except Exception as e:
+        print(f"(não consegui avisar os problemas: {type(e).__name__}: {e})")
 
 def main():
     planilha_id, cred = os.environ.get("PLANILHA_ID", "").strip(), os.environ.get("GOOGLE_CREDENTIALS", "")
@@ -2103,10 +2143,16 @@ def main():
             except Exception as e:
                 print(f"Aviso: lembretes individuais não enviados ({type(e).__name__}: {e}).")
     finally:
+        try:   # os avisos da rodada (problemas novos) viram uma notificação para o responsável
+            if isinstance(sys.stdout, _Coletor) and "g" in dir():
+                avisar_problemas(g, sys.stdout.avisos)
+        except Exception as e:
+            print(f"(avisos da rodada: {type(e).__name__}: {e})")
         try:
             estado_salvar(api, planilha_id, aba_estado)
         except Exception as e:
             print(f"Aviso: não consegui guardar a memória na aba _estado ({e}).")
 
 if __name__ == "__main__":
+    sys.stdout = _Coletor(sys.stdout)   # junta os "Aviso" da rodada (para avisar os problemas novos)
     main()

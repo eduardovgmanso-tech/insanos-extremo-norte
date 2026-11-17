@@ -2985,6 +2985,15 @@ function visaoTog(){const q=$("quadros3");if(MODO!=="adm"||document.querySelecto
     try{sessionStorage.setItem("ver_irmao","1");localStorage.setItem("ultima_visao","irm");const em=sessionStorage.getItem("painel_email");if(em)sessionStorage.setItem("reentrar",em)}catch(_){}location.href=location.pathname};
   let sm="";try{sm=sessionStorage.getItem("sem_meu")||"";sessionStorage.removeItem("sem_meu")}catch(_){}if(sm==="1")setTimeout(()=>alert(semMeu),900)}
 setTimeout(visaoTog,400);
+// ---- ⚠️ registrador de erros: o que falha no celular vira um registro nos Acessos do responsável (sem atrapalhar o irmão) ----
+window.relatarErro=function(onde,e){try{let u="",em="";try{u=(typeof D!=="undefined"&&D.ru)||(typeof DADOS!=="undefined"&&DADOS.ru)||""}catch(_){}if(!u)return;
+  const msg=String((e&&(e.message||e.name))||e||"").replace(/\s+/g," ").slice(0,160);if(!msg||/ResizeObserver|Script error|AbortError|NotAllowedError: Permission denied|Failed to fetch|NetworkError|Load failed|network|ERR_INTERNET|sem internet/i.test(msg))return;
+  const k="err|"+onde+"|"+msg;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");   // o mesmo erro, uma vez por uso
+  const dia=new Date().toISOString().slice(0,10);let c={};try{c=JSON.parse(localStorage.getItem("err_dia")||"{}")}catch(_){}if(c.d!==dia)c={d:dia,n:0};if(c.n>=5)return;c.n++;try{localStorage.setItem("err_dia",JSON.stringify(c))}catch(_){}   // até 5 por dia, por celular
+  try{em=(typeof D!=="undefined"&&D.email)||sessionStorage.getItem("painel_email")||""}catch(_){}
+  fetch(u,{method:"POST",mode:"no-cors",body:JSON.stringify({email:em,ok:true,painel:"⚠️ Erro no app: "+onde+" · "+msg,aparelho:(/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Computador")})}).catch(()=>{})}catch(_){}};
+window.addEventListener("error",ev=>{if(ev.error||ev.message)relatarErro("página",ev.error||ev.message)});
+window.addEventListener("unhandledrejection",ev=>relatarErro("página",ev.reason));
 // ---- 🚑 APH da regional (Gestão): o comando cadastra os dois; o app abre o SMS com o pedido de autorização ----
 try{localStorage.setItem("aph_ok",JSON.stringify((DADOS.aph||[]).filter(a=>a.st==="autorizado").map(a=>({nome:a.nome,tel:a.tel}))))}catch(_){}
 function aphAbrir(){if(document.querySelector(".aph-cx"))return;const L=DADOS.aph||[],v=document.createElement("div");v.className="fa-veu";
@@ -3687,7 +3696,7 @@ function montarListas(){
     if($("lEv"))$("lEv").value="novo";
     lancInfo={tipo:lw.tipo==="original"?"reuniao":lw.tipo,f:Object.assign({},lw.f[lw.tipo]||{}),mapas:!!lw.mapas};
     {const fl=lwFlyLer();window.__lancFly=fl?{fl,data:iso||"",tit:String((lw.f[lw.tipo]||{}).titulo||"").trim()}:null;   // o fly acompanha o evento (na memória do app)
-      try{if(fl){localStorage.setItem("lanc_fly",fl);localStorage.setItem("lanc_fly_data",iso||"")}else{localStorage.removeItem("lanc_fly");localStorage.removeItem("lanc_fly_data")}}catch(e){console.warn("fly: sem espaço no celular",e)}}   // a lista inteira vai para o Lançar
+      try{if(fl){localStorage.setItem("lanc_fly",fl);localStorage.setItem("lanc_fly_data",iso||"")}else{localStorage.removeItem("lanc_fly");localStorage.removeItem("lanc_fly_data")}}catch(e){relatarErro("Levar para Lançar: guardar o fly",e)}}   // a lista inteira vai para o Lançar
     // e a Lista fica limpa, pronta para a próxima
     try{localStorage.removeItem("lw_"+lw.tipo);localStorage.removeItem("lw_m_"+lw.tipo);localStorage.removeItem("lw_j_"+lw.tipo)}catch(_){}
     delete lw.f[lw.tipo];lw.marca={};lw.just={};if($("lwColar"))$("lwColar").value="";if($("lwLido"))$("lwLido").textContent="";
@@ -3874,7 +3883,7 @@ function lwFlyLer(){try{const d=localStorage.getItem(lwFlyChave())||"";if(!d)ret
 function lwFlyArquivo(){return lwFlyArquivoDe(lwFlyLer())}   // na hora do toque, sem espera (o Android exige)
 function lwFlyGuardar(f){const tipo=lwFlyChave(),r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement("canvas");
     c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
-    try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.82))}catch(_){try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.6))}catch(_){}}
+    try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.82))}catch(_){try{localStorage.setItem(tipo,c.toDataURL("image/jpeg",.6))}catch(e2){relatarErro("Lista: guardar o fly (memória do celular)",e2)}}
     try{localStorage.setItem("lw_flymeta_"+tipo.slice(7),JSON.stringify(lwFlyId()))}catch(_){}
     window.__flyRecente={tipo,t:Date.now()};lwFlyMover();lwFlyBotao()};im.src=r.result};r.readAsDataURL(f)}
 // se o tipo da lista mudou logo depois de ler o fly (a IA troca sozinha, ou você troca), o fly vai junto para o tipo novo
@@ -3887,8 +3896,8 @@ function lwFlyBotao(){const z=$("lwZap");if(!z)return;const d=lwFlyLer();
 function lwMandarComFly(){if(lwSemAssinatura()){lwAvisoAssin();return}
   const fj=lwFaltaJust();if(fj.length){avisoRapido(`Falta justificar a ausência de: ${fj.join(", ")}.`)}
   const tx=lwTexto(),f=lwFlyArquivo(),copia=()=>{try{navigator.clipboard.writeText(tx)}catch(_){}};   // o texto também fica copiado (se a legenda vier cortada, é só colar)
-  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],text:tx}).then(copia).catch(e=>{copia();if(!(e&&e.name==="AbortError"))avisoRapido("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")});return}
-  copia();alert("Este celular não deixou mandar a imagem junto com o texto.\n\nA lista já foi copiada: no WhatsApp, mande o fly e cole a lista logo abaixo.")}
+  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],text:tx}).then(copia).catch(e=>{copia();if(!(e&&e.name==="AbortError")){relatarErro("Lista: compartilhar com o fly",e);avisoRapido("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")}});return}
+  relatarErro("Lista: o celular não aceita imagem com texto",f?"canShare=false":"sem o arquivo do fly");copia();alert("Este celular não deixou mandar a imagem junto com o texto.\n\nA lista já foi copiada: no WhatsApp, mande o fly e cole a lista logo abaixo.")}
 async function lwLerFly(f,camera){
   const st=$("lwFlyLido");$("lwFlyLimpar").hidden=true;
   const usaGoogle=!!(DADOS.nuvem&&DADOS.nuvem.url);
@@ -4559,7 +4568,7 @@ async function salvarLancamento(){
   const dados={tipo:"lancamento_presenca",versao:1,data:d,evento:n,marcacoes:{...lanc},justificativas:just,categoria:($("lCat")&&$("lCat").value)||"oficial",criado:new Date().toISOString()};
   if(lancInfo&&!lancInfo.padrao)dados.info=lancResumo();dados.zap=lancZapTexto();
   let flySt="";try{const sobra=44000-JSON.stringify(dados).length-600,tem=!!lancFlyLocal(d),fl=tem&&sobra>8000?await lancFlyPequeno(d,sobra):"";if(fl)dados.fly=fl;
-    flySt=fl?"\n\n📎 Fly: foi junto (aparece no aviso do comando).":tem?"\n\n📎 Fly: não foi (a lista ficou grande demais para levar a imagem).":"\n\n📎 Fly: não foi (nenhum fly lido na Lista para este evento)."}catch(_){flySt="\n\n📎 Fly: não foi (erro ao preparar a imagem)."}   // o fly (versão pequena): só o espaço que sobra (o recebedor corta em 45 mil caracteres)   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
+    flySt=fl?"\n\n📎 Fly: foi junto (aparece no aviso do comando).":tem?"\n\n📎 Fly: não foi (a lista ficou grande demais para levar a imagem).":"\n\n📎 Fly: não foi (nenhum fly lido na Lista para este evento)."}catch(e){flySt="\n\n📎 Fly: não foi (erro ao preparar a imagem).";relatarErro("Lançar: preparar o fly",e)}   // o fly (versão pequena): só o espaço que sobra (o recebedor corta em 45 mil caracteres)   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
   if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca)."+flySt)){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});

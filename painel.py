@@ -601,10 +601,13 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     const kek=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(P.sal),iterations:P.it,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);
     let chave=null;
     const comoIrmao=(()=>{try{return sessionStorage.getItem("ver_irmao")==="1"}catch(_){return false}})();   // "👁️ Ver como irmão" (Gestão)
+    const abrePes=async(s,k_)=>{const t=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},k_,b64(s.ct)));
+      if(s.f!==2)return t;const o=JSON.parse(t),km=await crypto.subtle.importKey("raw",b64(o.k),"AES-GCM",false,["decrypt"]);   // formato novo: só os dados + a chave do código
+      const base=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(P.mt.iv)},km,b64(P.mt.ct)));return base.split("__DADOS__").join(o.d)};
     const tentaSlots=async()=>{for(const s of P.slots){try{chave=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct));break}catch(e){}}};
     if(!comoIrmao)await tentaSlots();
     if(!chave){   // não é do comando: tenta o "Meu painel" do irmão
-      for(const s of (P.pes||[])){try{const h=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));
+      for(const s of (P.pes||[])){try{const h=await abrePes(s,kek);
         try{const u="__ACESSOS_URL__";if(u){const c=JSON.stringify({email:d,ok:true,painel:s.t==="v"?"Visitante":"Meu painel",aparelho:(/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Outro")+((matchMedia("(display-mode: standalone)").matches||navigator.standalone)?" · app":" · navegador")});
           try{fetch(u,{method:"POST",mode:"no-cors",keepalive:true,headers:{"Content-Type":"text/plain;charset=utf-8"},body:c}).catch(()=>{try{navigator.sendBeacon&&navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}catch(_){}})}
           catch(_){if(navigator.sendBeacon)navigator.sendBeacon(u,new Blob([c],{type:"text/plain"}))}}}catch(_){}
@@ -614,7 +617,7 @@ document.getElementById("f").addEventListener("submit",async ev=>{
       if(comoIrmao){try{sessionStorage.removeItem("ver_irmao");sessionStorage.setItem("sem_meu","1");sessionStorage.setItem("tem_meu","0");localStorage.setItem("ultima_visao","cmd")}catch(_){}await tentaSlots()}   // sem Meu painel: volta ao ADM (e avisa)
       if(!chave)throw 0}
     // do comando e também com o Meu painel: pergunta como quer entrar (ou usa a escolha lembrada / o atalho do ícone)
-    let meuH=null;if(!comoIrmao)for(const s of (P.pes||[])){if(s.t==="v")continue;try{meuH=new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(s.iv)},kek,b64(s.ct)));break}catch(e){}}
+    let meuH=null;if(!comoIrmao)for(const s of (P.pes||[])){if(s.t==="v")continue;try{meuH=await abrePes(s,kek);break}catch(e){}}
     if(!meuH&&!comoIrmao){try{sessionStorage.setItem("tem_meu","0")}catch(_){}}   // o seletor avisa que não achou o Meu painel
     if(meuH){let modo="";const h=location.hash;if(h==="#moto"||h==="#eventos")modo="irm";else if(h==="#lancar"||h==="#lista")modo="cmd";
       try{if(sessionStorage.getItem("forcar_cmd")==="1"){sessionStorage.removeItem("forcar_cmd");modo="cmd"}}catch(_){}   // veio do "Voltar ao painel do comando"
@@ -897,6 +900,7 @@ def zap_pagamentos(pag, membros):
 # Quando uma atualização exige reinstalar o app (mudança no manifesto, como o Compartilhar), suba o "v" e escreva o motivo.
 # "quem": "adm" (só o comando) ou "todos" (comando e irmãos). O aviso aparece só no Android, no app instalado, até a pessoa marcar "Já reinstalei".
 AVISO_REINSTALAR = {"v": 1, "quem": "adm", "motivo": "receber os flys pelo Compartilhar do WhatsApp"}
+MEU_BASE = ""          # o código do Meu painel (sem os dados), trancado uma vez só
 PESSOAIS = []          # [(email, html)] trancados no mesmo cofre do painel, cada um com o e-mail do irmão
 MEU = r"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Meu painel · Insanos</title><meta name="theme-color" content="#0d0c0b">
@@ -1819,9 +1823,23 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "insp": (lambda ui: {"d": ui["d"], "e": ui["e"], "tk": token_rsvp(email, ui["d"], ui["e"])}
                           if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
                           max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
-        PESSOAIS.append((email, MEU.replace("__DADOS__", json.dumps(dados, ensure_ascii=False)).replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
-                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO + REINST_MODULO)))
+        global MEU_BASE
+        if not MEU_BASE:   # o código do Meu painel (igual para todos): trancado uma vez só, com a chave que vai na parte de cada irmão
+            MEU_BASE = (MEU.replace("__TUTORIAL__", TUTORIAL_APP).replace("__VERSAOSNIP__", snip_versao(False))
+                          .replace("__SOSMOD__", f'<script>window.SOS_URL={json.dumps(OTP_URL if otp_ativo() else "")};window.SOS_DIV={json.dumps(str(DIV.get("nome", "")) + " " + str(DIV.get("regional", "")))};</script>' + ERR_MODULO + SOS_MODULO + MSG_MODULO + SELECT_MODULO + PTR_MODULO + REINST_MODULO))
+        PESSOAIS.append((email, json.dumps(dados, ensure_ascii=False), "m"))   # só os dados do irmão
     print(f"Meu painel: {len(PESSOAIS)} irmão(s) com e-mail (fora do comando) podem ver os próprios dados.")
+
+ERR_MODULO = r"""<script>// ---- ⚠️ registrador de erros: o que falha no celular vira um registro nos Acessos do responsável (sem atrapalhar o irmão) ----
+window.relatarErro=function(onde,e){try{let u="",em="";try{u=(typeof D!=="undefined"&&D.ru)||(typeof DADOS!=="undefined"&&DADOS.ru)||""}catch(_){}if(!u)return;
+  const msg=String((e&&(e.message||e.name))||e||"").replace(/\s+/g," ").slice(0,160);if(!msg||/ResizeObserver|Script error|AbortError|NotAllowedError: Permission denied|Failed to fetch|NetworkError|Load failed|network|ERR_INTERNET|sem internet/i.test(msg))return;
+  const k="err|"+onde+"|"+msg;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");   // o mesmo erro, uma vez por uso
+  const dia=new Date().toISOString().slice(0,10);let c={};try{c=JSON.parse(localStorage.getItem("err_dia")||"{}")}catch(_){}if(c.d!==dia)c={d:dia,n:0};if(c.n>=5)return;c.n++;try{localStorage.setItem("err_dia",JSON.stringify(c))}catch(_){}   // até 5 por dia, por celular
+  try{em=(typeof D!=="undefined"&&D.email)||sessionStorage.getItem("painel_email")||""}catch(_){}
+  fetch(u,{method:"POST",mode:"no-cors",body:JSON.stringify({email:em,ok:true,painel:"⚠️ Erro no app: "+onde+" · "+msg,aparelho:(/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Computador")})}).catch(()=>{})}catch(_){}};
+window.addEventListener("error",ev=>{if(ev.error||ev.message)relatarErro("página",ev.error||ev.message)});
+window.addEventListener("unhandledrejection",ev=>relatarErro("página",ev.reason));
+</script>"""
 
 TUTORIAL_APP = r"""<style>
 .tut-abrir{display:block;margin:12px auto 0;background:transparent;border:1px solid rgba(236,231,220,.25);color:#ECE7DC;border-radius:999px;padding:9px 18px;font-weight:700;font-size:14px;cursor:pointer}
@@ -2409,17 +2427,27 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
         iv_s = secrets.token_bytes(12)
         slots.append({"iv": b64(iv_s), "ct": b64(AESGCM(kek).encrypt(iv_s, chave, None))})
     secrets.SystemRandom().shuffle(slots)
-    pes = []
-    for item in PESSOAIS:              # "Meu painel" (irmão) ou visitante: a página trancada com o e-mail dele
-        email, pag = item[0], item[1].replace("__VERSAO__", VERSAO_ATUAL)
+    pes, mt = [], None
+    km = AESGCM.generate_key(bit_length=256)   # a chave do código do Meu painel (vai dentro da parte de cada irmão)
+    if MEU_BASE and any(len(i) > 2 and i[2] == "m" for i in PESSOAIS):
+        iv_m = secrets.token_bytes(12)
+        mt = {"iv": b64(iv_m), "ct": b64(AESGCM(km).encrypt(iv_m, MEU_BASE.replace("__VERSAO__", VERSAO_ATUAL).encode("utf-8"), None))}
+    for item in PESSOAIS:              # "Meu painel" (irmão): só os dados + a chave do código · visitante: a página inteira
+        email = item[0]
         kek = hashlib.pbkdf2_hmac("sha256", chave_de(email).encode(), sal, ITERACOES, 32)
         iv_p = secrets.token_bytes(12)
-        g_ = {"iv": b64(iv_p), "ct": b64(AESGCM(kek).encrypt(iv_p, pag.encode("utf-8"), None))}
-        if len(item) > 2:
-            g_["t"] = item[2]
+        if len(item) > 2 and item[2] == "m":
+            conteudo = json.dumps({"k": b64(km), "d": item[1]}, ensure_ascii=False)
+            g_ = {"iv": b64(iv_p), "ct": b64(AESGCM(kek).encrypt(iv_p, conteudo.encode("utf-8"), None)), "f": 2}
+        else:
+            g_ = {"iv": b64(iv_p), "ct": b64(AESGCM(kek).encrypt(iv_p, item[1].replace("__VERSAO__", VERSAO_ATUAL).encode("utf-8"), None))}
+            if len(item) > 2:
+                g_["t"] = item[2]
         pes.append(g_)
     secrets.SystemRandom().shuffle(pes)
     pacote = {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots, "pes": pes, "cav": CAVEIRA_URL, "otp": OTP_URL if otp_ativo() else ""}
+    if mt:
+        pacote["mt"] = mt
     return (texto_divisao(LOGIN).replace("__PACOTE__", json.dumps(pacote)).replace("__IMG__", img)
                  .replace("__TITULO__", titulo).replace("__SUBTITULO__", subtitulo).replace("__ROTULO__", rotulo)
                  .replace("__ATUAL__", INFO_LOGIN).replace("__MANUT__", MANUT_HTML).replace("__FOTOS__", FOTOS_LOGIN)
@@ -4818,10 +4846,10 @@ def main():
         _ap = str(EMAIL_APELIDO.get(_por, "") or (_por if "@" not in _por else _por.split("@")[0]))
         enq_adm["por"] = nomes_.get(_ap.lower(), _ap)   # o apelido de quem criou
         enq_adm.update({"res": res_, "total": len(membros)})
-    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": EVENTOS_CONV, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": EVENTOS_CONV, "ru": ACESSOS_URL, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": EVENTOS_CONV, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": EVENTOS_CONV, "ru": ACESSOS_URL, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]
