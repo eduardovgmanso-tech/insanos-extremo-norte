@@ -332,6 +332,16 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 .ver-todos{display:block;margin:0 0 10px auto;padding:7px 12px;border-radius:999px;border:1px solid rgba(233,185,73,.6);background:rgba(233,185,73,.12);color:#F1CF6E;font:inherit;font-size:13px;font-weight:700}.ver-todos[hidden]{display:none}
 .vis-tog{display:flex;gap:6px;margin:0 0 12px}.vis-tog button{font:inherit;font-size:14px;font-weight:800;padding:8px 14px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:var(--osso,#ECE7DC);cursor:pointer}
 .vis-tog button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}
+.pin-linha{display:flex;gap:8px;align-items:center;margin:0 0 12px}.pin-linha>#pinTopo{flex:1;min-width:0;margin:0!important}
+.vis-tog.lado{flex-direction:column;gap:4px;margin:0}.vis-tog.lado button{font-size:12px;padding:5px 10px}
+.cat-box .cat-vis{margin:10px 0 4px}
+#anivBox{display:none!important}   /* os aniversários ficam no Clube */
+details.sanfona{margin:16px 0;border-radius:18px;border:1px solid rgba(236,231,220,.14);background:rgba(20,18,16,.55);padding:14px 16px}
+details.sanfona>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+details.sanfona>summary::-webkit-details-marker{display:none}
+details.sanfona>summary b{display:block;font-size:19px}details.sanfona>summary small{display:block;color:#B8B2A6;font-size:13.5px;margin-top:2px}
+details.sanfona>summary i{font-style:normal;font-size:22px;opacity:.6;transition:transform .2s}details.sanfona[open]>summary i{transform:rotate(90deg)}
+details.sanfona>.painel{margin:12px 0 0!important;border:0!important;background:none!important;box-shadow:none!important;padding:0!important}
 .cat-vis{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}
 .kpis-novos em{display:block;font-style:normal;font-size:12.5px;color:#B8B2A6;margin-top:2px;line-height:1.3}.kpis-novos b small{font-size:55%;font-weight:600;color:#B8B2A6}
 .kpis.kpis-novos>.kpi-linha{grid-column:1/-1;display:block!important;background:none!important;border:0!important;box-shadow:none!important;min-height:0!important;padding:4px 4px 0!important;font-size:13.5px!important;color:#BDB7AA;line-height:1.45}
@@ -1298,6 +1308,10 @@ const M_FULL=M,EV_SETS={pres:DADOS.ev||[],ins:DADOS.ev_ins||[],staff:DADOS.ev_st
 const EV_OF=DADOS.ev||[],EV_CV=DADOS.ev_conv||[],EV_TODOS=EV_OF.concat(EV_CV).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0),EV_CVSET=new Set(EV_CV.map(e=>e.d+"|"+String(e.e).trim().toLowerCase()));
 const evConv=(d,n)=>EV_CVSET.has(d+"|"+String(n||"").trim().toLowerCase());let CAT_VIS="of";
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-cat]");if(b)catVer(b.dataset.cat)});
+function catNoTopo(){let b=$("catVisBox");
+  if(!b){const ins=[...document.querySelectorAll("button")].find(x=>x.textContent.trim()==="Insights"),fb=$("fBtn");let a=ins;while(a&&fb&&!a.contains(fb))a=a.parentElement;
+    if(a&&fb){let f=fb;while(f&&f.parentElement!==a)f=f.parentElement;b=document.createElement("div");b.id="catVisBox";b.className="cat-box";b.style.flexBasis="100%";a.insertBefore(b,f.nextSibling)}}
+  if(b){b.innerHTML=catChips();return ""}return catChips()}   // o seletor fica junto das abas (Presença · Insights · Filtros)
 function catChips(){return ANAL==="pres"?`<div class="cat-vis" role="group" aria-label="Tipo de evento">${[["of","⭐ Oficiais"],["cv","🤝 Convidado"],["todos","Todos"]].map(([k,r])=>`<button type="button" data-cat="${k}" aria-pressed="${CAT_VIS===k}">${r}${k==="cv"?` (${EV_CV.length})`:""}</button>`).join("")}</div>`:""}
 function catVer(v){CAT_VIS=v;EV_SETS.pres=v==="cv"?EV_CV:v==="todos"?EV_TODOS:EV_OF;try{aplicarAnalise();montarFiltros();render()}catch(e){console.error(e)}}
 // ENTRADA: cada irmão conta a partir do primeiro evento em que aparece marcado (✅, ❌, Staff ou –).
@@ -2624,6 +2638,7 @@ function render(){
       :["",mem.length,mem.length===1?"integrante no filtro":"integrantes no filtro"]
   ].map(([c,v,l])=>`<div><span>${String(l).charAt(0).toUpperCase()+String(l).slice(1)}</span><b style="color:${c==="ok"?"var(--presente)":c==="falta"?"#D25A57":"inherit"}">${v}</b></div>`).join("");
   $("kpis").className="kpis pag-kpis";   // mesmo visual dos números da tela Pagamentos
+  try{sanfonasResumo(stats)}catch(_){}
   // visão geral (vários eventos): números que respondem perguntas, no lugar dos totais de presenças e faltas
   if(MODO!=="individual"&&!st.nome&&!st.data&&comReg.length>=2){
     const MC=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"],f1=x=>(Math.round(x*10)/10).toLocaleString("pt-BR");
@@ -2726,8 +2741,8 @@ function render(){
     <tbody>${mem.map(m=>`<tr><th data-nome="${esc(m.n)}">${esc(m.n)}<span class="nr">Nº ${esc(m.num)}</span>${anivIdade(m)?`<span class="nr aniv">${esc(anivIdade(m))}</span>`:""}</th>${evs.map(e=>{const v=e.p[m.i];
       return `<td title="${esc(m.n)} · ${fmtD(e.d)} · ${v===1?"presente":v===0?"ausente":v==="-"?"não conta":"sem registro"}"><span class="pt ${v===1?"s1":v===0?"s0":v==="-"?"nc":"sn"}"></span></td>`}).join("")}</tr>`).join("")}</tbody>`;
 
-  const ds=EV.map(e=>e.d).sort();if(!ds.length){$("periodo").innerHTML=catChips()+(ANAL==="pres"&&CAT_VIS==="cv"?"<b>Nenhum evento como convidado ainda</b>":"<b>Nenhum evento registrado nesta aba</b>");window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}else
-  {$("periodo").innerHTML=catChips()+`<b>${EV.length} eventos registrados</b>${fmtDL(ds[0])} a ${fmtDL(ds[ds.length-1])} de ${ds[0].slice(0,4)}`;window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}
+  const ds=EV.map(e=>e.d).sort();if(!ds.length){$("periodo").innerHTML=catNoTopo()+(ANAL==="pres"&&CAT_VIS==="cv"?"<b>Nenhum evento como convidado ainda</b>":"<b>Nenhum evento registrado nesta aba</b>");window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}else
+  {$("periodo").innerHTML=catNoTopo()+`<b>${EV.length} eventos registrados</b>${fmtDL(ds[0])} a ${fmtDL(ds[ds.length-1])} de ${ds[0].slice(0,4)}`;window.PERIODO_PRES=$("periodo").innerHTML;periodoTela()}
   $("rodape").textContent="Fonte: Insanos - Divisão Extremo Norte - SP3, atualizado em "+GERADO+".";
 }
 // lista de funções (várias): abre/fecha, marca/desmarca e limpa
@@ -2884,7 +2899,8 @@ function montarMenu(){
     <button type="button" data-mais><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg><span>Mais</span></button>`;
   document.body.prepend(nav);
   nav.addEventListener("click",ev=>{const b=ev.target.closest("button[data-v]");if(b){irPara(b.dataset.v);return}
-    if(ev.target.closest("button[data-mais]"))folhaAtalhos("Mais",[{ico:"📇",t:"Cadastro",d:"Novo irmão, dados, cargo e situação",fn:()=>irPara("ficha")},{ico:"🎽",t:"Kit/colete",d:"Solicitação para o regional",fn:()=>irPara("kit")},{ico:"🏅",t:"Honrarias",d:"Pin Caveira e as próximas honrarias",fn:()=>irPara("honr")}])});
+    if(ev.target.closest("button[data-mais]"))folhaAtalhos("Mais",[{ico:"📇",t:"Cadastro",d:"Novo irmão, dados, cargo e situação",fn:()=>irPara("ficha")},{ico:"🎽",t:"Kit/colete",d:"Solicitação para o regional",fn:()=>irPara("kit")},{ico:"🏅",t:"Honrarias",d:"Pin Caveira e as próximas honrarias",fn:()=>irPara("honr")},
+      {ico:"🐞",t:"Avisar um problema",d:"Mande um aviso para o responsável pelo app",fn:bugAbrir},{ico:"⚙️",t:"Ajustes do app",d:"Modo economia, letra e como entrar",fn:ajustesAbrir}])});
   montarQuadros();pinTopo();
   montarPagamentos();montarListas();montarFicha();montarKit();montarAcessos();montarCadastro();montarDash()
 }
@@ -2976,10 +2992,29 @@ async function zapFlyAbrir(){let o=null;try{const c=await caches.open("insanos-z
     copia();window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")}}
 if(location.hash==="#zapfly"){try{history.replaceState(null,"",location.pathname)}catch(_){}setTimeout(zapFlyAbrir,700)}
 if(navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.zapfly)zapFlyAbrir()});
+// ---- Presença: o Top 5 e o gráfico por integrante viram sanfonas (com uma linha de resumo); os aniversários vão para o Clube ----
+function sanfonasMontar(){if($("sanTop"))return;const top=document.querySelector(".painel.tops5"),it=$("secInt");if(!top||!it)return;
+  const mk=(sec,id,tit)=>{const d=document.createElement("details");d.id=id;d.className="sanfona "+[...sec.classList].filter(c=>/^so-/.test(c)).join(" ");
+    d.innerHTML=`<summary><span><b>${tit}</b><small></small></span><i>›</i></summary>`;sec.before(d);d.appendChild(sec);return d};
+  mk(top,"sanTop","🏆 Mais e menos presentes");const si=mk(it,"sanInt","👥 Por integrante");
+  const vis=[...document.querySelectorAll("button")].find(b=>/Por evento/.test(b.textContent));
+  if(vis){let row=vis.parentElement;while(row&&!/Visão/.test(row.textContent)&&row.parentElement)row=row.parentElement;   // a linha inteira ("Visão:" e os botões)
+    if(row&&!row.contains(it)&&!row.contains(si))si.insertBefore(row,it)}}
+function sanfonasResumo(stats){sanfonasMontar();const L=(stats||[]).filter(s=>s.pc!=null).sort((a,b)=>b.pc-a.pc);
+  const nm=s=>s&&(s.n||(s.m&&s.m.n)||"");
+  const a=document.querySelector("#sanTop small"),b=document.querySelector("#sanInt small");
+  if(a)a.textContent=L.length?`1º ${nm(L[0])} · ${L[0].pc}% · toque para ver o top 5`:"toque para ver o top 5";
+  if(b){const ab=L.filter(s=>s.pc<50).length;b.textContent=`${L.length} irmão${L.length!==1?"s":""}${ab?` · ${ab} abaixo de 50%`:""} · toque para ver o gráfico`}}
+function anivAbrir(){const an=$("anivBox");if(!an)return;const casa=an.parentNode,prox=an.nextSibling,v=document.createElement("div");v.className="fa-veu";
+  v.innerHTML=`<div class="fa-cx" role="dialog" aria-label="Próximos aniversários" style="max-height:92vh;overflow:auto"></div>`;const cx=v.firstChild;
+  cx.appendChild(an);an.style.setProperty("display","block","important");cx.insertAdjacentHTML("beforeend",'<button type="button" class="fa-fechar">Fechar</button>');
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar")){an.style.removeProperty("display");casa.insertBefore(an,prox);v.remove()}};document.body.appendChild(v)}
 // ---- 👑 Comando · 👤 Irmão: o seletor no topo (um toque troca de visão; o app abre na última usada) ----
 function visaoTog(){const q=$("quadros3");if(MODO!=="adm"||document.querySelector(".adm-vis"))return;if(!q){if((visaoTog.n=(visaoTog.n||0)+1)<25)setTimeout(visaoTog,400);return}
   const d=document.createElement("div");d.className="vis-tog adm-vis";d.setAttribute("role","group");d.setAttribute("aria-label","Visão");
-  d.innerHTML='<button type="button" aria-pressed="true">👑 Comando</button><button type="button" id="irVisao">👤 Irmão</button>';q.parentNode.insertBefore(d,q);
+  d.innerHTML='<button type="button" aria-pressed="true">👑 Comando</button><button type="button" id="irVisao">👤 Irmão</button>';
+  const pin=$("pinTopo");if(pin){const lin=document.createElement("div");lin.className="pin-linha";pin.parentNode.insertBefore(lin,pin);lin.appendChild(pin);lin.appendChild(d);d.classList.add("lado")}   // ao lado do cartão do nome
+  else q.parentNode.insertBefore(d,q);
   const semMeu="Não achei o seu Meu painel com o e-mail desta entrada.\n\nConfira se o e-mail do seu cadastro de irmão (na planilha) é o mesmo que você usa para entrar no comando.";
   $("irVisao").onclick=()=>{let tm="";try{tm=sessionStorage.getItem("tem_meu")||""}catch(_){}if(tm==="0"){alert(semMeu);return}
     try{sessionStorage.setItem("ver_irmao","1");localStorage.setItem("ultima_visao","irm");const em=sessionStorage.getItem("painel_email");if(em)sessionStorage.setItem("reentrar",em)}catch(_){}location.href=location.pathname};
@@ -3046,9 +3081,12 @@ function enqAbrir(){const E=DADOS.enq,v=document.createElement("div");v.classNam
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
   document.body.appendChild(v);tela(E&&E.ops?"res":"nova")}
 // ---- 🚪 sair: agradece a visita e volta para a tela de entrada ----
-function sairApp(){const v=document.createElement("div");v.className="fa-veu";v.innerHTML=`<div class="fa-cx" style="text-align:center;padding:26px 20px">
-    <div style="font-size:44px;line-height:1">🤝</div><h3 style="margin:10px 0 6px">Obrigado pela visita, irmão!</h3><p class="nota" style="margin:0">Até a próxima. Insanos sempre. 💀</p></div>`;
-  document.body.appendChild(v);setTimeout(()=>{try{sessionStorage.clear()}catch(_){}location.href=location.pathname},1800)}
+function sairApp(){try{sessionStorage.clear()}catch(_){}try{window.close()}catch(_){}   // encerra a sessão e tenta fechar o app (nem todo celular deixa)
+  setTimeout(()=>{document.body.innerHTML=`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0d0b09;padding:24px;font-family:Inter,Arial,sans-serif;color:#ECE7DC">
+    <div style="text-align:center;max-width:320px"><div style="font-size:64px;line-height:1">🚪</div><h2 style="margin:12px 0 6px">Você saiu</h2>
+    <p style="color:#B8B2A6;margin:0 0 22px;line-height:1.45">Já pode fechar o app. Para entrar de novo, use a digital ou o seu e-mail.</p>
+    <button type="button" id="entrarDeNovo" style="font:inherit;font-weight:800;font-size:16px;padding:12px 26px;border-radius:999px;border:0;background:#E9B949;color:#1a1206;cursor:pointer">Entrar de novo</button></div></div>`;
+    document.getElementById("entrarDeNovo").onclick=()=>{location.href=location.pathname}},300)}
 function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||document.getElementById("quadros3"))return;
   const ico=id=>{const a=$(id);if(!a)return"";const im=a.querySelector("img"),sv=a.querySelector("svg");return im?`<img alt="" src="${im.src||LOGO}">`:sv?sv.outerHTML:""};
   const href=id=>{const a=$(id);return a&&a.getAttribute("href")||""};
@@ -3057,19 +3095,19 @@ function montarQuadros(){const dir=document.querySelector(".topo-dir");if(!dir||
   q.innerHTML=`<button type="button" class="q3" data-q="clube">${ico("site18")}<span>Clube</span></button>
     <button type="button" class="q3" data-q="gestao">${ico("dash18")}<span class="q3-2l">Gestão e Notificações</span></button>
     <button type="button" class="q3 sos" data-q="sos"><b>SOS</b><span>Preciso de ajuda</span></button>
-    <button type="button" class="q3" data-q="bug"><b class="q3-emo">🐞</b><span class="q3-2l">Avisar um problema</span></button>
-    <button type="button" class="q3" data-q="enq"><b class="q3-emo">📊</b><span>Enquete</span>${DADOS.enq&&DADOS.enq.aberta?'<i class="q3-pt" aria-label="enquete aberta"></i>':""}</button>`;
+    <button type="button" class="q3" data-q="enq"><b class="q3-emo">📊</b><span>Enquete</span>${DADOS.enq&&DADOS.enq.aberta?'<i class="q3-pt" aria-label="enquete aberta"></i>':""}</button>
+    <button type="button" class="q3" data-q="sair"><b class="q3-emo">🚪</b><span>Sair</span></button>`;
 
   dir.prepend(q);
-  q.insertAdjacentHTML("afterend",`<div class="q-links"><button type="button" class="sair-link" id="ajLink">⚙️ Ajustes</button><button type="button" class="sair-link" id="sairLink">Sair</button></div>`);   // pequenos e discretos
-  document.getElementById("sairLink").onclick=sairApp;document.getElementById("ajLink").onclick=ajustesAbrir;
+  // Ajustes e "Avisar um problema" ficam no menu Mais; o Sair virou quadradinho
   q.onclick=e=>{const b=e.target.closest("[data-q]");if(!b)return;const k=b.dataset.q;
     if(k==="sos"){if(window.abrirSOS)abrirSOS();return}
     if(k==="bug"){bugAbrir();return}
     if(k==="sair"){sairApp();return}
     if(k==="enq"){enqAbrir();return}
     if(k==="clube")folhaAtalhos("📚 Clube",[{ico:ico("site18"),t:"Sistema Insanos",d:"Entrar no sistema do motoclube",href:href("site18")},
-      {ico:ico("doc18"),t:"RDI",d:"Regulamento",href:href("doc18")},{ico:ico("man18"),t:"Manual do integrante",d:"Abrir o manual",href:href("man18")}]);
+      {ico:ico("doc18"),t:"RDI",d:"Regulamento",href:href("doc18")},{ico:ico("man18"),t:"Manual do integrante",d:"Abrir o manual",href:href("man18")},
+      {ico:"🎂",t:"Próximos aniversários",d:"Os 5 próximos, do mais perto para o mais longe",fn:anivAbrir}]);
     if(k==="gestao"){const it=[{ico:ico("dash18"),t:"Dashboard",d:"Cards e comparativo entre meses",fn:()=>irPara("dash")}];
       const pl=$("plan18");if(pl&&!pl.hidden&&pl.getAttribute("href"))it.push({ico:ico("plan18"),t:"Planilha",d:"Abrir a planilha do Google",href:pl.getAttribute("href")});
       it.push({ico:"✉️",t:"Mensagens",d:"Mandar para todos, um grupo ou um irmão, e ver as respostas",fn:()=>abrirMensagens(msgCfgAdm())});

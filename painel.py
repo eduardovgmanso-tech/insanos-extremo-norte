@@ -1045,7 +1045,12 @@ const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
 <h1 style="display:flex;align-items:center;gap:12px">${es(D.n)}${PIN?`<img src="pin-${PIN[0]}.png" alt="${PIN[1]}" title="${PIN[1]}" style="width:44px;height:auto">`:""}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}${PIN?" · "+PIN[1]:""}</p>
-<style>.vis-tog{display:flex;gap:6px}.vis-tog button{font:inherit;font-size:14px;font-weight:800;padding:8px 14px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:#ECE7DC;cursor:pointer}.vis-tog button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}</style>
+<style>.san-det>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}.san-det>summary::-webkit-details-marker{display:none}
+.san-det>summary b{display:block;font-size:18px}.san-det>summary small{display:block;color:#B8B2A6;font-size:13px;margin-top:2px}.san-det>summary i{font-style:normal;font-size:20px;opacity:.6;transition:transform .2s}.san-det[open]>summary i{transform:rotate(90deg)}
+.san-det>.card{margin:12px 0 0;border:0;box-shadow:none;background:rgba(236,231,220,.03)}
+.lembra-av{display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:14px;border-color:rgba(233,185,73,.5)!important}.lembra-av button{font:inherit;font-weight:800;padding:8px 14px;border-radius:999px;border:0;background:#E9B949;color:#1a1206;white-space:nowrap}
+.aj-cx{max-height:92vh;overflow:auto}.aj-cx #instalar,.aj-cx #avisos{margin:14px 0 0}
+.vis-tog{display:flex;gap:6px}.vis-tog button{font:inherit;font-size:14px;font-weight:800;padding:8px 14px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:#ECE7DC;cursor:pointer}.vis-tog button[aria-pressed="true"]{background:#E9B949;color:#1a1206;border-color:#E9B949}</style>
 <div id="comoIrmao" hidden style="margin:0 0 12px"><span class="vis-tog" role="group" aria-label="Visão"><button type="button" id="voltarCmd">👑 Comando</button><button type="button" aria-pressed="true">👤 Irmão</button></span></div>
 <div class="cart-bts"><button id="cartBt">🪪 Minha carteirinha</button><button id="conqBt" aria-expanded="false">🏆 Minhas conquistas <span id="conqN"></span></button></div>
 <div id="conqBox" hidden></div>
@@ -1060,6 +1065,7 @@ ${D.insp&&D.ru?`<div class="card" id="insightP"><h2>💬 ${es(D.insp.e)}</h2><p 
   <div class="qbts"><button class="qz" id="insBt">✅ Já respondi</button></div></div>`:""}
 ${D.mens&&D.mens.st?mensQuadro():""}
 <div class="card" id="adesaoCard"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><h2 id="adTit" style="flex:1;margin:0">Minha adesão em ${D.ano}</h2><select id="perSel" aria-label="Período" style="max-width:46%;padding:7px 9px;border-radius:10px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:inherit;font:inherit"><option value="">Ano todo (${D.ano})</option>${[...D.meses].reverse().map(m=>`<option value="${m.ym}">${MESES_N[+m.ym.slice(5)-1]}/${m.ym.slice(0,4)}</option>`).join("")}</select></div><div class="cavs" id="adCavs">${cav(vp,"Presença",D.pres[1]?`${D.pres[0]} de ${D.pres[1]} eventos`:"sem eventos")}${cav(vi,"Insights",D.ins[1]?`${D.ins[0]} de ${D.ins[1]} insights`:"sem insights")}</div></div>
+<details class="card san-det" id="detPres"><summary><span><b>📈 Minha presença em detalhe</b><small>${Array.isArray(D.pd)&&D.pd[0]?D.pd[0]+"º de "+D.pd[1]+" na divisão · ":""}você ${vp!=null?vp+"%":"–"} · média da divisão ${D.md&&D.md[0]!=null?D.md[0]+"%":"–"}</small></span><i>›</i></summary>
 <div class="card"><h2>Minha posição (presença) <span class="nota" style="font-weight:500">· no ano</span></h2><div class="pos">${pos(D.pf,"na função ("+es(D.g)+")")}${pos(D.pd,"na divisão")}</div></div>
 <div class="card"><h2>Comparação</h2>
   <div class="cmp"><p>Presença</p>${bar("Eu",vp)}${bar("Média "+es(D.g),D.mf[0])}${bar("Média da divisão",D.md[0])}</div>
@@ -1067,7 +1073,7 @@ ${D.mens&&D.mens.st?mensQuadro():""}
 <div class="card"><h2>Mês a mês</h2><div class="mes nota"><span></span><span>Presença</span><span>Insights</span></div>${D.meses.map(m=>{const a=pc(m.p),b=pc(m.i);
   const ch=(v,x)=>x&&x[1]?`<span class="ch" style="color:${cor(v)[1]};background:rgba(236,231,220,.05)">${x[0]}/${x[1]} · ${v}%</span>`:'<span class="nota">–</span>';
   return `<div class="mes"><b>${MS[+m.ym.slice(5)-1]}/${m.ym.slice(2,4)}</b>${ch(a,m.p)}${ch(b,m.i)}</div>`}).join("")}
-</div>
+</div></details>
 <div class="card"><h2 id="mpTit">📋 Minhas presenças em ${D.ano}</h2>
   <div class="tabs" id="tTipo"><button data-t="ev" class="on">🗓️ Eventos</button><button data-t="iv">💬 Insights</button></div>
   <div class="tabs peq" id="tFil"><button data-f="" class="on">Todos</button><button data-f="x">❌ Só onde faltei</button></div>
@@ -1422,7 +1428,15 @@ function ajustesLer(){try{return JSON.parse(localStorage.getItem("ajustes_app")|
 function ajustesAplicar(){const a=ajustesLer(),R=document.documentElement;R.classList.toggle("eco",!!a.eco);R.classList.toggle("letra-g",a.letra==="g");R.classList.toggle("letra-gg",a.letra==="gg");
   if(a.eco)document.querySelectorAll("video.fundo-video").forEach(v=>{try{v.pause()}catch(_){}})}
 ajustesAplicar();
-function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=document.createElement("div");v.className="fa-veu";
+// os cartões de configuração (instalar o app e avisos) moram no ⚙️ Ajustes; ficam guardados escondidos fora dele
+(function(){const ins=document.getElementById("instalar"),av=document.getElementById("avisos"),app=document.getElementById("app");if(!app||(!ins&&!av))return;
+  let g=document.getElementById("cfgGuarda");if(!g){g=document.createElement("div");g.id="cfgGuarda";g.hidden=true;app.appendChild(g)}
+  window.__cfgNos=[ins,av].filter(Boolean);window.__cfgNos.forEach(n=>g.appendChild(n));
+  let ok=false;try{ok=typeof Notification!=="undefined"&&Notification.permission==="granted"}catch(_){}
+  if(!ok){const t=document.getElementById("tri")||document.getElementById("enqC");if(t){const l=document.createElement("div");l.className="card lembra-av";
+    l.innerHTML='<span>🔔 <b>Ative os avisos</b> para receber os lembretes, o SOS e as mensagens do comando.</span><button type="button">Ativar</button>';
+    l.querySelector("button").onclick=()=>ajustesAbrir(true);t.after(l)}}})();
+function ajustesAbrir(rolar){if(document.querySelector(".aj-cx"))return;const v=document.createElement("div");v.className="fa-veu";
   const tela=()=>{const a=ajustesLer();v.innerHTML=`<div class="fa-cx aj-cx" role="dialog" aria-label="Ajustes do app"><h3 style="margin:0 0 4px">⚙️ Ajustes do app</h3>
     <p class="nota" style="margin:0 0 14px">Valem só para este celular.</p>
     <button type="button" class="aj-op" id="ajEco" aria-pressed="${!!a.eco}"><span><b>🔋 Modo economia</b><small>Desliga o vídeo de fundo e os efeitos animados (brilho e sombras das caveiras). Bom para celular mais simples ou para poupar bateria e internet.</small></span><i>${a.eco?"Ligado":"Desligado"}</i></button>
@@ -1434,8 +1448,10 @@ function ajustesAbrir(){if(document.querySelector(".aj-cx"))return;const v=docum
     <button type="button" class="fa-fechar">Fechar</button></div>`;
     v.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{try{if(b.dataset.e)localStorage.setItem("entrar_como",b.dataset.e);else localStorage.removeItem("entrar_como")}catch(_){}tela()});
     v.querySelector("#ajEco").onclick=()=>{const b=ajustesLer();b.eco=!b.eco;try{localStorage.setItem("ajustes_app",JSON.stringify(b))}catch(_){}ajustesAplicar();if(!b.eco)document.querySelectorAll("video.fundo-video").forEach(x=>{try{x.play()}catch(_){}});tela()};
-    v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()})};
-  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);tela()}
+    v.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{const c=ajustesLer();c.letra=b.dataset.l;try{localStorage.setItem("ajustes_app",JSON.stringify(c))}catch(_){}ajustesAplicar();tela()});
+    const fe=v.querySelector(".fa-fechar");(window.__cfgNos||[]).forEach(n=>{if(fe)fe.before(n)})};   // instalar o app e avisos no celular
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar")){const g=document.getElementById("cfgGuarda");(window.__cfgNos||[]).forEach(n=>{if(g)g.appendChild(n)});v.remove()}};
+  document.body.appendChild(v);tela();if(rolar){const a=document.getElementById("avisos"),cx=v.querySelector(".fa-cx");if(a&&cx)setTimeout(()=>a.scrollIntoView({block:"start"}),60)}}
 
 // ---- 📷 foto do irmão e 🎨 fundo da carteirinha (só neste celular: não vão para a planilha, a nuvem nem o comando) ----
 function motoFotoLer(){try{return localStorage.getItem("motofoto_"+D.email)||""}catch(_){return ""}}
@@ -1542,7 +1558,7 @@ async function cartCompartilhar(){
   d.innerHTML=`<summary style="cursor:pointer;font-weight:800;font-size:var(--fs-h2,21px)">📜 Minha história no clube</summary>
     <p class="nota" style="margin:8px 0 12px">${tp?`⏳ ${tp} de Insanos`:""}${H.tot?` · ${H.tot} presenças no total`:""}</p>
     <div class="hist">${it.map(([dt,ic,t,s2,fut])=>`<div class="hi${fut?" fut":""}"><i>${ic}</i><div><b>${es(t)}</b><small>${dt.slice(5)==="01-01"||dt.slice(5)==="12-31"?"":br(dt)+(s2?" · ":"")}${es(s2||"")}</small></div></div>`).join("")}</div>`;
-  const ref=document.getElementById("avisos")||[...app.children].find(c=>/Atualizado em/.test(c.textContent||""));   // antes dos avisos e do rodapé
+  const ref=[...app.children].find(c=>/Atualizado em/.test(c.textContent||""))||document.getElementById("avisos");   // antes do rodapé (os avisos ficam no ⚙️ Ajustes)
   if(ref&&ref.parentNode===app)app.insertBefore(d,ref);else app.appendChild(d)})();
 
 // ---- ☀️ bom-dia das 9h: o irmão pode desligar só esse aviso (fica guardado na planilha, aba Preferências) ----
