@@ -3590,7 +3590,8 @@ const DIV_NOME="Extremo Norte",DIV_REG="SP3",SEP="------------------------------
 // ---- formato das listas do WhatsApp: linha dupla do tamanho da maior linha e número "01 ▸" (sem virar lista automática) ----
 function zapLarg(l){let w=0;for(const ch of l.replace(/[*_~`]/g,"")){const c=ch.codePointAt(0);w+=c>=0x1F000||(c>=0x2600&&c<=0x27BF)?2:c===0xFE0F||c===0x200D?0:1}return w}
 function zapFormatar(txt){const L=String(txt||"").split("\n"),sep=l=>/^\s*[-–—_=═]{8,}\s*$/.test(l);
-  const out=L.map(l=>l.replace(/^(\s*)(\d{1,2})\.\s+/,(s,e,n)=>`${e}${n.padStart(2,"0")} ▸ `));
+  const zw=String.fromCharCode(8203);   // espaço invisível depois do ponto: o WhatsApp não confunde "VIII.Edu" com o site viii.edu
+  const out=L.map(l=>l.replace(/^(\s*)(\d{1,2})\.\s+/,(s,e,n)=>`${e}${n.padStart(2,"0")} ▸ `)).map(l=>/^\s*\d{2} ▸ /.test(l)?l.replace(/([IVXLC]+)(\s*)\.(?=[A-Za-zÀ-ú])/,"$1$2."+zw):l);
   const larg=Math.max(0,...out.filter(l=>!sep(l)&&!/https?:\/\//.test(l)).map(zapLarg));
   const n=Math.max(14,Math.min(26,Math.round(larg*2/3)));
   return out.map(l=>sep(l)?"═".repeat(n):l).join("\n")}
@@ -3759,7 +3760,8 @@ function montarListas(){
     document.querySelectorAll("#lLista .seg button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===lanc[x.dataset.n]));
     if(iso)$("lData").value=iso;$("lNome").value=(f.titulo||"")+(f.nome?" - "+f.nome:"");atualizaLanc();irPara("lancar")};
 }
-function lwMarcasDoTexto(txt,soSeTiver){const linhas=String(txt||"").split(/\r?\n/);let n=0;
+function lwMarcasDoTexto(txt,soSeTiver){txt=String(txt||"").replace(/[\u200b-\u200d\ufeff]/g,"");   // ignora o espaço invisível das listas
+const linhas=String(txt||"").split(/\r?\n/);let n=0;
   const norm=s=>s.replace(/[\s\u2060\u200b]+/g," ").trim().toLowerCase();const achou={};
   M.forEach(m=>{const alvo=norm(lwNome(m)),ap=norm("."+m.n);
     const l=linhas.find(x=>{const y=norm(x);return y.startsWith(alvo)||y.includes(ap+" ")||y.endsWith(ap)||y.includes(ap+"-")});

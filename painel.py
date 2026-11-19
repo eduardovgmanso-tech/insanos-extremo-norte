@@ -794,6 +794,7 @@ def _zap_formatar(txt):
     import re as _r
     out = [_r.sub(r"^(\s*)(\d{1,2})\.\s*", lambda m: f"{m.group(1)}{m.group(2).zfill(2)} ▸ ", l) if _r.match(r"^\s*\d{1,2}\.\s", l) else l
            for l in str(txt).split("\n")]
+    out = [_r.sub(r"([IVXLC]+)(\s*)\.(?=[A-Za-zÀ-ú])", "\\1\\2.\u200b", l, count=1) if _r.match(r"^\s*\d{2} ▸ ", l) else l for l in out]   # o WhatsApp não confunde "VIII.Edu" com um site
     sep = lambda l: bool(_r.match(r"^\s*[-–—_=═]{8,}\s*$", l))
     larg = max([len(l) for l in out if not sep(l) and "http" not in l] or [0])
     n = max(14, min(26, int(larg * 2 / 3 + 0.5)))
@@ -893,6 +894,7 @@ def zap_pagamentos(pag, membros):
            for l in linhas[i1 + 1:]]
     out = "\n".join(linhas[:i0] + ["\n\n".join(blocos)] + fim).split("\n")
     out = [_r.sub(r"^(\s*)(\d{1,2})\.\s+", lambda m: f"{m.group(1)}{m.group(2).zfill(2)} ▸ ", l) for l in out]
+    out = [_r.sub(r"([IVXLC]+)(\s*)\.(?=[A-Za-zÀ-ú])", "\\1\\2.\u200b", l, count=1) if _r.match(r"^\s*\d{2} ▸ ", l) else l for l in out]   # o WhatsApp não confunde "VIII.Edu" com um site
     sep = lambda l: bool(_r.match(r"^\s*[-–—_=═]{8,}\s*$", l))
     larg = max([len(l) for l in out if not sep(l) and "http" not in l] or [0])
     n = max(14, min(26, int(larg * 2 / 3 + 0.5)))
