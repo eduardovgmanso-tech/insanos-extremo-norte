@@ -3877,7 +3877,7 @@ async function flyIA(f,camera){const N=DADOS.nuvem;if(!N||!N.url)return null;
 // coloca o que o Gemini devolveu nos campos de cada tipo de lista
 function flyAplicarIA(c){const s=v=>String(v==null?"":v).trim(),tipos=["reuniao","evento","social","pub"];
   const tipo=tipos.includes(s(c.tipo))?s(c.tipo):lw.tipo;
-  if(tipo!==lw.tipo){const b=document.querySelector(`#lwTipos [data-lwt="${tipo}"]`);if(b)b.click()}
+  if(tipo!==lw.tipo&&!window.__lwTipoFixo){const b=document.querySelector(`#lwTipos [data-lwt="${tipo}"]`);if(b)b.click()}   // se o comando escolheu o tipo, a leitura respeita
   lwCarregar(lw.tipo);const F=lw.f[lw.tipo],usados=new Set(),tem=k=>LW_TIPOS[lw.tipo].campos.some(x=>x[0]===k);
   const por=(k,v)=>{v=s(v);if(v&&tem(k)){F[k]=v;usados.add(k)}};
   const hh=v=>{const m=s(v).match(/(\d{1,2})\s*[:hH.]\s*(\d{2})/);return m?`${m[1].padStart(2,"0")}:${m[2]}`:""};
@@ -3929,10 +3929,28 @@ async function lancFlyPequeno(d,limite){const src=lancFlyLocal(d);if(!src)return
   return ""}
 // o fly é guardado DEPOIS da leitura: a IA pode trocar o tipo da lista (ex.: Reunião › Evento/Bonde), e ele fica no tipo certo
 setTimeout(()=>{if(typeof lwLerFly!=="function"||lwLerFly.__comFly)return;const orig=lwLerFly;
-  lwLerFly=async function(f,camera){let r;try{r=await orig(f,camera)}finally{try{lwFlyGuardar(f)}catch(_){}}return r};lwLerFly.__comFly=1},0);
+  lwLerFly=async function(f,camera){try{$("lwFlyArq").value="";$("lwFlyCam").value=""}catch(_){}   // aceita o mesmo flyer de novo
+    const tipo=await lwPerguntaTipo();if(!tipo)return;   // "Que tipo de lista é?" (cancelou: não faz nada)
+    if(tipo!==lw.tipo){const b=document.querySelector(`#lwTipos [data-lwt="${tipo}"]`);if(b)b.click();await new Promise(r=>setTimeout(r,250))}
+    if(tipo==="original"){try{lwFlyGuardar(f)}catch(_){}setTimeout(lwOrigFlyUI,400);avisoRapido("📎 Flyer anexado (no Copiar original ele não é lido).");return}   // só anexa
+    window.__lwTipoFixo=true;let r;try{r=await orig(f,camera)}finally{window.__lwTipoFixo=false;try{lwFlyGuardar(f)}catch(_){}}return r};lwLerFly.__comFly=1},0);
+// "Que tipo de lista é?": aparece quando o flyer chega (compartilhado do WhatsApp, da galeria ou da câmera), antes da leitura
+function lwPerguntaTipo(){return new Promise(ok=>{const v=document.createElement("div");v.className="fa-veu";
+  const tipos=Object.entries(LW_TIPOS).map(([k,T])=>`<button type="button" class="fa-it" data-tp="${k}" style="width:100%"><span style="font-size:20px;width:30px;text-align:center">${k==="original"?"📎":k===lw.tipo?"✅":"📋"}</span><span style="display:flex;flex-direction:column;text-align:left;flex:1"><b>${esc(T.nome)}</b>${k==="original"?'<small style="opacity:.75">Só anexa o flyer (não lê): para a lista que você vai colar</small>':""}</span></button>`).join("");
+  v.innerHTML=`<div class="fa-cx" role="dialog" aria-label="Que tipo de lista é?"><h3 style="margin:0 0 4px">📋 Que tipo de lista é?</h3><p class="nota" style="margin:0 0 10px">Escolha antes de ler o flyer: a leitura preenche os campos desse tipo.</p>${tipos}<button type="button" class="fa-fechar">Cancelar</button></div>`;
+  const fim=x=>{v.remove();ok(x)};v.onclick=e=>{const b=e.target.closest("[data-tp]");if(b)return fim(b.dataset.tp);if(e.target===v||e.target.closest(".fa-fechar"))fim(null)};document.body.appendChild(v)})}
+// a caixa do flyer no Copiar original: anexar (sem ler), ver a miniatura e tirar
+function lwOrigFlyUI(){const bx=document.querySelector(".lw-fly-ler");if(!bx)return;const o=lw&&lw.tipo==="original";bx.classList.toggle("lw-orig",o);
+  const a=$("lwFotoFly"),g=$("lwLerFly");if(a)a.textContent=o?"📎 Do WhatsApp":"📲 Ler do WhatsApp";if(g)g.textContent=o?"📎 Da Galeria":"🖼️ Galeria";
+  const nt=bx.querySelector("p.nota");if(nt)nt.textContent=o?"📎 Anexe o flyer: no Copiar original ele não é lido, só vai junto com a lista que você colou.":"Confira os campos.";
+  let mi=$("lwOrigMini");if(!mi){bx.insertAdjacentHTML("beforeend",'<div id="lwOrigMini" style="display:none;align-items:center;gap:10px;margin-top:8px"><img alt="" style="width:46px;height:46px;object-fit:cover;border-radius:8px"><span class="nota" style="flex:1">Flyer anexado</span><button type="button" class="btn" id="lwOrigTirar">✕ Tirar o flyer</button></div>');mi=$("lwOrigMini");
+    $("lwOrigTirar").onclick=()=>{try{localStorage.removeItem(lwFlyChave());localStorage.removeItem("lw_flymeta_"+lwFlyChave().slice(7))}catch(_){}lwOrigFlyUI();lwFlyBotao()}}
+  const d=o?lwFlyLer():"";mi.style.display=d?"flex":"none";if(d)mi.querySelector("img").src=d}
 // ---- o fly junto da lista: guardado ao ler (versão reduzida) e enviado com a lista como legenda ----
 function lwFlyChave(){return "lw_fly_"+(lw&&lw.tipo||"x")}
-function lwFlyId(){const F=(lw&&lw.f&&lw.f[lw.tipo])||{};return {tit:String(F.titulo||"").trim(),data:String(F.data||"").trim()}}
+function lwFlyId(){const F=(lw&&lw.f&&lw.f[lw.tipo])||{};
+  if(lw&&lw.tipo==="original"){let c=[];try{c=lwCabecalhoOriginal(F.orig)||[]}catch(_){}const t=(c.find(l=>l.trim())||"").replace(/[*_~]/g,"").trim();return {tit:t.slice(0,80),data:lwDataISO(c.join(" "))||""}}
+  return {tit:String(F.titulo||"").trim(),data:String(F.data||"").trim()}}
 function lwFlyLer(){try{const d=localStorage.getItem(lwFlyChave())||"";if(!d)return "";let m=null;try{m=JSON.parse(localStorage.getItem("lw_flymeta_"+lwFlyChave().slice(7))||"null")}catch(_){}
   const a=lwFlyId();if(m&&!m.tit&&!m.data&&(a.tit||a.data)){m=a;localStorage.setItem("lw_flymeta_"+lwFlyChave().slice(7),JSON.stringify(a))}   // a leitura terminou depois: guarda a identidade da lista
   if(m&&(m.tit||m.data)&&!((m.data&&m.data===a.data)||(m.tit&&m.tit===a.tit)))return "";   // é de outra lista (título e data diferentes): não vai junto
@@ -3945,8 +3963,9 @@ function lwFlyGuardar(f){const tipo=lwFlyChave(),r=new FileReader();r.onload=()=
     window.__flyRecente={tipo,t:Date.now()};lwFlyMover();lwFlyBotao()};im.src=r.result};r.readAsDataURL(f)}
 // se o tipo da lista mudou logo depois de ler o fly (a IA troca sozinha, ou você troca), o fly vai junto para o tipo novo
 function lwFlyMover(){const R=window.__flyRecente,k=lwFlyChave();if(!R||R.tipo===k||Date.now()-R.t>15*60e3)return;
-  try{const d=localStorage.getItem(R.tipo);if(d){localStorage.setItem(k,d);localStorage.removeItem(R.tipo);const mm=localStorage.getItem("lw_flymeta_"+R.tipo.slice(7));
-    if(mm)localStorage.setItem("lw_flymeta_"+k.slice(7),mm);localStorage.removeItem("lw_flymeta_"+R.tipo.slice(7));window.__flyRecente={tipo:k,t:R.t}}}catch(_){}}
+  try{const d=localStorage.getItem(R.tipo);if(d){localStorage.setItem(k,d);localStorage.removeItem(R.tipo);
+    localStorage.removeItem("lw_flymeta_"+R.tipo.slice(7));localStorage.removeItem("lw_flymeta_"+k.slice(7));   // o flyer adota a lista do tipo novo (a identidade é refeita na próxima leitura)
+    window.__flyRecente={tipo:k,t:R.t};setTimeout(()=>{try{lwOrigFlyUI();lwFlyBotao()}catch(_){}},50)}}catch(_){}}
 function lwFlyBotao(){const z=$("lwZap");if(!z)return;const d=lwFlyLer();
   z.classList.toggle("zap",!!d);z.innerHTML=d?`<img src="${d}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Mandar no WhatsApp (com o fly)`:"Abrir no WhatsApp";
 }
@@ -4011,7 +4030,7 @@ async function lwLerFly(f,camera){
     // tipo de lista pelo título
     const tudo=N(lin.concat(lin3).map(l=>l.t).join(" | "));
     const tipo=/ACAO.?SOCIAL/.test(tudo)?"social":/\bPUB/.test(tudo)?"pub":/REUNIAO/.test(tudo)?"reuniao":/BONDE|EVENTO/.test(tudo)?"evento":lw.tipo;
-    if(tipo!==lw.tipo){const b=document.querySelector(`#lwTipos [data-lwt="${tipo}"]`);if(b)b.click()}
+    if(tipo!==lw.tipo&&!window.__lwTipoFixo){const b=document.querySelector(`#lwTipos [data-lwt="${tipo}"]`);if(b)b.click()}   // se o comando escolheu o tipo, a leitura respeita
     const F=lw.f[lw.tipo]=lw.f[lw.tipo]||{},usados=new Set();
     // tira pedacinhos soltos do começo e do fim (sujeira do desenho lida como letra: "Sá À", "x", "=")
     const limpa=v=>{let w=String(v).trim().split(/\s+/);const lixo=x=>x.length<=2&&!/^\d+$/.test(x)&&!/^(de|da|do|e|a|o|n[º°]?)$/i.test(x);
@@ -4051,7 +4070,7 @@ async function lwLerFly(f,camera){
     avisoRapido((usados.size?`✅ Fly lido pelo ${fonte}: ${usados.size} campo(s) preenchido(s). Confira os campos.`:"⚠️ Li o fly, mas não reconheci os campos. Preencha à mão.")+porque,!usados.size);
   }catch(e){st.textContent="";avisoRapido("Não consegui ler esse fly. Tente uma foto mais nítida.",1)}
   finally{clearInterval(timer);if(w)await w.terminate()}}
-function lwCampos(){lwCarregar(lw.tipo);const f=lw.f[lw.tipo];
+function lwCampos(){lwCarregar(lw.tipo);const f=lw.f[lw.tipo];setTimeout(lwOrigFlyUI,0);
   $("lwCampos").innerHTML=(lw.tipo==="original"?"":`<label class="inteiro lw-check"><span><input type="checkbox" id="lwMapas" ${lw.mapas?"checked":""}> Incluir link do Google Maps nos endereços</span></label>`)+LW_TIPOS[lw.tipo].campos.map(([k,r,,inteiro,tipo])=>tipo==="base"?lwCampoBase(f):tipo==="sede"?lwCampoSede(f):tipo==="assin"?lwCampoAssin(f):
     tipo==="hora"?lwCampoHora(k,r,f[k]||""):tipo==="data"?`<label>${esc(r)}<input type="date" data-lwc="${k}" value="${esc(lwISO(f[k]))}"></label>`:`<label class="${inteiro?"inteiro":""} ${tipo==="livre"?"lw-livre":""}" ${tipo==="livre"&&LW_SEDE&&lw.tipo==="reuniao"&&f.sede!=="livre"?"hidden":""}>${esc(r)}${
     tipo==="area"?`<textarea data-lwc="${k}">${esc(f[k]||"")}</textarea>`:`<input type="text" data-lwc="${k}" value="${esc(f[k]||"")}" ${k==="data"?'placeholder="dd/mm/aaaa" inputmode="numeric"':""}>`}</label>${(LW_MAPA_CAMPOS[lw.tipo]||[]).includes(k)?`<div class="lw-mapa" id="lwm_${k}"></div>`:""}`).join("");
