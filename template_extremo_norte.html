@@ -2978,6 +2978,22 @@ function excluidosAbrir(){if(document.querySelector(".exc-cx"))return;const L=DA
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);
   v.querySelectorAll("[data-rest]").forEach(b=>b.onclick=async()=>{const x=L[+b.dataset.rest];if(!confirm(`Restaurar "${x.evento}" (${br(x.data)})?`))return;
     if(await nuvemEnviar({tipo:"restaurar_evento",id:x.id,data:x.data,evento:x.evento,criado:new Date().toISOString()},`Restauração de "${x.evento}" enviada.`)){b.disabled=true;b.textContent="♻️ Restauração enviada"}})}
+// ---- 💻 no computador: o "compartilhar" do Windows manda só a imagem; então, em dois passos: copiar o flyer e copiar a lista ----
+const ehCelular=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function zapPc(arq,txt){if(document.querySelector(".zpc-cx"))return;const v=document.createElement("div");v.className="fa-veu";
+  v.innerHTML=`<div class="fa-cx zpc-cx" role="dialog" aria-label="Mandar pelo computador"><h3 style="margin:0 0 4px">💻 Mandar pelo computador</h3>
+    <p class="nota" style="margin:0 0 12px">No computador, o WhatsApp não recebe a imagem e o texto juntos. São dois passos rápidos:</p>
+    <ol style="margin:0 0 12px;padding-left:20px;line-height:1.6;font-size:14.5px"><li>Toque em <b>Copiar o flyer</b>, abra a conversa no WhatsApp e aperte <b>Ctrl+V</b>: a imagem abre pronta para enviar.</li>
+      <li>Toque em <b>Copiar a lista</b>, clique no campo da legenda e aperte <b>Ctrl+V</b> de novo. Depois é só enviar.</li></ol>
+    <div style="display:flex;flex-direction:column;gap:8px"><button type="button" class="btn zap" data-zc="f">1️⃣ Copiar o flyer</button><button type="button" class="btn zap" data-zc="t">2️⃣ Copiar a lista</button>
+      <a class="btn" href="https://web.whatsapp.com/" target="_blank" rel="noopener" style="text-align:center">Abrir o WhatsApp Web</a></div>
+    <p class="nota" id="zpcSt" style="margin:10px 0 0;min-height:1.2em"></p><button type="button" class="fa-fechar">Fechar</button></div>`;
+  v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);const st=v.querySelector("#zpcSt");
+  v.querySelector('[data-zc="f"]').onclick=async()=>{try{const png=await new Promise(async(ok,er)=>{const im=await createImageBitmap(arq),c=document.createElement("canvas");c.width=im.width;c.height=im.height;
+        c.getContext("2d").drawImage(im,0,0);c.toBlob(b=>b?ok(b):er(new Error("sem imagem")),"image/png")});
+      await navigator.clipboard.write([new ClipboardItem({"image/png":png})]);st.textContent="✅ Flyer copiado. No WhatsApp, aperte Ctrl+V."}
+    catch(e){relatarErro("Computador: copiar o flyer",e);st.textContent="Este navegador não deixou copiar a imagem. Use o Chrome ou o Edge atualizados."}};
+  v.querySelector('[data-zc="t"]').onclick=async()=>{try{await navigator.clipboard.writeText(txt);st.textContent="✅ Lista copiada. Clique na legenda e aperte Ctrl+V."}catch(e){st.textContent="Não consegui copiar a lista."}}}
 // ---- 📤 "Mandar com o fly" (botão do aviso "Painel atualizado"): o fly e a lista prontos; um toque abre o compartilhar ----
 async function zapFlyAbrir(){let o=null;try{const c=await caches.open("insanos-zap"),r=await c.match("zapfly");if(r){o=await r.json();await c.delete("zapfly")}}catch(_){}
   if(!o||!o.txt)return;const v=document.createElement("div");v.className="fa-veu";
@@ -2988,6 +3004,7 @@ async function zapFlyAbrir(){let o=null;try{const c=await caches.open("insanos-z
   v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};document.body.appendChild(v);
   let arq=null;if(o.fly)fetch(o.fly).then(r=>r.blob()).then(bl=>{arq=new File([bl],"fly.jpg",{type:bl.type||"image/jpeg"})}).catch(()=>{});   // a imagem pronta antes do toque
   v.querySelector("#zfMandar").onclick=()=>{const copia=()=>{try{navigator.clipboard.writeText(o.txt)}catch(_){}};
+    if(arq&&!ehCelular()){zapPc(arq,o.txt);return}   // no computador: em dois passos
     if(arq&&navigator.canShare&&navigator.canShare({files:[arq]})){navigator.share({files:[arq],text:o.txt}).then(copia).catch(e=>{copia();if(!(e&&e.name==="AbortError"))window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")});return}
     copia();window.open("https://api.whatsapp.com/send/?text="+encodeURIComponent(o.txt),"_blank")}}
 if(location.hash==="#zapfly"){try{history.replaceState(null,"",location.pathname)}catch(_){}setTimeout(zapFlyAbrir,700)}
@@ -3934,6 +3951,7 @@ function lwFlyBotao(){const z=$("lwZap");if(!z)return;const d=lwFlyLer();
 function lwMandarComFly(){if(lwSemAssinatura()){lwAvisoAssin();return}
   const fj=lwFaltaJust();if(fj.length){avisoRapido(`Falta justificar a ausência de: ${fj.join(", ")}.`)}
   const tx=lwTexto(),f=lwFlyArquivo(),copia=()=>{try{navigator.clipboard.writeText(tx)}catch(_){}};   // o texto também fica copiado (se a legenda vier cortada, é só colar)
+  if(f&&!ehCelular()){zapPc(f,tx);return}   // no computador: em dois passos
   if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],text:tx}).then(copia).catch(e=>{copia();if(!(e&&e.name==="AbortError")){relatarErro("Lista: compartilhar com o fly",e);avisoRapido("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")}});return}
   relatarErro("Lista: o celular não aceita imagem com texto",f?"canShare=false":"sem o arquivo do fly");copia();alert("Este celular não deixou mandar a imagem junto com o texto.\n\nA lista já foi copiada: no WhatsApp, mande o fly e cole a lista logo abaixo.")}
 async function lwLerFly(f,camera){
@@ -4528,6 +4546,7 @@ function montarLancamento(){
   $("lSalvar").addEventListener("click",salvarLancamento);
   // com o fly do evento: o botão manda a imagem e a lista (na hora do toque); sem fly, o link (só o texto)
   $("lZapBtn").addEventListener("click",ev=>{if(!lancFlyArq)return;const tx=lancZapTexto(),f=lancFlyArq;
+    if(!ehCelular()){ev.preventDefault();zapPc(f,tx);return}   // no computador: em dois passos
     if(navigator.canShare&&navigator.canShare({files:[f]})){ev.preventDefault();navigator.share({files:[f],text:tx}).then(()=>{try{navigator.clipboard.writeText(tx)}catch(_){}}).catch(e=>{try{navigator.clipboard.writeText(tx)}catch(_){}
       if(!(e&&e.name==="AbortError"))alert("O celular não abriu o compartilhar. A lista foi copiada: mande o fly e cole a lista logo abaixo.")})}});
   setInterval(()=>{lancFlyChecar();lancExclVer()},1500);
