@@ -142,14 +142,17 @@ self.addEventListener("notificationclick", e => {
       .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
     return;
   }
+  if (dd.mot && !e.action) {   // "toque para dizer o motivo": abre o Meu painel na pergunta do motivo
+    e.waitUntil(clients.openWindow("adm.html#motivo|" + encodeURIComponent(dd.mot.d) + "|" + encodeURIComponent(dd.mot.e))); return;
+  }
   if (dd.rsvp && dd.rsvp.m === "ins" && !e.action) { e.waitUntil(clients.openWindow("adm.html#insight")); return; }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
         painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification(vou ? "✅ Presença confirmada" : "👍 Resposta registrada",
-        {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ".",
-         icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
+        {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ". Toque aqui para dizer o motivo (opcional).",
+         icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok", data: vou ? {} : {mot: {d: r.d, e: r.e}}})));
     return;
   }
   if (dd.rsvp && !e.action) {   // tocou na notificação (no iPhone não há botões): abre o painel para responder
