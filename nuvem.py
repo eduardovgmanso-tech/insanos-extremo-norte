@@ -202,9 +202,22 @@ def fly_nome(d):
 # ---- 🗑️ excluir um evento (pelo Lançar) e ♻️ restaurar (Gestão › Eventos excluídos) ----
 #  A linha do evento na aba de presença é ESVAZIADA (data, nome e marcações; as fórmulas ficam); as justificativas e a lista
 #  dele (aba Eventos) saem; antes, uma cópia completa vai para a aba "Excluidos", para restaurar se foi engano.
+def _tem_adesao(v):
+    """A linha "Adesão Integrante" (coluna A), se existir na aba."""
+    return next((r for r in range(8, len(v) + 1) if str((list(v[r - 1]) + [""])[0]).strip().lower().startswith("ades")), None)
+
+def _ultimo_evento(v):
+    """Última linha com evento (data ou nome) a partir da 8; 7 se não houver nenhum."""
+    return max([r for r in range(8, len(v) + 1) if any(str(x).strip() for x in (list(v[r - 1]) + ["", "", ""])[1:3])] + [7])
+
+def _fim_tabela(v):
+    """Última linha da tabela: 2 acima da "Adesão Integrante"; sem ela, a última linha com evento."""
+    a = _tem_adesao(v)
+    return max(8, a - 2) if a else _ultimo_evento(v)
+
 def _ev_presenca(api, pid):
     aba = _aba_real(api, pid, "Presenca")
-    v = _ler(api, pid, f"'{aba}'!A1:BZ60") if aba else []
+    v = _ler(api, pid, f"'{aba}'!A1:BZ400") if aba else []
     lin = lambda r: v[r - 1] if len(v) >= r else []
     cols, c = {}, 4
     while True:
@@ -233,7 +246,7 @@ def excluir_evento(api, pid, d, quem=""):
         return "aba de presença não encontrada"
     alvo = datetime.datetime.strptime(d["data"], "%Y-%m-%d").date()
     ev = str(d.get("evento") or "").strip()
-    linha = next((r for r in range(8, 43) if data_da_linha(r) == alvo and _sa((lin(r) + ["", "", ""])[2]) == _sa(ev)), None)
+    linha = next((r for r in range(8, _fim_tabela(_ler(api, pid, f"'{aba}'!A1:A400")) + 1) if data_da_linha(r) == alvo and _sa((lin(r) + ["", "", ""])[2]) == _sa(ev)), None)
     if linha is None:
         return "evento não encontrado na planilha (talvez já tenha sido excluído)"
     row = lin(linha) + [""] * 80
@@ -343,13 +356,42 @@ def aplicar_enquete(api, pid, d, quem=""):
     api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW", body={"values": [cab] + linhas[-200:]}).execute()
     return res
 
+def _nova_linha_evento(api, pid, aba, v, fim):
+    """Insere uma linha antes da última da tabela (a faixa das fórmulas cresce junto), copia a última para ela
+    (formato, listas de SIM/NÃO e fórmulas) e devolve a última, já esvaziada (só as fórmulas ficam), para o evento novo."""
+    sid = _ids(api, pid)[aba]
+    ult = max([len(list(r)) for r in v[5:fim]] + [60])
+    _estrutura(api, pid, [
+        {"insertDimension": {"range": {"sheetId": sid, "dimension": "ROWS", "startIndex": fim - 1, "endIndex": fim}, "inheritFromBefore": True}},
+        {"copyPaste": {"source": _faixa(sid, fim + 1, fim + 1, 1, ult), "destination": _faixa(sid, fim, fim, 1, ult), "pasteType": "PASTE_NORMAL"}}])
+    f = (_ler_f(api, pid, f"'{aba}'!A{fim + 1}:{_col(ult)}{fim + 1}") or [[]])[0]
+    _gravar(api, pid, [(f"'{aba}'!{_col(c)}{fim + 1}", "") for c in range(2, ult + 1) if not str((list(f) + [""] * ult)[c - 1]).startswith("=")])
+    print(f"Presença: a tabela encheu; inseri uma linha (agora vai até a {fim + 1}).")
+    return fim + 1
+
+def _linha_abaixo(api, pid, aba, v, ult_ev):
+    """Sem a linha "Adesão Integrante": a linha logo abaixo do último evento recebe o formato, as listas de SIM/NÃO
+    e as fórmulas da linha de cima (os valores ficam vazios) e é devolvida para o evento novo."""
+    sid = _ids(api, pid)[aba]
+    ult = max([len(list(r)) for r in v[5:max(ult_ev, 8)]] + [60])
+    nova = ult_ev + 1
+    cp = {"copyPaste": {"source": _faixa(sid, ult_ev, ult_ev, 1, ult), "destination": _faixa(sid, nova, nova, 1, ult), "pasteType": "PASTE_NORMAL"}}
+    try:
+        _estrutura(api, pid, [cp])
+    except Exception:   # a aba acabou (não há mais linhas): acrescenta uma e copia de novo
+        _estrutura(api, pid, [{"insertDimension": {"range": {"sheetId": sid, "dimension": "ROWS", "startIndex": ult_ev, "endIndex": nova}, "inheritFromBefore": True}}, cp])
+    f = (_ler_f(api, pid, f"'{aba}'!A{nova}:{_col(ult)}{nova}") or [[]])[0]
+    _gravar(api, pid, [(f"'{aba}'!{_col(c)}{nova}", "") for c in range(2, ult + 1) if not str((list(f) + [""] * ult)[c - 1]).startswith("=")])
+    return nova
+
 def aplicar_evento(api, pid, d):
     """Lançar evento / Insights / Salvar no Excel: data + nome + marcações na aba (Presenca ou Insights)."""
     aba = _aba_real(api, pid, d.get("aba") or "Presenca")
     if not aba:
         return f"aba {d.get('aba')} não encontrada"
-    v = _ler(api, pid, f"'{aba}'!A1:BZ60")
+    v = _ler(api, pid, f"'{aba}'!A1:BZ400")
     lin = lambda r: v[r - 1] if len(v) >= r else []
+    fim = _fim_tabela(v)
     cols, c = {}, 4
     while True:
         nome = str((lin(6) + [""] * 80)[c - 1]).strip()
@@ -364,11 +406,14 @@ def aplicar_evento(api, pid, d):
         return None
     linha = None
     if d.get("atualizar", True):
-        linha = next((r for r in range(8, 43) if data_da_linha(r) == alvo and _sa((lin(r) + ["", "", ""])[2]) == _sa(d.get("evento", ""))), None)
+        linha = next((r for r in range(8, fim + 1) if data_da_linha(r) == alvo and _sa((lin(r) + ["", "", ""])[2]) == _sa(d.get("evento", ""))), None)
     if linha is None:
-        linha = next((r for r in range(8, 43) if not str((lin(r) + ["", ""])[1]).strip()), None)
-    if linha is None:
-        return "aba cheia (linhas 8 a 42)"
+        linha = next((r for r in range(8, fim + 1) if not str((lin(r) + ["", ""])[1]).strip()), None)
+    if linha is None:   # sem linha livre: com a "Adesão Integrante", insere dentro da faixa dela; sem ela, usa a linha de baixo
+        try:
+            linha = _nova_linha_evento(api, pid, aba, v, fim) if _tem_adesao(v) else _linha_abaixo(api, pid, aba, v, _ultimo_evento(v))
+        except Exception as e:
+            return f"aba cheia e não consegui criar uma linha ({type(e).__name__}: {e})"
     gr = [(f"'{aba}'!B{linha}", alvo.strftime("%d/%m/%Y")), (f"'{aba}'!C{linha}", d.get("evento", ""))]
     conv = {"sim": "SIM", "nao": "NÃO", "não": "NÃO", "staff": "STAFF", "-": "-", "": ""}
     ignorados = []
