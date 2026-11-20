@@ -619,7 +619,7 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     // do comando e também com o Meu painel: pergunta como quer entrar (ou usa a escolha lembrada / o atalho do ícone)
     let meuH=null;if(!comoIrmao)for(const s of (P.pes||[])){if(s.t==="v")continue;try{meuH=await abrePes(s,kek);break}catch(e){}}
     if(!meuH&&!comoIrmao){try{sessionStorage.setItem("tem_meu","0")}catch(_){}}   // o seletor avisa que não achou o Meu painel
-    if(meuH){let modo="";const h=location.hash;if(h==="#moto"||h==="#eventos")modo="irm";else if(h==="#lancar"||h==="#lista")modo="cmd";
+    if(meuH){let modo="";const h=location.hash;if(h==="#moto"||h==="#eventos"||h.startsWith("#motivo"))modo="irm";else if(h==="#lancar"||h==="#lista")modo="cmd";
       try{if(sessionStorage.getItem("forcar_cmd")==="1"){sessionStorage.removeItem("forcar_cmd");modo="cmd"}}catch(_){}   // veio do "Voltar ao painel do comando"
       if(!modo){try{modo=localStorage.getItem("entrar_como")||""}catch(_){}}
       if(!modo){try{modo=localStorage.getItem("ultima_visao")||"cmd"}catch(_){modo="cmd"}}   // a última visão usada (troca pelo seletor 👑 Comando · 👤 Irmão)
@@ -1047,7 +1047,10 @@ const vp=pc(D.pres),vi=pc(D.ins);
 const pos=(x,rot)=>x?`<div><b>${x[0]}º</b><span>de ${x[1]} ${rot}</span></div>`:`<div><b>🆕</b><span>${rot}: entra no ranking a partir de ${D.min} eventos</span></div>`;
 document.getElementById("app").innerHTML=`<div class="top"><img src="${CAV}" alt=""><div><b>INSANOS M.C.</b><span>Divisão ${es(D.div)} · ${es(D.reg)}</span></div></div>
 <h1 style="display:flex;align-items:center;gap:12px">${es(D.n)}${PIN?`<img src="pin-${PIN[0]}.png" alt="${PIN[1]}" title="${PIN[1]}" style="width:44px;height:auto">`:""}</h1><p class="sub">${es(D.c)} · Meu painel · ${D.ano}${PIN?" · "+PIN[1]:""}</p>
-<style>.san-det>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}.san-det>summary::-webkit-details-marker{display:none}
+<style>.mot-op{display:flex;flex-direction:column;align-items:center;gap:4px;font:inherit;font-weight:700;font-size:15px;padding:12px 8px;border-radius:14px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.06);color:#ECE7DC;cursor:pointer}
+.mot-op:active{background:rgba(233,185,73,.25)}.mot-in{flex:1;min-width:0;font:inherit;font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid rgba(236,231,220,.22);background:rgba(0,0,0,.25);color:#ECE7DC}
+.mot-ok{font:inherit;font-weight:800;padding:10px 16px;border-radius:12px;border:0;background:#E9B949;color:#1a1206;cursor:pointer}
+.san-det>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}.san-det>summary::-webkit-details-marker{display:none}
 .san-det>summary b{display:block;font-size:18px}.san-det>summary small{display:block;color:#B8B2A6;font-size:13px;margin-top:2px}.san-det>summary i{font-style:normal;font-size:20px;opacity:.6;transition:transform .2s}.san-det[open]>summary i{transform:rotate(90deg)}
 .san-det>.card{margin:12px 0 0;border:0;box-shadow:none;background:rgba(236,231,220,.03)}
 .lembra-av{display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:14px;border-color:rgba(233,185,73,.5)!important}.lembra-av button{font:inherit;font-weight:800;padding:8px 14px;border-radius:999px;border:0;background:#E9B949;color:#1a1206;white-space:nowrap}
@@ -1152,7 +1155,7 @@ function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;l
   {const sem=D.prox.filter(e=>!(loc[e.d+"|"+e.e]||e.st)).length,r=document.getElementById("proxRes");
     if(r){r.textContent=`${D.prox.length} evento${D.prox.length>1?"s":""}`+(sem?` · ${sem} sem a sua resposta`:" · todos respondidos ✓");r.style.color=sem?"#E9B949":""}}
   el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
-    const txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai":"Ainda não respondeu";
+    const mt=st==="nao"?motivoGuardado(e):"",txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai"+(mt?` (${mt})`:""):"Ainda não respondeu";
     return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b>${e.clima?`<small style="width:100%;padding-left:54px;color:#BDB7AA">Previsão: ${es(e.clima)}</small>`:""}${e.hora||e.local?`<small style="width:100%;padding-left:54px;color:#E9B949;font-weight:600">${[e.hora&&"🕗 "+es(e.hora),e.local&&"📍 "+es(e.local)].filter(Boolean).join(" · ")}</small>`:""}<small class="nota" style="width:100%;padding-left:54px">${txt}</small>
       <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button><button data-ag="${k}">📅 Agenda</button>${e.mapa?`<button data-mp="${k}">🗺️ Maps</button><button data-wz="${k}">🚙 Waze</button>`:""}</div></div>`}).join("");
   el.querySelectorAll("[data-ag]").forEach(b=>b.onclick=()=>agendaAdd(D.prox[+b.dataset.ag]));
@@ -1161,7 +1164,26 @@ el.querySelectorAll("[data-wz]").forEach(b=>b.onclick=()=>window.open("https://w
   el.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const e=D.prox[+b.dataset.k],r=b.dataset.r;
     try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
       loc[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(loc))}catch(_){}proxDesenha();
-      alert(r==="vou"?"✅ Presença confirmada! Valeu, irmão. 🤝":"👍 Resposta registrada. Valeu por avisar!")}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}})}
+      if(r==="vou")alert("✅ Presença confirmada! Valeu, irmão. 🤝");else motivoPerguntar(e)}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}})}
+// ---- 📝 o motivo de quem não vai: o próprio irmão informa (vai para a aba Justificativas e já aparece no Lançar do comando) ----
+function motivoGuardado(e){try{return (JSON.parse(localStorage.getItem("rsvp_mot_"+D.email)||"{}"))[e.d+"|"+e.e]||""}catch(_){return ""}}
+function motivoPerguntar(e){if(!e||document.querySelector(".mot-cx"))return;const v=document.createElement("div");v.className="fa-veu";
+  const ops=[["💼","Trabalho"],["👨‍👩‍👧","Família"],["🩺","Saúde"],["✈️","Viagem"]];
+  v.innerHTML=`<div class="fa-cx mot-cx" role="dialog" aria-label="Qual o motivo?"><h3 style="margin:0 0 4px">👍 Resposta registrada</h3>
+    <p class="nota" style="margin:0 0 12px">Você não vai na <b>${es(e.e)}</b>. Quer dizer o motivo? Ele vai só para o comando.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${ops.map(([i,t])=>`<button type="button" class="mot-op" data-mot="${t}"><span style="font-size:22px">${i}</span>${t}</button>`).join("")}</div>
+    <div style="display:flex;gap:8px;margin:10px 0 4px"><input type="text" id="motOutro" maxlength="60" placeholder="Outro motivo…" class="mot-in"><button type="button" class="mot-ok" id="motOutroOk">Enviar</button></div>
+    <button type="button" class="fa-fechar" data-mot="">Prefiro não dizer</button></div>`;
+  const fim=async mot=>{v.remove();if(!mot){return}
+    try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"📝|"+e.d+"|"+e.tk+"|"+e.e+"|"+mot,
+      aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));   // e acorda a nuvem
+      let g={};try{g=JSON.parse(localStorage.getItem("rsvp_mot_"+D.email)||"{}")}catch(_){}g[e.d+"|"+e.e]=mot;try{localStorage.setItem("rsvp_mot_"+D.email,JSON.stringify(g))}catch(_){}
+      proxDesenha();alert("📝 Motivo enviado ("+mot+"). Valeu por avisar, irmão!")}catch(_){alert("Não consegui enviar o motivo agora. Tente de novo em instantes.")}};
+  v.onclick=ev=>{const b=ev.target.closest("[data-mot]");if(b)return fim(b.dataset.mot);if(ev.target===v)fim("")};
+  v.querySelector("#motOutroOk").onclick=()=>{const t=v.querySelector("#motOutro").value.trim();if(t)fim(t)};document.body.appendChild(v)}
+// veio pelo aviso "toque para dizer o motivo": abre a pergunta daquele evento
+if(location.hash.startsWith("#motivo|")){try{const [,d,ev]=location.hash.split("|").map(decodeURIComponent);history.replaceState(null,"",location.pathname);
+  const e=(D.prox||[]).find(x=>x.d===d&&x.e===ev);if(e)setTimeout(()=>motivoPerguntar(e),600)}catch(_){}}
 proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("eventos");if(x){x.open=true;x.scrollIntoView({behavior:"smooth"})}}
 // ---- 🎂 próximos aniversários e os parabéns (WhatsApp + notificação para o aniversariante) ----
 (function(){const el=document.getElementById("anivL");if(!el)return;
@@ -4199,14 +4221,17 @@ self.addEventListener("notificationclick", e => {
       .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
     return;
   }
+  if (dd.mot && !e.action) {   // "toque para dizer o motivo": abre o Meu painel na pergunta do motivo
+    e.waitUntil(clients.openWindow("adm.html#motivo|" + encodeURIComponent(dd.mot.d) + "|" + encodeURIComponent(dd.mot.e))); return;
+  }
   if (dd.rsvp && dd.rsvp.m === "ins" && !e.action) { e.waitUntil(clients.openWindow("adm.html#insight")); return; }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
         painel: "✋|" + e.action + "|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification(vou ? "✅ Presença confirmada" : "👍 Resposta registrada",
-        {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ".",
-         icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
+        {body: vou ? "Valeu, irmão! Você vai na " + r.e + ". 🤝" : "Tranquilo, irmão. Registramos que você não vai na " + r.e + ". Toque aqui para dizer o motivo (opcional).",
+         icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok", data: vou ? {} : {mot: {d: r.d, e: r.e}}})));
     return;
   }
   if (dd.rsvp && !e.action) {   // tocou na notificação (no iPhone não há botões): abre o painel para responder

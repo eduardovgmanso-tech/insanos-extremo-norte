@@ -10,7 +10,8 @@ import urllib.parse
 PASTA = os.path.dirname(os.path.abspath(__file__))
 ABAS = ["Presenca", "Insights", "Dados Integrantes", "PGTO"]   # a mensagem dos pagamentos é gerada pelo programa
 ABAS_OPC = ["Eventos", "Justificativas", "Enquetes", "Votos", "APH", "Excluidos", "Categorias"]   # gravadas pelo Lançar: lidas quando existem (informações dos eventos e motivos das faltas)
-COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17]}   # colunas de data (0 = A): B, J e R
+COLS_DATA = {"Presenca": [1], "Insights": [1], "Dados Integrantes": [9, 17],   # colunas de data (0 = A): B, J e R
+             "Categorias": [0], "Justificativas": [0], "Eventos": [0], "Excluidos": [3]}   # e a "Data" das abas do app (texto ou data)
 
 def _serial_para_data(v):
     try:
@@ -29,7 +30,7 @@ def montar_planilha(valores_por_aba, destino):
             for c, v in enumerate(linha, start=1):
                 if v == "" or v is None:
                     continue
-                if (c - 1) in cd and isinstance(v, (int, float)) and r >= (2 if aba == "Dados Integrantes" else 8) and 20000 < v < 80000:
+                if (c - 1) in cd and isinstance(v, (int, float)) and r >= (8 if aba in ("Presenca", "Insights") else 2) and 20000 < v < 80000:
                     v = _serial_para_data(v)
                 ws.cell(r, c).value = v
     wb.save(destino)
@@ -118,6 +119,41 @@ def migrar_entradas(api, pid):
     except Exception as e:
         print(f"Aviso: datas de entrada não preenchidas ({type(e).__name__}: {e}).")
 
+def _iso_j(x):
+    """Data da aba Justificativas em AAAA-MM-DD (aceita "2026-11-20", "20/11/2026" e o número de série)."""
+    t = str(x or "").strip()
+    try:
+        if isinstance(x, (int, float)) and x > 20000:
+            return (datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(x))).date().isoformat()
+        if "/" in t[:10]:
+            return datetime.datetime.strptime(t[:10], "%d/%m/%Y").date().isoformat()
+    except ValueError:
+        pass
+    return t[:10]
+
+def _just_do_irmao(api, pid, itens):
+    """Motivos informados pelo próprio irmão no app (📝): grava/atualiza a linha dele na aba Justificativas.
+    itens: [(data, evento, apelido, motivo)]; motivo None = ele respondeu "Vou": sai o motivo que veio do app."""
+    if not itens:
+        return
+    aba = _aba_real(api, pid, "Justificativas")
+    if not aba:
+        if not any(m for *_, m in itens):
+            return
+        _estrutura(api, pid, [{"addSheet": {"properties": {"title": "Justificativas"}}}]); aba = "Justificativas"
+    cab = ["Data", "Evento", "Aba", "Irmão", "Motivo", "Lançado por", "Quando"]
+    v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:G5000").execute().get("values", [])
+    linhas = [list(r) + [""] * (7 - len(r)) for r in v[1:] if r]
+    agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
+    for d, ev, ap, mot in itens:
+        alvo = lambda r: _iso_j(r[0]) == d and str(r[1]).strip().lower() == ev.strip().lower() and str(r[3]).strip().lower() == ap.lower()
+        if mot is None:
+            linhas = [r for r in linhas if not (alvo(r) and str(r[5]).startswith("irmão"))]
+        else:
+            linhas = [r for r in linhas if not alvo(r)] + [[d, ev, "Presenca", ap, str(mot).strip()[:80], "irmão (app)", agora]]
+    api.spreadsheets().values().clear(spreadsheetId=pid, range=f"'{aba}'!A1:G5000").execute()
+    api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{aba}'!A1", valueInputOption="RAW", body={"values": [cab] + linhas}).execute()
+
 def gravar_justificativas(api, pid, d, quem=""):
     """Motivos das faltas do evento (vindos do Lançar): aba "Justificativas" (criada sozinha). Ao salvar o mesmo evento
     de novo, os motivos dele são trocados pelos novos (os dos outros eventos ficam como estão)."""
@@ -129,7 +165,7 @@ def gravar_justificativas(api, pid, d, quem=""):
     cab = ["Data", "Evento", "Aba", "Irmão", "Motivo", "Lançado por", "Quando"]
     v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:G5000").execute().get("values", [])
     data, ev = str(d.get("data") or "")[:10], str(d.get("evento") or "").strip()
-    outros = [list(r) + [""] * (7 - len(r)) for r in v[1:] if r and not (str(r[0])[:10] == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+    outros = [list(r) + [""] * (7 - len(r)) for r in v[1:] if r and not (_iso_j(r[0]) == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
     agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     novos = [[data, ev, "Presenca", n, str(m).strip()[:80], str(quem or "").split("@")[0], agora]
              for n, m in (d.get("justificativas") or {}).items() if str(m or "").strip()]
@@ -149,7 +185,7 @@ def gravar_info_evento(api, pid, d, quem=""):
     cab = ["Data", "Evento", "Tipo", "Horário", "Local", "Endereço", "Observação", "Detalhes da lista", "Lançado por", "Quando"]
     v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:J3000").execute().get("values", [])
     data, ev = str(d.get("data") or "")[:10], str(d.get("evento") or "").strip()
-    outros = [list(r) + [""] * (10 - len(r)) for r in v[1:] if r and not (str(r[0])[:10] == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+    outros = [list(r) + [""] * (10 - len(r)) for r in v[1:] if r and not (_iso_j(r[0]) == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
     det = json.dumps({"tipo": info.get("tipo", ""), "f": info.get("f", {}), "mapas": bool(info.get("mapas"))}, ensure_ascii=False)[:45000]
     linha = [data, ev, str(info.get("tnome") or info.get("tipo") or "")[:40], str(info.get("hora") or "")[:20], str(info.get("local") or "")[:200],
              str(info.get("endereco") or "")[:300], str(info.get("obs") or "")[:500], det, str(quem or "").split("@")[0],
@@ -187,7 +223,7 @@ def gravar_categoria(api, pid, data, evento, cat):
         api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", body={"values": [["Data", "Evento", "Categoria"]]}).execute()
     v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{a}'!A1:C2000").execute().get("values", [])
     chave = (str(data)[:10], str(evento).strip().lower())
-    resto = [r for r in v[1:] if r and (str(r[0])[:10], str((r + ["", ""])[1]).strip().lower()) != chave]
+    resto = [r for r in v[1:] if r and (_iso_j(r[0]), str((r + ["", ""])[1]).strip().lower()) != chave]
     if cat == "convidado":
         resto.append([str(data)[:10], str(evento).strip(), "convidado"])
     if len(resto) != len(v[1:]) or cat == "convidado":
@@ -246,7 +282,7 @@ def excluir_evento(api, pid, d, quem=""):
         return "aba de presença não encontrada"
     alvo = datetime.datetime.strptime(d["data"], "%Y-%m-%d").date()
     ev = str(d.get("evento") or "").strip()
-    linha = next((r for r in range(8, _fim_tabela(_ler(api, pid, f"'{aba}'!A1:A400")) + 1) if data_da_linha(r) == alvo and _sa((lin(r) + ["", "", ""])[2]) == _sa(ev)), None)
+    linha = next((r for r in range(8, _fim_tabela(_ler(api, pid, f"'{aba}'!A1:C400")) + 1) if data_da_linha(r) == alvo and _sa((lin(r) + ["", "", ""])[2]) == _sa(ev)), None)
     if linha is None:
         return "evento não encontrado na planilha (talvez já tenha sido excluído)"
     row = lin(linha) + [""] * 80
@@ -258,8 +294,8 @@ def excluir_evento(api, pid, d, quem=""):
         if not a:
             return None, [], [], []
         v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{a}'!{rng}").execute().get("values", [])
-        dele = [list(r) + [""] * (ncol - len(r)) for r in v[1:] if r and str(r[0])[:10] == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower()]
-        outros = [list(r) + [""] * (ncol - len(r)) for r in v[1:] if r and not (str(r[0])[:10] == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+        dele = [list(r) + [""] * (ncol - len(r)) for r in v[1:] if r and _iso_j(r[0]) == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower()]
+        outros = [list(r) + [""] * (ncol - len(r)) for r in v[1:] if r and not (_iso_j(r[0]) == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
         return a, v[:1], dele, outros
     aj, cab_j, just, outros_j = pega("Justificativas", "A1:G5000", 7)
     ae, cab_e, info, outros_e = pega("Eventos", "A1:J3000", 10)
@@ -268,7 +304,7 @@ def excluir_evento(api, pid, d, quem=""):
         ac = _aba_real(api, pid, "Categorias")
         if ac:
             vc = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{ac}'!A1:C2000").execute().get("values", [])
-            conv = any(r and str(r[0])[:10] == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower() for r in vc[1:])
+            conv = any(r and _iso_j(r[0]) == data_s and str((r + ["", ""])[1]).strip().lower() == ev.lower() for r in vc[1:])
             if conv:
                 gravar_categoria(api, pid, data_s, ev, "oficial")
     except Exception:
@@ -306,6 +342,7 @@ def restaurar_evento(api, pid, d, quem=""):
     if i is None:
         return "cópia não encontrada (talvez já restaurada)"
     r = v[i] + [""] * 7
+    r[3] = _iso_j(r[3])   # a data pode vir como "14/11/2026" (planilha com datas em DD/MM/AAAA)
     c = json.loads(r[5])
     res = aplicar_evento(api, pid, {"data": r[3], "evento": r[4], "marcacoes": c.get("marcas") or {}, "atualizar": True, "aba": "Presenca"})
     for nome_aba, chave, ncab in (("Justificativas", "just", ["Data", "Evento", "Aba", "Irmão", "Motivo", "Lançado por", "Quando"]),
@@ -987,10 +1024,25 @@ def aplicar_respostas(api, pid, g):
     est = _json_ler("rsvp.json", {"vistos": [], "celulas": {}})
     vistos, celulas = set(est.get("vistos", [])), est.get("celulas", {})
     hoje = datetime.date.today().isoformat()
-    novas = {}
+    novas, motivos = {}, {}
     for r in regs:
         r = list(r) + [""] * 5
         pn = str(r[3])
+        if pn.startswith("📝|"):   # o motivo de quem não vai, informado pelo próprio irmão
+            p5 = pn.split("|", 4)
+            if len(p5) == 5:
+                _, d, tk, nome, mot = p5
+                email = str(r[1]).strip().lower()
+                chave = f"{r[0]}|{email}|{d}|{nome}|mot"
+                if chave not in vistos and d >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat():
+                    vistos.add(chave)
+                    if tk == g.token_rsvp(email, d, nome):
+                        k = (email, d, nome)
+                        if k not in motivos or str(r[0]) >= motivos[k][0]:
+                            motivos[k] = (str(r[0]), mot)
+                    else:
+                        print(f"Motivo ignorado (assinatura inválida): {email} · {nome}")
+            continue
         if not pn.startswith("✋|"):
             continue
         partes = pn.split("|", 4)
@@ -1062,6 +1114,26 @@ def aplicar_respostas(api, pid, g):
                     celulas[cel] = novo
                     feitas.append((ap, nome, resp))
         _gravar(api, pid, gr)
+    # os motivos (📝) e os "Vou" que tiram um motivo dado antes, na aba Justificativas
+    try:
+        vou_depois = {k for k, x in novas.items() if x[1] == "vou"}
+        if motivos or vou_depois:
+            aba_di2, C2, _, _, _ = _di_mapa(api, pid)
+            vdi2 = _ler(api, pid, f"'{aba_di2}'!A1:AN400")
+            ap_de2 = {str((list(row) + [""] * 40)[C2["email"] - 1]).strip().lower(): str(row[1]).strip()
+                      for row in vdi2[1:] if C2.get("email") and "@" in str((list(row) + [""] * 40)[C2["email"] - 1])}
+            itens = []
+            for (email, d, nome), (ts, mot) in motivos.items():
+                if ap_de2.get(email) and not (novas.get((email, d, nome), ("", ""))[1] == "vou" and novas[(email, d, nome)][0] > ts):
+                    itens.append((d, nome, ap_de2[email], mot))
+            for (email, d, nome) in vou_depois:
+                if ap_de2.get(email) and not (motivos.get((email, d, nome), ("", ""))[0] > novas[(email, d, nome)][0]):
+                    itens.append((d, nome, ap_de2[email], None))
+            _just_do_irmao(api, pid, itens)
+            if any(m for *_, m in itens):
+                print("Motivos dos irmãos gravados: " + ", ".join(f"{a} ({m})" for _, _, a, m in itens if m))
+    except Exception as e:
+        print(f"Aviso: motivos dos irmãos não gravados ({type(e).__name__}: {e}).")
     _json_gravar("rsvp.json", {"vistos": sorted(vistos)[-800:], "celulas": celulas})
     if feitas:
         print("Respostas dos irmãos aplicadas: " + ", ".join(f"{a} ({'vai' if r == 'vou' else 'respondeu' if r == 'resp' else 'não vai'})" for a, _, r in feitas))
