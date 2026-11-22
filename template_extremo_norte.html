@@ -775,6 +775,8 @@ body.iz-preencher .wrap > *:not(header):not(#analBar):not(#insZap):not(footer):n
 .lw-vazio{font-size:12px;color:var(--cinza);padding:4px 8px}
 .lw-col .lw-l{display:block;padding:5px 8px}
 .lw-lin{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lw-lin.lw-2l{flex-direction:column;align-items:stretch;gap:6px}.lw-lin.lw-2l>span{white-space:normal;overflow:visible}
+.lw-lin.lw-2l .lw-seg{display:flex;width:100%}.lw-lin.lw-2l .lw-seg button{flex:1 1 0;min-width:0;padding-left:2px;padding-right:2px}
 .lw-col .lw-l span{font-size:12.5px}
 .lw-col .seg button{padding:5px 8px;min-height:32px;font-size:12.5px}
 .lw-just{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
@@ -3579,7 +3581,7 @@ const LW_TIPOS={
    f.pe&&`*PE:${f.pe}*`,f.pe_end&&`*📍-Endereço do PE: ${f.pe_end}*`,(f.pe||f.pe_end||f.pe_mapa)?lwMapa(f.pe_end||f.pe,f.pe_mapa):"",(f.pe_hora||f.pe_saida)&&`*Horario:${f.pe_hora||""}${f.pe_saida?" saída "+f.pe_saida:""}*`,SEP,"*Legenda:*","*✅-Ira*","*❌-Nao irei(justificativa)*","*Dúvidas nos chame no privado*"]},
  pub:{nome:"PUB",campos:[["titulo","Título","PUB "+"Extremo Norte".toUpperCase()],["data","Data",""],["hora","Horário",""],["local","Local",""],["endereco","Endereço","",1],["pe","P.E. (ponto de encontro)",""],["pe_end","Endereço do P.E.",""],["pe_mapa","Link do mapa do P.E. (opcional: se vazio, é gerado pelo endereço do P.E.)","",1],["pe_chegada","Chegada no P.E. (horário)",""],["pe_saida","Saída do P.E. (horário)",""],["v_int","Valor integrante (R$)",""],["v_conv","Valor cunhada/convidado (R$)",""],
    ["convite","Convite","",1,"area"],["pix_nome","Pix: nome",""],["pix_chave","Pix: chave",""]],
-  marcas:["✅","✅ 🐆","✅ 🐆💵","❌"],
+  marcas:["✅","✅ 💵","✅ 🐆","✅ 🐆💵","❌"],
   cab:f=>[`*💀 ${f.titulo} 💀*`,f.base&&`*${f.base}*`,SEP,f.data&&`*🗓️Data: ${f.data}*`,f.hora&&`*Horário: ${f.hora}*`,SEP,f.local&&`*📍-Local: ${f.local}*`,f.endereco&&`*📍-Endereço : ${f.endereco}.*`,lwMapa(f.endereco||f.local),SEP,(f.pe||f.pe_end)&&"*📍 Concentração (P.E.)*",f.pe&&`*P.E: ${f.pe}*`,f.pe_end&&`*📍-Endereço do P.E.: ${f.pe_end}*`,(f.pe||f.pe_end||f.pe_mapa)?lwMapa(f.pe_end||f.pe,f.pe_mapa):"",f.pe_chegada&&`*⏰ Chegada no P.E.: ${f.pe_chegada}*`,f.pe_saida&&`*🏍️ Saída do P.E.: ${f.pe_saida}*`,SEP,
    f.v_int&&`*Integrante: R$${f.v_int}*`,f.v_conv&&`*Cunhada/Convidado: R$${f.v_conv}*`,f.convite&&`*${f.convite}*`,f.pix_nome&&`Pix : ${f.pix_nome}`,f.pix_chave&&`Chave: ${f.pix_chave}`,SEP,...LEG]},
  original:{nome:"Copiar Original",campos:[["orig","Cole aqui a lista original do WhatsApp (o painel aproveita só o cabeçalho)","",1,"area"]],cru:true,
@@ -4062,7 +4064,7 @@ function lwCampoBase(f){if(f.base_sel===undefined){f.base_sel=BASES.includes(f.b
     <label class="inteiro" id="lwLivre" ${f.base_sel==="__livre"?"":"hidden"}>Texto da base<input type="text" data-lwc="base_livre" value="${esc(f.base_livre||"")}" placeholder="Ex.: Regional SP3 - Comando VIII"></label>`}
 function lwListaUI(){if(!document.getElementById("lwJustOp"))document.body.insertAdjacentHTML("beforeend",`<datalist id="lwJustOp">${LW_JUST.map(o=>`<option value="${esc(o)}">`).join("")}</datalist>`);const marcas=LW_TIPOS[lw.tipo].marcas||["✅","❌"];const ord=[...M].sort((a,b)=>a.o-b.o);
   const linha=m=>{const nao=lw.marca[m.n]==="❌",j=(lw.just||{})[m.n]||{op:"",txt:""};
-      return `<div class="lw-l ${nao&&!lwJustTexto(m.n)?"falta":""}"><div class="lw-lin"><span title="${esc(lwNome(m))}">${esc(lwNome(m))}</span>
+      return `<div class="lw-l ${nao&&!lwJustTexto(m.n)?"falta":""}"><div class="lw-lin${marcas.length>4?" lw-2l":""}"><span title="${esc(lwNome(m))}">${esc(lwNome(m))}</span>
       <div class="seg lw-seg">${marcas.map(v=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="${lw.marca[m.n]===v}" style="${lw.marca[m.n]===v?(v==="❌"?"background:var(--sangue)":"background:var(--presente)"):""}">${v}</button>`).join("")}</div></div>
       ${nao?`<div class="lw-just"><input type="text" class="lw-jtx" data-jn="${esc(m.n)}" list="lwJustOp" maxlength="80" value="${esc(lwJustTexto(m.n))}" placeholder="Justificativa (toque para ver as opções)" aria-label="Justificativa de ${esc(m.n)}"></div>`:""}</div>`};
   // cada irmão fica sempre no mesmo lugar (ordem da hierarquia, por grupo): marcar só muda a cor do botão.
