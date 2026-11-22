@@ -38,6 +38,9 @@ const aoPush = e => {
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t}));
     if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
+  if (d.incv) op.data.incv = d.incv;   // comando: "Fulano não vai" → tocar abre a folha da mensagem de incentivo
+  if (d.inc) { op.data.inc = d.inc; op.requireInteraction = true;   // irmão: a mensagem do comando, com respostas rápidas
+    op.actions = [{action: "inc_dia", title: "⏳ Me dá um dia"}, {action: "inc_vou", title: "✅ Vou sim"}]; }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || ""; op.data.teste = teste ? 1 : 0;
@@ -140,6 +143,22 @@ self.addEventListener("notificationclick", e => {
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
         painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
+    return;
+  }
+  if (dd.incv && !e.action) {   // comando: abre a folha "Mandar mensagem" para o irmão que não vai
+    e.waitUntil(clients.openWindow("adm.html#incentivo|" + encodeURIComponent(JSON.stringify(dd.incv)))); return;
+  }
+  if (dd.inc && !e.action) {   // irmão: abre as três respostas
+    e.waitUntil(clients.openWindow("adm.html#incresp|" + encodeURIComponent(dd.inc.d) + "|" + encodeURIComponent(dd.inc.e))); return;
+  }
+  if (dd.inc && (e.action === "inc_dia" || e.action === "inc_vou") && dd.ru && dd.para) {   // irmão respondeu direto no aviso
+    const r = dd.inc, op = e.action === "inc_vou" ? "vou" : "dia", corpo = (pn) => JSON.stringify({email: dd.para, ok: true, painel: pn, aparelho: aparelhoSW()});
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: corpo("↩️|" + op + "|" + r.d + "|" + r.tk + "|" + r.e)}).catch(() => {})
+      .then(() => op === "vou" ? fetch(dd.ru, {method: "POST", mode: "no-cors", body: corpo("✋|vou|" + r.d + "|" + r.tk + "|" + r.e)}).catch(() => {}) : null)
+      .then(() => acordarPainel(r, dd.para))
+      .then(() => self.registration.showNotification(op === "vou" ? "✅ Presença confirmada" : "👍 Resposta enviada",
+        {body: op === "vou" ? "Boa, irmão! Você vai na " + r.e + ". 🤝" : "O comando vai saber que você está vendo se consegue ir na " + r.e + ".",
+         icon: "icon-192.png", badge: "notif-badge.png", tag: "inc-ok"})));
     return;
   }
   if (dd.mot && !e.action) {   // "toque para dizer o motivo": abre o Meu painel na pergunta do motivo
