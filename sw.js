@@ -146,6 +146,9 @@ self.addEventListener("notificationclick", e => {
     e.waitUntil(clients.openWindow("adm.html#motivo|" + encodeURIComponent(dd.mot.d) + "|" + encodeURIComponent(dd.mot.e))); return;
   }
   if (dd.rsvp && dd.rsvp.m === "ins" && !e.action) { e.waitUntil(clients.openWindow("adm.html#insight")); return; }
+  if (dd.rsvp && e.action === "nao" && !dd.rsvp.c && dd.rsvp.m !== "ins") {   // evento oficial: o "Não vou" pede o motivo (abre o app na pergunta)
+    e.waitUntil(clients.openWindow("adm.html#motivo|" + encodeURIComponent(dd.rsvp.d) + "|" + encodeURIComponent(dd.rsvp.e))); return;
+  }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
