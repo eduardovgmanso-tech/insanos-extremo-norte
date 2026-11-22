@@ -1003,6 +1003,26 @@ def aplicar_visitante(d):
 
 RESPOSTAS = []          # respostas "Vou / Não vou" aplicadas nesta rodada (para avisar o comando)
 MOTIVOS_RODADA = {}     # (email, data, evento) -> motivo informado pelo irmão nesta rodada (vai no aviso do comando)
+ULTIMAS_CELULAS = []    # as células marcadas pelas respostas nesta rodada (para atualizar a cópia, sem baixar a planilha de novo)
+JUST_MUDOU = [False]    # a aba Justificativas mudou nesta rodada (aí a planilha é baixada de novo)
+
+def _atualizar_copia(xlsx, celulas):
+    """Escreve na cópia da planilha (o xlsx desta rodada) só as células que as respostas marcaram: evita baixar tudo de novo."""
+    if not celulas:
+        return True
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(xlsx)
+        for ref, valor in celulas:
+            m = re.match(r"^'(.+)'!([A-Z]+\d+)$", ref)
+            if not m or m.group(1) not in wb.sheetnames:
+                return False
+            wb[m.group(1)][m.group(2)] = valor
+        wb.save(xlsx)
+        return True
+    except Exception as e:
+        print(f"(cópia da planilha: {type(e).__name__}: {e}; vou baixar de novo)")
+        return False
 
 def aplicar_respostas(api, pid, g):
     """Respostas "✅ Vou / ❌ Não vou" dos irmãos (registradas na aba Acessos com a assinatura):
@@ -1125,6 +1145,7 @@ def aplicar_respostas(api, pid, g):
                     celulas[cel] = novo
                     feitas.append((ap, nome, resp, d, email))
         _gravar(api, pid, gr)
+        ULTIMAS_CELULAS.extend(gr)
     # os motivos (📝) e os "Vou" que tiram um motivo dado antes, na aba Justificativas
     try:
         vou_depois = {k for k, x in novas.items() if x[1] == "vou"}
@@ -1141,6 +1162,8 @@ def aplicar_respostas(api, pid, g):
                 if ap_de2.get(email) and not (motivos.get((email, d, nome), ("", ""))[0] > novas[(email, d, nome)][0]):
                     itens.append((d, nome, ap_de2[email], None))
             _just_do_irmao(api, pid, itens)
+            if itens:
+                JUST_MUDOU[0] = True
             for (email, d, nome), (ts, mot) in motivos.items():
                 MOTIVOS_RODADA[(email, d, nome)] = mot
             if any(m for *_, m in itens):
@@ -1822,7 +1845,7 @@ def _resumo_item(d):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
 FLYS_APAGAR = set()   # flys de eventos excluídos (saem do site na publicação)
-ESTADO = ["clima_cache.json", "incentivos.json", "avisos_vistos.json", "fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["pagos_ciclo.json", "clima_cache.json", "incentivos.json", "avisos_vistos.json", "fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -1875,6 +1898,9 @@ def verificar_boletos(api, pid, g):
     manual = g._manual_carregar(ciclo)
     inativos = g.inativos_planilha()
     itens, grav, novos_pagos = [], [], 0
+    pc = _json_ler("pagos_ciclo.json", {})   # os boletos já confirmados como pagos neste ciclo (não são abertos de novo)
+    pagos_ja = dict(pc.get("pagos") or {}) if pc.get("ciclo") == ciclo.isoformat() else {}
+    pulados = 0
     for r, row in enumerate(v[1:], start=2):
         row = list(row) + [""] * 10
         link = str(row[9]).strip()
@@ -1887,6 +1913,9 @@ def verificar_boletos(api, pid, g):
             itens.append({"rotulo": rotulo, "selo": None, "venc_boleto": None, "status": atual, "obs": "adesão paga no mês em que entrou"})
             print(f"  {rotulo}: adesão paga ({atual})"); continue
         item = {"rotulo": rotulo, "selo": None, "venc_boleto": None, "status": atual, "obs": ""}
+        if pagos_ja.get(rotulo) == link and atual == "Pago em Dia":   # já conferido como pago neste ciclo, com o mesmo boleto
+            item.update({"selo": "pago (já conferido neste ciclo)", "boleto_pago": True}); itens.append(item); pulados += 1
+            continue
         try:
             selo, vb = g._ler_boleto(link)
         except Exception as e:
@@ -1915,6 +1944,7 @@ def verificar_boletos(api, pid, g):
             if ap_man:
                 manual.pop(ap_man, None)
             item["boleto_pago"] = True
+            pagos_ja[rotulo] = link   # da próxima vez, este boleto (pago) não precisa ser aberto
         elif ap_man:
             novo = manual[ap_man]
             item["obs"] = (item.get("obs") + " · " if item.get("obs") else "") + "marcado à mão"
@@ -1926,6 +1956,10 @@ def verificar_boletos(api, pid, g):
         itens.append(item)
     _gravar(api, pid, grav)
     g._manual_salvar(ciclo, manual)
+    _json_gravar("pagos_ciclo.json", {"ciclo": ciclo.isoformat(), "pagos": pagos_ja})
+    if pulados:
+        lidos = len([x for x in itens if not str(x.get("selo") or "").startswith("pago (já")])
+        print(f"Boletos já pagos neste ciclo (não abertos de novo): {pulados}" + ("" if lidos else " · todos pagaram: nada a conferir até o próximo ciclo."))
     quando = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M")
     ultimo, pagos_em = None, {}
     try:
@@ -2145,9 +2179,12 @@ def main():
     # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
     try:
         _tempo("antes das respostas")
-        if aplicar_respostas(api, planilha_id, g):
-            montar_planilha(ler_google(planilha_id, cred, api), xlsx)
-            _tempo("respostas (e ler a planilha de novo)")
+        if aplicar_respostas(api, planilha_id, g) or JUST_MUDOU[0]:
+            if JUST_MUDOU[0] or not _atualizar_copia(xlsx, ULTIMAS_CELULAS):   # só as marcações: atualiza a cópia; com motivos: baixa de novo
+                montar_planilha(ler_google(planilha_id, cred, api), xlsx)
+                _tempo("respostas (e ler a planilha de novo)")
+            else:
+                _tempo("respostas (atualizei só as células na cópia)")
         else:
             _tempo("respostas (nenhuma nova)")
     except Exception as e:
