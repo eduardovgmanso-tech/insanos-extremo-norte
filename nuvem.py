@@ -143,7 +143,7 @@ def _just_do_irmao(api, pid, itens):
         _estrutura(api, pid, [{"addSheet": {"properties": {"title": "Justificativas"}}}]); aba = "Justificativas"
     cab = ["Data", "Evento", "Aba", "Irmão", "Motivo", "Lançado por", "Quando"]
     v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:G5000").execute().get("values", [])
-    linhas = [list(r) + [""] * (7 - len(r)) for r in v[1:] if r]
+    linhas = [[_iso_j(r[0])] + list(r)[1:] + [""] * (7 - len(r)) for r in v[1:] if r]
     agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     for d, ev, ap, mot in itens:
         alvo = lambda r: _iso_j(r[0]) == d and str(r[1]).strip().lower() == ev.strip().lower() and str(r[3]).strip().lower() == ap.lower()
@@ -165,7 +165,7 @@ def gravar_justificativas(api, pid, d, quem=""):
     cab = ["Data", "Evento", "Aba", "Irmão", "Motivo", "Lançado por", "Quando"]
     v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:G5000").execute().get("values", [])
     data, ev = str(d.get("data") or "")[:10], str(d.get("evento") or "").strip()
-    outros = [list(r) + [""] * (7 - len(r)) for r in v[1:] if r and not (_iso_j(r[0]) == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+    outros = [[_iso_j(r[0])] + list(r)[1:] + [""] * (7 - len(r)) for r in v[1:] if r and not (_iso_j(r[0]) == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
     agora = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
     novos = [[data, ev, "Presenca", n, str(m).strip()[:80], str(quem or "").split("@")[0], agora]
              for n, m in (d.get("justificativas") or {}).items() if str(m or "").strip()]
@@ -185,7 +185,7 @@ def gravar_info_evento(api, pid, d, quem=""):
     cab = ["Data", "Evento", "Tipo", "Horário", "Local", "Endereço", "Observação", "Detalhes da lista", "Lançado por", "Quando"]
     v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{aba}'!A1:J3000").execute().get("values", [])
     data, ev = str(d.get("data") or "")[:10], str(d.get("evento") or "").strip()
-    outros = [list(r) + [""] * (10 - len(r)) for r in v[1:] if r and not (_iso_j(r[0]) == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
+    outros = [[_iso_j(r[0])] + list(r)[1:] + [""] * (10 - len(r)) for r in v[1:] if r and not (_iso_j(r[0]) == data and str((r + ["", ""])[1]).strip().lower() == ev.lower())]
     det = json.dumps({"tipo": info.get("tipo", ""), "f": info.get("f", {}), "mapas": bool(info.get("mapas"))}, ensure_ascii=False)[:45000]
     linha = [data, ev, str(info.get("tnome") or info.get("tipo") or "")[:40], str(info.get("hora") or "")[:20], str(info.get("local") or "")[:200],
              str(info.get("endereco") or "")[:300], str(info.get("obs") or "")[:500], det, str(quem or "").split("@")[0],
@@ -223,7 +223,7 @@ def gravar_categoria(api, pid, data, evento, cat):
         api.spreadsheets().values().update(spreadsheetId=pid, range=f"'{a}'!A1", valueInputOption="RAW", body={"values": [["Data", "Evento", "Categoria"]]}).execute()
     v = api.spreadsheets().values().get(spreadsheetId=pid, range=f"'{a}'!A1:C2000").execute().get("values", [])
     chave = (str(data)[:10], str(evento).strip().lower())
-    resto = [r for r in v[1:] if r and (_iso_j(r[0]), str((r + ["", ""])[1]).strip().lower()) != chave]
+    resto = [[_iso_j(r[0])] + list(r)[1:] for r in v[1:] if r and (_iso_j(r[0]), str((r + ["", ""])[1]).strip().lower()) != chave]
     if cat == "convidado":
         resto.append([str(data)[:10], str(evento).strip(), "convidado"])
     if len(resto) != len(v[1:]) or cat == "convidado":

@@ -225,6 +225,18 @@ def falha(msg):
 def texto(v):
     return str(v).strip() if v is not None else ""
 
+def iso_qualquer(v):
+    """Data em AAAA-MM-DD a partir de datetime, número de série do Google, "14/11/2026" ou "2026-11-14"."""
+    if hasattr(v, "date"):
+        return v.date().isoformat() if hasattr(v, "hour") else v.isoformat()
+    if isinstance(v, (int, float)) and 20000 < v < 80000:
+        return (datetime.datetime(1899, 12, 30) + datetime.timedelta(days=float(v))).date().isoformat()
+    t = str(v or "").strip()
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})", t)
+    if m:
+        return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}"
+    return t[:10]
+
 def data_iso(v, ano_padrao):
     if isinstance(v, (datetime.datetime, datetime.date)):
         return v.strftime("%Y-%m-%d")
@@ -4466,8 +4478,9 @@ def main():
                 dj, ej, aj, nj, mj = (list(r) + [None] * 5)[:5]
                 if not (dj and ej and nj and mj) or str(aj or "Presenca").strip().lower() != "presenca":
                     continue
-                dj = dj.date().isoformat() if hasattr(dj, "date") else str(dj).strip()[:10]
+                dj = iso_qualquer(dj)
                 JUST.setdefault((dj, str(ej).strip().lower()), {})[str(nj).strip()] = str(mj).strip()
+        print(f"Justificativas lidas: {sum(len(x) for x in JUST.values())} motivo(s) em {len(JUST)} evento(s).")
     except Exception as e:
         print(f"Aviso: justificativas não lidas ({type(e).__name__}: {e}).")
     # informações dos eventos (aba "Eventos", gravada pelo Lançar a partir da Lista): tipo, horário, local, endereço, campos da lista
@@ -4479,7 +4492,7 @@ def main():
                 dj, ej, tj, hj, lj, enj, oj, fj = (list(r) + [None] * 8)[:8]
                 if not (dj and ej):
                     continue
-                dj = dj.date().isoformat() if hasattr(dj, "date") else str(dj).strip()[:10]
+                dj = iso_qualquer(dj)
                 try:
                     det = json.loads(fj) if fj else {}
                 except Exception:
@@ -4522,7 +4535,7 @@ def main():
         if "Excluidos" in wb.sheetnames:
             for r in wb["Excluidos"].iter_rows(min_row=2, max_col=7, values_only=True):
                 if r and r[0] and str(r[6] or "").startswith("excluído"):
-                    EXCLUIDOS.append({"id": str(r[0]), "quando": str(r[1] or ""), "por": str(r[2] or ""), "data": str(r[3] or "")[:10], "evento": str(r[4] or "")})
+                    EXCLUIDOS.append({"id": str(r[0]), "quando": str(r[1] or ""), "por": str(r[2] or ""), "data": iso_qualquer(r[3]), "evento": str(r[4] or "")})
             EXCLUIDOS = EXCLUIDOS[::-1][:30]
     except Exception as e:
         print(f"Aviso: eventos excluídos não lidos ({type(e).__name__}: {e}).")
@@ -4630,7 +4643,7 @@ def main():
     # ⭐ oficial / 🤝 convidado (aba Categorias, gravada pelo Lançar): sem registro = oficial. Os de convidado ficam à parte:
     # não contam na porcentagem do irmão (Meu painel, carteirinha, conquistas, honrarias, ranking); o comando vê pelo seletor da Presença
     global EVENTOS_CONV
-    cats = {((str(d0)[:10] if isinstance(d0, str) else data_iso(d0, ano)), n0) for d0, n0 in CATS_RAW}
+    cats = {(iso_qualquer(d0), n0) for d0, n0 in CATS_RAW}
     CATS_SET.clear(); CATS_SET.update(cats)   # (data, evento) dos eventos de convidado: o motivo do "Não vou" é opcional só neles
     EVENTOS_CONV = [e for e in eventos if (e["d"], e["e"].strip().lower()) in cats]
     eventos = [e for e in eventos if (e["d"], e["e"].strip().lower()) not in cats]
