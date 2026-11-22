@@ -537,17 +537,6 @@ def _inserir_linha_di(api, pid, aba, sid, depois_de, ult_col):
     _gravar(api, pid, limpar)
     return nova
 
-def _totais_linha(aba, v, linha, ult):
-    """Fórmulas de Sim, Não e % da linha do evento (logo depois do último integrante), como no PC."""
-    c_sim, c_nao, c_pct = ult + 1, ult + 2, ult + 3
-    ls, ln = _col(c_sim), _col(c_nao)
-    l7 = list(v[6]) if len(v) > 6 else []
-    rot_sim = f"${ls}$7" if _sa((l7 + [""] * 90)[c_sim - 1]) == "sim" else '"Sim"'
-    rot_nao = f"${ln}$7" if _sa((l7 + [""] * 90)[c_nao - 1]) in ("nao",) else '"Não"'
-    fx = f"D{linha}:{_col(ult)}{linha}"
-    return [(f"'{aba}'!{ls}{linha}", f'=IF(COUNTIF({fx},{rot_sim})=0,"",COUNTIF({fx},{rot_sim}))'),
-            (f"'{aba}'!{ln}{linha}", f'=IF(COUNTIF({fx},{rot_nao})=0,"",COUNTIF({fx},{rot_nao}))'),
-            (f"'{aba}'!{_col(c_pct)}{linha}", f'=IFERROR({ls}{linha}/({ls}{linha}+{ln}{linha}),"")')]
 
 def _abas_eventos(api, pid):
     return [a for a in (_aba_real(api, pid, n) for n in ("Presenca", "Insights", "Staff")) if a]
@@ -2145,11 +2134,7 @@ def main():
         pass
     if os.environ.get("LANC_URL") and os.environ.get("LANC_CHAVE"):
         g.NUVEM = {"url": os.environ["LANC_URL"], "chave": os.environ["LANC_CHAVE"]}   # o painel manda os lançamentos direto
-    # partes que só existem no PC (arquivos de lançamento, Excel pelo Windows, tarefa agendada): desligadas na nuvem
-    g.renumerar_lista = lambda mudancas: renumerar_google(api, planilha_id, mudancas)
-    for nome in ("migrar_staff", "importar_lancamentos", "importar_integrantes", "importar_pagamentos_manuais",
-                 "importar_acessos", "garantir_tarefa_avisos"):
-        setattr(g, nome, lambda *a, **k: None)
+    g.renumerar_lista = lambda mudancas: renumerar_google(api, planilha_id, mudancas)   # a numeração da lista, direto na planilha do Google
     # notificações no celular: só com o segredo NOTIFICAR = sim (ligado na virada, para não chegarem em dobro com o PC)
     if os.environ.get("NOTIFICAR", "").strip().lower() not in ("sim", "s", "1", "true"):
         g.notificar = lambda titulo, corpo, tag="aviso", **k: print(f"(notificações desligadas na nuvem) teria enviado: {titulo} · {corpo}")

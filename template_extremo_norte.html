@@ -314,7 +314,7 @@ html.letra-g body{zoom:1.12}html.letra-gg body{zoom:1.25}
 .aj-letras{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.aj-letras button{padding:12px 6px;border-radius:12px;border:1px solid rgba(236,231,220,.22);background:none;color:inherit;font:inherit;font-weight:700}
 .aj-letras button[data-l="g"]{font-size:17px}.aj-letras button[data-l="gg"]{font-size:19px}.aj-letras button[aria-pressed="true"]{background:#ECE7DC;color:#111}
 
-.q-links{display:flex;justify-content:flex-end;gap:14px;margin:6px 0 0}.q-links .sair-link{margin:0}
+
 .fa-cx{border-radius:22px 22px 0 0!important;border-top:3px solid #E9B949!important;padding-top:10px!important;animation:faSobe .24s cubic-bezier(.2,.9,.3,1) both}
 .fa-cx::before{content:"";display:block;width:44px;height:5px;border-radius:3px;background:rgba(236,231,220,.3);margin:0 auto 12px}
 @keyframes faSobe{from{transform:translateY(100%)}to{transform:none}}
@@ -572,7 +572,7 @@ body.adm[data-view="listas"] .periodo{display:none}
 #insZap{margin-bottom:16px}
 #insZap[hidden]{display:none!important}
 #evZap[hidden]{display:none!important}
-#evZap [data-eztodos],#evZap #ezSalvar{display:none!important}   /* Presença: só consulta (corrigir é no Lançar) */
+#evZap [data-eztodos]{display:none!important}   /* Presença: só consulta (corrigir é no Lançar) */
 #evZap #ezLista{pointer-events:none}
 .cad-bloco{border-top:1px solid var(--linha);margin-top:22px;padding-top:18px}
 .cad-bloco h2{margin:0 0 4px}
@@ -1017,7 +1017,6 @@ html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none
     <div class="lw-bts" style="margin-top:16px">
       <label class="lw-check" style="margin:0 8px 0 0"><input type="checkbox" id="ezComLista"> Mostrar a lista de irmãos no fly</label>
       <button type="button" class="btn" id="ezImg">📸 Gerar imagem do evento</button>
-      <button type="button" class="btn" id="ezSalvar">💾 Salvar na nuvem</button>
       <button type="button" class="btn zap" id="ezCopiar">Copiar para o WhatsApp</button>
 
       <a class="btn" id="ezZap" target="_blank" rel="noopener">Abrir no WhatsApp</a>
@@ -1431,7 +1430,7 @@ function ezMontar(){if(!$("evZap")||MODO!=="adm")return;if($("ezLerBox"))$("ezLe
     try{await navigator.clipboard.writeText(txt);ok=true}catch(e){const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{ok=document.execCommand("copy")}catch(_){}ta.remove()}
     $("ezCopiar").textContent=ok?"Copiado! Cole no grupo":"Não consegui copiar";setTimeout(()=>$("ezCopiar").textContent="Copiar para o WhatsApp",2500)};
   $("ezZap").addEventListener("click",ev=>{if(!$("ezAssin").value){ev.preventDefault();alert("Escolha a Assinatura antes de enviar.");$("ezAssin").focus()}});
-  ezComListaIniciar();$("ezImg").onclick=()=>entregarImagemEvento($("ezImg"));$("ezSalvar").onclick=ezSalvar;
+  ezComListaIniciar();$("ezImg").onclick=()=>entregarImagemEvento($("ezImg"));
   if($("ezGerarImg"))$("ezGerarImg").onclick=ezGerarClique;
   if($("ezLancar"))$("ezLancar").onclick=()=>{const e=(EV_SETS.pres||[])[ez.k];if(!e)return;   // abre o Lançar já com esse evento escolhido
     const b=[...document.querySelectorAll(".lateral button")].find(x=>/Lançar/.test(x.textContent));if(b)b.click();
@@ -1758,16 +1757,6 @@ function montarIndividual(alvo){
   const html=molde.replace(PH_D,()=>JSON.stringify({modo:"individual",m:[m],ev:evs,rank:r})).replace(PH_N,()=>estaticoJS(m,evs,r));
   return new File([html],`Extremo Norte - SP3 - ${alvo.n}.html`,{type:"text/html"});
 }
-async function entregarIndividual(alvo,btn){
-  const arq=montarIndividual(alvo);
-  if(podeCompartilhar()){
-    try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}
-  }
-  const url=URL.createObjectURL(arq),a=document.createElement("a");
-  a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
-  btn.textContent="Arquivo salvo em Downloads";setTimeout(()=>btn.textContent="Gerar HTML individual",4000);
-}
 // ---- ficha do integrante (opções A + B) ----
 function rankIn(evs,idxs,idx){
   const s=[];idxs.forEach(i=>{let p=0,a=0;evs.forEach(e=>{if(e.p[i]===1)p++;else if(e.p[i]===0)a++});if(p+a)s.push({i,p,a,pc:Math.round(p*100/(p+a))})});
@@ -1979,17 +1968,6 @@ async function lerImagemEvento(f){const stEl=$("ezLidoGeral");stEl.textContent="
   $("ezLido").innerHTML=`📷 <b>Imagem lida:</b> ${tipo==="ins"?"Insights":"Presença"} · ${lwBR(data)} · ${esc(nome)}.${naoAchei.length?` Não reconheci: ${esc(naoAchei.join(", "))}.`:""} Confira as marcações. Para gravar na planilha, use <b>💾 Salvar na nuvem</b>.`;
   stEl.innerHTML="✅ Código encontrado. O evento foi aberto no quadro do evento, no fim da página.";
   $("evZap").scrollIntoView({behavior:"smooth",block:"start"})}
-async function ezSalvar(){const d=$("ezData").value,n=$("ezTit").value.trim();
-  if(!d||!n){alert("Informe a data e o nome do evento.");return}
-  const marc={};M_FULL.forEach(m=>{const v=ez.marca[m.n];marc[m.n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
-  const aba=ezTipo()==="ins"?"Insights":"Presenca";
-  const dados={tipo:"lancamento_presenca",versao:2,aba,atualizar:true,data:d,evento:n,marcacoes:marc,criado:new Date().toISOString()};
-  const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
-  if(await nuvemEnviar(dados,`Evento enviado para a planilha (aba ${aba}).`))return;
-  const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${aba.toLowerCase()}_${d}_${slug}.json`,{type:"application/json"});
-  if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
-  const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-  alert(`Arquivo salvo em Downloads. Rode o GerarPainel: ele grava o evento na aba ${aba} da planilha (se já existir, atualiza as marcações).`)}
 // ---- imagem do evento filtrado (usa o que está no quadro: título, data, base, observação e marcações) ----
 async function imagemEvento(){
   try{await document.fonts.ready}catch(e){}
@@ -2096,17 +2074,6 @@ function dashCalc(ym){
     return {p,a,pc:pct(p,a),n:evPc.length,porM,porG,evPc}};
   const pres=tipo("pres"),ins=tipo("ins");
   return {ym,pres,ins}}
-function dashDestaques(c,ant){const d=[],nome=i=>M_FULL[i]?M_FULL[i].n:"";
-  const pm=Object.entries(c.pres.porM).map(([i,x])=>({i:+i,pc:pct(x.p,x.a),n:x.p+x.a})).filter(x=>x.n>=Math.min(RANK_MIN,2));
-  if(pm.length){const mx=Math.max(...pm.map(x=>x.pc));const q=pm.filter(x=>x.pc===mx).map(x=>nome(x.i));d.push(["🏆 Mais presente",`${q.slice(0,3).join(", ")}${q.length>3?` +${q.length-3}`:""} · ${mx}%`])}
-  if(ant){const ev=pm.map(x=>{const y=ant.pres.porM[x.i];return y&&y.p+y.a?{i:x.i,dif:x.pc-pct(y.p,y.a)}:null}).filter(Boolean).sort((a,b)=>b.dif-a.dif);
-    if(ev.length&&ev[0].dif>0)d.push(["📈 Maior evolução",`${nome(ev[0].i)} · +${ev[0].dif} pts`])}
-  const ti=Object.entries(c.ins.porM).filter(([i,x])=>x.a===0&&x.p===c.ins.n&&c.ins.n>0).length;if(c.ins.n)d.push(["💬 Respondeu todos os insights",`${ti} irmão(s)`]);
-  const sp=Object.entries(c.pres.porM).filter(([i,x])=>x.p===0&&x.a>0).map(([i])=>nome(+i));if(c.pres.n)d.push(["⚠️ Sem presença no mês",sp.length?sp.join(", "):"ninguém 💪"]);
-  if(c.pres.evPc.length){const b=[...c.pres.evPc].sort((x,y)=>y.pc-x.pc)[0];d.push(["⭐ Melhor evento",`${b.e.e} · ${b.pc}%`])}
-  const an=M_FULL.filter(m=>m.nasc&&m.nasc.slice(5,7)===c.ym.slice(5)).map(m=>m.n);if(an.length)d.push(["🎂 Aniversariantes",an.join(", ")]);
-  d.push(["🗓️ Eventos · insights no mês",`${c.pres.n} · ${c.ins.n}`]);return d}
-function dashDelta(v,a){if(v==null||a==null)return '<small class="eq">sem mês anterior</small>';const d=v-a;return d>0?`<small class="up">▲ +${d} pts (${a}%)</small>`:d<0?`<small class="dn">▼ ${d} pts (${a}%)</small>`:`<small class="eq">= igual (${a}%)</small>`}
 function dashSvg(meses,series){const Wd=Math.max(320,Math.min(760,($("dashCorpo").clientWidth||700)-30)),Hd=220,ml=38,mr=12,mt=22,mb=28,gw=Wd-ml-mr,gh=Hd-mt-mb,n=meses.length;
   // gráfico de COLUNAS: um grupo por mês, uma coluna por série (presença e insights), com a % em cima
   const y=v=>mt+gh-gh*v/100,gl=gw/Math.max(1,n),ns=series.length,bw=Math.max(8,Math.min(34,gl*.72/ns)),gap=Math.min(6,bw*.25);
@@ -2182,27 +2149,7 @@ function dashMostrar(){const meses=dashMeses();if(!DASH_SEL)DASH_SEL=meses.slice
 function dashCav(v,rot,sub,w,a,peq){const dl=v==null||a==null?"":v>a?`<small class="up">▲ +${v-a}</small>`:v<a?`<small class="dn">▼ −${a-v}</small>`:`<small class="eq">=</small>`;
   return `<div class="dcav${peq?" peq":""}"><span class="cav-dash${v!=null&&v>=90?" trofeu":""}" style="--g:${corGlow(v)};--w:${w}px;--cav:url('${CAVEIRA}');--c:${v==null?"transparent":corFaixa(v)[0]};--p:${v||0}%"><i class="hl"></i></span>
     <b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b>${dl}<span>${rot}</span>${sub?`<small>${sub}</small>`:""}</div>`}
-function dashTabMeses(ms,linhas,tit){const n=ms.length,cols=1+n+(n-1);
-  const chip=v=>{if(v==null)return `<span class="dchip vazio">–</span>`;const c=corFaixa(v)[1];
-    return `<span class="dchip" style="color:${c};background:color-mix(in srgb,${c} 16%,transparent);border-color:color-mix(in srgb,${c} 40%,transparent)">${v}%</span>`};
-  const delta=(a,b,num)=>{if(a==null||b==null)return `<td class="ddel"></td>`;const d=b-a;
-    if(!d)return `<td class="ddel"><span class="dd igual">=</span></td>`;
-    return `<td class="ddel"><span class="dd ${d>0?"up":"dn"}">${d>0?"▲":"▼"} ${d>0?"+":"−"}${Math.abs(d)}${num?"":""}</span></td>`};
-  const cab=`<tr><th></th>${ms.map((m,k)=>(k?`<th class="ddel"></th>`:"")+`<th><span class="dmes">${ymNome(m,true)}</span></th>`).join("")}</tr>`;
-  const corpo=linhas.map(l=>{if(l.sec)return `<tr class="sec"><td colspan="${cols}">${l.sec}</td></tr>`;
-    return `<tr><td>${l.rot}</td>${l.vals.map((v,k)=>(k?(l.txt?`<td class="ddel"></td>`:delta(l.vals[k-1],v,l.num)):"")+
-      `<td>${l.txt?`<span class="dtxt">${v==null?"–":esc(v)}</span>`:l.num?`<b class="dnum">${v??"–"}</b>`:chip(v)}</td>`).join("")}</tr>`}).join("");
-  return `${tit?`<h3>${tit}</h3>`:""}<table class="dtab dcomp" style="min-width:${innerWidth<600?Math.max(280,80+n*56+(n-1)*36):Math.max(420,180+n*96+(n-1)*58)}px"><thead>${cab}</thead><tbody>${corpo}</tbody></table>`}
 // presença de cada irmão: 1 mês = barras (com o mês anterior e os insights); vários meses = tabela colorida
-function dashLinhasInt(cs){const ord=[...M_FULL].map((m,i)=>({m,i})).sort((a,b)=>a.m.o-b.m.o);
-  return ord.map(({m,i})=>({m,i,v:cs.map(c=>{const x=c.pres.porM[i];return x&&x.p+x.a?pct(x.p,x.a):null}),ins:cs.map(c=>{const x=c.ins.porM[i];return x&&x.p+x.a?pct(x.p,x.a):null})}))}
-function dashPorIntegrante(cs,ant){const L=dashLinhasInt(cs);
-  if(cs.length===1){const A=ant?dashLinhasInt([ant]):null;
-    const lin=[...L].sort((a,b)=>(b.v[0]??-1)-(a.v[0]??-1)||a.m.o-b.m.o);
-    return `<div class="dbox"><h3>Presença por integrante · ${ymNome(cs[0].ym)}</h3><div class="dleg"><span>barra: presença no mês</span><span>antes: mês anterior</span><span>ins.: insights</span></div>
-      ${lin.map(x=>{const v=x.v[0],a=A?(A.find(y=>y.i===x.i)||{v:[null]}).v[0]:null,ins=x.ins[0];
-        return `<div class="drow" style="grid-template-columns:120px minmax(0,1fr) 48px 74px 66px"><span>${esc(x.m.n)}</span><div class="dbar"><i style="width:${v||0}%;background:${corFaixa(v)[1]}"></i></div><b style="color:${corFaixa(v)[1]}">${v==null?"–":v+"%"}</b><span style="color:var(--osso2);font-size:12px">antes ${a==null?"–":a+"%"}</span><span style="color:var(--osso2);font-size:12px">ins. ${ins==null?"–":ins+"%"}</span></div>`}).join("")}</div>`}
-  return `<div class="dbox" style="overflow-x:auto">${dashTabMeses(cs.map(c=>c.ym),L.map(x=>({rot:esc(x.m.n),vals:x.v})),"Presença por integrante")}</div>`}
 // ---- fly mensal para o Comando VIII: resumo pequeno, com TUDO do mês dentro do QR (compactado) ----
 // QR: "C8Z1" + JSON compactado {v,d:divisão,r:regional,m:"aaaa-mm",e:[[dia,nome,presentes,ausentes]],i:[[dia,nome,responderam,não]]}
 function c8Dados(ym){const cmd=new Set(M_FULL.map((m,i)=>grupoDe(m)==="Comando"?i:-1).filter(i=>i>=0));
@@ -2537,11 +2484,6 @@ async function ezFlyPreparar(){const e=(EV_SETS.pres||[])[ez.k];if(!e)return;con
     if(m&&m.data&&lwDataISO(m.data)===e.d){const f=lwFlyArquivoDe(localStorage.getItem(kk));if(f&&ezFly.k===k){ezFly.bl=f;return}}}}catch(_){}   // 1º: o da Lista (qualidade boa)
   try{const r=await fetch(await lancFlyNome(e.d,e.e),{cache:"no-store"});if(r.ok){const bl=await r.blob();if(bl.size>1000&&/^image\//.test(bl.type)&&ezFly.k===k){ezFly.bl=bl;return}}}catch(_){}}   // 2º: o guardado no site
 async function ezFlyImg(){const e=(EV_SETS.pres||[])[ez.k];if(!e||!ezFly.bl||ezFly.k!==e.d+"|"+e.e)return null;try{if(!ezFly.img)ezFly.img=await createImageBitmap(ezFly.bl);return ezFly.img}catch(_){return null}}
-async function comFly(blob){const e=(EV_SETS.pres||[])[ez.k];if(!e||!ezFly.bl||ezFly.k!==e.d+"|"+e.e)return blob;
-  try{const [card,fly]=await Promise.all([createImageBitmap(blob),createImageBitmap(ezFly.bl)]);const W=card.width,fh=Math.round(Math.min(fly.height*W/fly.width,W*1.4)),fw=Math.round(fly.width*fh/fly.height);
-    const c=document.createElement("canvas");c.width=W;c.height=fh+card.height;const g=c.getContext("2d");g.fillStyle="#0d0b09";g.fillRect(0,0,W,c.height);
-    g.drawImage(fly,Math.round((W-fw)/2),0,fw,fh);g.drawImage(card,0,fh);   // o fly em cima, o resumo da presença embaixo
-    return await new Promise(r=>c.toBlob(r,"image/png"))}catch(_){return blob}}
 async function entregarImagemEvento(btn){
   const ant=btn.textContent;btn.textContent="Gerando…";btn.disabled=true;
   try{const blob=await imagemEvento();
@@ -3259,7 +3201,7 @@ function pinTopo(){try{if(MODO!=="adm"||document.getElementById("pinTopo"))retur
   const c=document.createElement("div");c.id="pinTopo";c.className="pin-chip";
   c.innerHTML=`<img src="pin-${pn[0]}.png" alt=""><div><b>${esc(m.n)} · ${pn[1]}</b><span>Insanos M.C. desde ${fmtEnt(m.ent)}${p?` · 🎁 ${p[0]} em ${p[1]}`:""}</span></div>`;
   const h=document.querySelector("header .sub")||document.querySelector("header p")||document.querySelector("header h1");if(h)h.after(c);
-  c.style.cursor="pointer";c.title="Abrir a minha carteirinha";c.insertAdjacentHTML("beforeend",'<span style="margin-left:6px;font-size:16px">🪪</span>');c.onclick=()=>(window.cartAdmNovo?cartAdmNovo(m,pn):cartAdm(m,pn))}catch(_){}}
+  c.style.cursor="pointer";c.title="Abrir a minha carteirinha";c.insertAdjacentHTML("beforeend",'<span style="margin-left:6px;font-size:16px">🪪</span>');c.onclick=()=>cartAdmNovo(m,pn)}catch(_){}}
 // carteirinha do comando: o MESMO código da carteirinha do Meu painel (foto, moto, fundos, tempo de Insanos e Compartilhar),
 // lendo as fotos e os fundos guardados neste celular (valem para as duas visões)
 (function(){let D={},PIN=null,vp=null;const CAV=CAVEIRA,es=esc,cor=v=>v==null?["transparent","#ECE7DC"]:corFaixa(v),pc=a=>a&&a[1]?Math.round(a[0]*100/a[1]):null;
@@ -3388,23 +3330,6 @@ window.cartAdmNovo=function(m,pn){const iso=(()=>{const e=String(m.ent||"");if(/
   let em="";try{em=(sessionStorage.getItem("painel_email")||"").toLowerCase()}catch(_){}
   D={n:m.n,c:m.c||"",ent:iso,div:DIV_NOME,reg:DIV_REG,ano:+ano,pres:n?[s,n]:null,email:em,mapa:DADOS.mapa||null,ger:String(DADOS.ger||DADOS.gerado||Date.now())};PIN=pn;vp=pc(D.pres);cartAbrir()};
 })();
-// (a carteirinha antiga do comando continua aqui, sem uso)
-async function cartAdm(m,pn){const ent=fmtEnt(m.ent),v=document.createElement("div");v.className="fa-veu";v.style.alignItems="center";
-  v.innerHTML=`<div style="width:min(380px,92vw);border-radius:22px;padding:18px;background:linear-gradient(150deg,#262019,#0f0d0b 70%);border:2px solid #E9B949;color:var(--osso)">
-    <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(233,185,73,.35);padding-bottom:10px;margin-bottom:12px"><img src="${LOGO}" alt="" style="width:40px"><div><b style="letter-spacing:.06em">INSANOS M.C.</b><span style="display:block;font-size:12px;color:var(--osso2)">Divisão ${esc(DIV_NOME)} · ${esc(DIV_REG)}</span></div></div>
-    <div style="display:flex;gap:14px;align-items:center"><img src="pin-${pn[0]}.png" alt="" style="width:74px"><div><h3 style="margin:0;font-size:28px">${esc(m.n)}</h3><div style="color:#E9B949;font-weight:700;margin-top:4px">${esc(m.c||"")}</div><div style="font-size:12.5px;color:var(--osso2);margin-top:4px">Insanos M.C. desde ${ent} · ${pn[1]}</div></div></div>
-    ${(()=>{const i=M_FULL.findIndex(x=>x.n===m.n),hoje=new Date().toISOString().slice(0,10),ano=hoje.slice(0,4);let s=0,n=0;
-      (EV_SETS.pres||[]).forEach(e=>{if(e.d>hoje||!e.d.startsWith(ano))return;const v=e.p[i];if(v===1||v==="S"){s++;n++}else if(v===0)n++});
-      if(!n)return"";const pc=Math.round(s*100/n);
-      return `<div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:rgba(236,231,220,.05)">
-        <div style="position:relative;width:46px;flex:0 0 46px"><img src="${CAVEIRA}" alt="" style="display:block;width:100%;filter:grayscale(1) brightness(.45)"><img src="${CAVEIRA}" alt="" style="position:absolute;inset:0;width:100%;filter:sepia(1) saturate(3.2) hue-rotate(2deg) brightness(1.05);clip-path:inset(${100-pc}% 0 0 0)"></div>
-        <div><b style="font-size:28px;line-height:1;color:#E9B949">${pc}%</b><span style="display:block;font-size:12px;color:var(--osso2)">de presença nos eventos em ${ano} · ${s} de ${n}</span></div></div>`})()}
-    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(233,185,73,.35)"><canvas width="220" height="220" style="width:110px;height:110px;background:#fff;border-radius:10px;padding:6px;box-sizing:border-box"></canvas><p style="margin:0;font-size:12px;color:var(--osso2)">Código de identificação do irmão.</p></div>
-    <button type="button" class="fa-fechar" style="margin-top:14px">Fechar</button></div>`;
-  document.body.appendChild(v);v.onclick=e=>{if(e.target===v||e.target.closest(".fa-fechar"))v.remove()};
-  try{await carregarQR();const q=qrcode(0,"M");q.addData(unescape(encodeURIComponent(`INSANOS M.C. · Divisão ${DIV_NOME} ${DIV_REG}\n${m.n} · ${m.c||""}\nInsanos desde ${ent}\n${pn[1]}`)),"Byte");q.make();
-    const cv=v.querySelector("canvas"),g=cv.getContext("2d"),n=q.getModuleCount(),k=cv.width/n;g.fillStyle="#fff";g.fillRect(0,0,cv.width,cv.height);g.fillStyle="#000";
-    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(Math.floor(c*k),Math.floor(r*k),Math.ceil(k),Math.ceil(k))}catch(_){}}
 // ---- filtros no celular: recolhidos por padrão; o botão 🔎 Filtros abre/fecha e mostra quantos estão ativos
 function filAberto(){try{return localStorage.getItem("filtros_abertos")==="1"}catch(_){return false}}
 function fResAtualiza(){const b=$("fBtn"),r=$("fRes");if(!b||!r)return;const sel=id=>{const s=$(id);return s&&s.value?(s.options[s.selectedIndex]||{}).textContent:""};
@@ -3469,7 +3394,6 @@ function irPara(v){
   if(v==="lancar")$("lancDet").open=true;
   window.scrollTo({top:0,behavior:"instant"in window?"instant":"auto"});
 }
-function classeSt(s){s=String(s||"");return /pago/i.test(s)?"pago":/aguard/i.test(s)?"aguard":s?"aberto":"sem"}
 // status manual (só "Em compensação"); o boleto pago na Iugu sempre vence e trava
 const pagPend={};
 function pagStatus(n){const P=DADOS.pag;return n in pagPend?pagPend[n]:(P.status[n]||"")}
@@ -3494,7 +3418,6 @@ function pagMsgLocal(){const P=DADOS.pag;const linhas=String(P.msg||"").split("\
 // envio de boleto e agradecimento pelo WhatsApp (registro guardado no aparelho, por mês)
 const pgMesAno=()=>{const P=DADOS.pag;return P&&P.venc?`${MESES[+P.venc.slice(5,7)-1]}/${P.venc.slice(2,4)}`:""};
 const pgMsgBoleto=link=>`Olá irmão, tudo bem? Segue Mens. ${pgMesAno()}. ${link}`;
-const pgMsgAgradece=()=>`Fala, irmão! Recebemos o pagamento da mensalidade de ${pgMesAno().toLowerCase()}. Obrigado pelo compromisso com o Insanos M.C.! 💀🏦`;
 function pgZapAttr(tel,txt){const cel=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent),q=encodeURIComponent(txt);
   return cel?`href="https://wa.me/${tel}?text=${q}" target="_blank" rel="noopener"`:`href="whatsapp://send?phone=${tel}&text=${q}"`}
 function pgReg(tipo){try{return JSON.parse(localStorage.getItem(`pg_${tipo}_${DADOS.pag.venc}`)||"{}")}catch(e){return {}}}
@@ -4241,12 +4164,6 @@ function cadGuardar(l){try{localStorage.setItem(CAD_KEY,JSON.stringify(l))}catch
 let cadAtual=null;
 // ---- nuvem: os lançamentos vão direto para a planilha do Google (se falhar, o painel baixa o arquivo como antes) ----
 // lista do "Lançar evento" no mesmo formato das listas do WhatsApp
-function lancTexto(d,n,lanc){const ord=[...M_FULL].sort((a,b)=>a.o-b.o);
-  const mk=v=>v==="Sim"?"✅":v==="Staff"?"✅ (staff)":v==="Não"?"❌":"",SEPR="-----------------------------------";
-  const cab=[`*💀 ${n} 💀*`,`*🚨🚨🚨 DIVISÃO ${String(DIV_NOME).toUpperCase()} - ${DIV_REG} 🚨🚨🚨*`,SEPR,`*🗓️ Data: ${lwBR(d)}*`,SEPR,"*Legenda:*","✅-Presente","❌-Ausente"];
-  if(ord.some(m=>lanc[m.n]==="Staff"))cab.push("✅ (staff)-Presente no staff");
-  const blocos=blocosPorGrau(ord).map(b=>b.map(m=>{const x=mk(lanc[m.n]);return lwNome(m)+(x?" "+x:"")}).join("\n"));
-  return zapFormatar(cab.join("\n")+"\n\n"+blocos.join(ENTRE_GRAUS))}
 async function nuvemEnviar(dados,msg){const N=DADOS.nuvem;if(!N||!N.url)return false;
   let quem="";try{quem=sessionStorage.getItem("painel_email")||""}catch(e){}
   try{const r=await fetch(N.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({chave:N.chave,quem,dados})});
@@ -4564,18 +4481,6 @@ function acIrmaos(regs){const A=ACX||{},mapa=A.mapa||{},push=A.push||{};
     '<p class="nota" style="margin-top:10px">"App instalado" e "navegador" aparecem a partir das entradas feitas depois desta atualização. Os avisos contam os aparelhos registrados com o e-mail de cada irmão.</p>'}
 // ---- Fotos (só no ADM): galeria com download ----
 let lbK=0;
-function montarFotos(){const F=DADOS.fotos||[],g=$("galeria");if(!g)return;
-  const bt=document.querySelector('.lateral button[data-v="fotos"]');if(bt)bt.hidden=!F.length;
-  g.innerHTML=F.length?F.map((f,k)=>`<button type="button" data-foto="${k}" aria-label="Abrir ${esc(f.n)}"><img src="${f.d}" alt="" loading="lazy"></button>`).join("")
-    :'<div class="vazio">Nenhuma foto ainda. Coloque as fotos na pasta fotos_galeria e rode o GerarPainel.</div>';
-  g.onclick=ev=>{const b=ev.target.closest("[data-foto]");if(b)abrirFoto(+b.dataset.foto)};
-  $("lbFechar").onclick=()=>{$("lightbox").hidden=true};
-  $("lbAnt").onclick=()=>abrirFoto((lbK-1+F.length)%F.length);$("lbProx").onclick=()=>abrirFoto((lbK+1)%F.length);
-  $("lightbox").onclick=ev=>{if(ev.target.id==="lightbox")$("lightbox").hidden=true};
-  document.addEventListener("keydown",ev=>{if($("lightbox").hidden)return;
-    if(ev.key==="Escape")$("lightbox").hidden=true;else if(ev.key==="ArrowLeft")$("lbAnt").click();else if(ev.key==="ArrowRight")$("lbProx").click()})}
-function abrirFoto(k){const f=(DADOS.fotos||[])[k];if(!f)return;lbK=k;
-  $("lbImg").src=f.d;$("lbBaixar").href=f.d;$("lbBaixar").download=`Insanos_${DIV_NOME.replace(/\s+/g,"_")}_${f.n}`;$("lightbox").hidden=false}
 function montarLancamento(){
   if(MODO!=="adm")return;
   document.body.classList.add("adm");
@@ -4687,9 +4592,6 @@ function lancZapAtualiza(){if(!$("lZapPrev"))return;const txt=lancZapTexto();$("
   $("lZapAviso").textContent=(lancInfo&&lancInfo.padrao?"Evento sem as informações da Lista: a mensagem sai como lista de presença.":"Leva todas as informações da Lista.")+" Ao salvar, ela vai também no aviso de \"Painel atualizado\", para o comando mandar no grupo."}
 function lancResumo(){const I=lancInfo||lancInfoPadrao($("lNome").value),f=Object.assign({},I.f||{});if($("lData").value)f.data=$("lData").value;let L={};try{if(I.tipo==="reuniao")L=lwSede(f)||{}}catch(_){}
   return {tipo:I.tipo,tnome:(LW_TIPOS[I.tipo]||{}).nome||I.tipo,hora:f.hora||f.conc_cheg||f.pe_hora||"",local:L.local||f.local||f.destino||"",endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:I.mapas!==false,f}}
-function lwInfoAtual(){const f=Object.assign({},lw.f[lw.tipo]||{});let L={};try{if(lw.tipo==="reuniao")L=lwSede(f)||{}}catch(_){}   // a sede só vale para reunião
-  return {tipo:lw.tipo,tnome:(LW_TIPOS[lw.tipo]||{}).nome||lw.tipo,hora:f.hora||f.conc_cheg||f.pe_hora||"",local:L.local||f.local||f.destino||"",
-    endereco:L.endereco||f.endereco||f.pe_end||"",obs:f.obs||"",mapas:!!lw.mapas,f}}   // motivo de cada falta (❌): vem da Lista ou é digitado aqui; vai para a aba Justificativas
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
 function lancEventos(){const s=$("lEv");if(!s)return;const evs=EV_TODOS.map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
   s.innerHTML=`<option value="novo">➕ Novo ou alterar evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${evConv(e.d,e.e)?"🤝 ":""}${esc(e.e)}</option>`).join("");s.value="novo";
