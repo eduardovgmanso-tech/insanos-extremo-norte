@@ -649,6 +649,7 @@ PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situaçã
 INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
 APAGAR_SITE = set()    # arquivos a tirar do site (ex.: flys de eventos com mais de 6 meses)
 CATS_RAW = []          # (data, evento) marcados como convidado na aba Categorias
+CATS_SET = set()       # o mesmo, já com a data em AAAA-MM-DD
 EVENTOS_CONV = []      # eventos em que a divisão foi como convidada (não contam na porcentagem dos irmãos)
 EXCLUIDOS = []         # eventos excluídos (aba Excluidos), para restaurar pela Gestão
 APH = []               # APH da regional (aba APH): [{pos, nome, tel, st, quando}]; os irmãos só recebem os autorizados
@@ -1162,28 +1163,30 @@ function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;l
 el.querySelectorAll("[data-mp]").forEach(b=>b.onclick=()=>window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(D.prox[+b.dataset.mp].mapa),"_blank"));
 el.querySelectorAll("[data-wz]").forEach(b=>b.onclick=()=>window.open("https://waze.com/ul?navigate=yes&q="+encodeURIComponent(D.prox[+b.dataset.wz].mapa),"_blank"));
   el.querySelectorAll("[data-r]").forEach(b=>b.onclick=async()=>{const e=D.prox[+b.dataset.k],r=b.dataset.r;
-    try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
-      loc[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(loc))}catch(_){}proxDesenha();
-      if(r==="vou")alert("✅ Presença confirmada! Valeu, irmão. 🤝");else motivoPerguntar(e)}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}})}
+    if(r==="nao"&&!e.c){motivoPerguntar(e,true);return}   // evento oficial: o motivo é obrigatório (a resposta vai junto com ele)
+    try{await rsvpEnviar(e,r);if(r==="vou")alert("✅ Presença confirmada! Valeu, irmão. 🤝");else motivoPerguntar(e,false)}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}})}
+async function rsvpEnviar(e,r){await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"✋|"+r+"|"+e.d+"|"+e.tk+"|"+e.e,aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
+  let l={};try{l=JSON.parse(localStorage.getItem("rsvp_"+D.email)||"{}")}catch(_){}l[e.d+"|"+e.e]=r==="vou"?"sim":"nao";try{localStorage.setItem("rsvp_"+D.email,JSON.stringify(l))}catch(_){}proxDesenha()}
 // ---- 📝 o motivo de quem não vai: o próprio irmão informa (vai para a aba Justificativas e já aparece no Lançar do comando) ----
 function motivoGuardado(e){try{return (JSON.parse(localStorage.getItem("rsvp_mot_"+D.email)||"{}"))[e.d+"|"+e.e]||""}catch(_){return ""}}
-function motivoPerguntar(e){if(!e||document.querySelector(".mot-cx"))return;const v=document.createElement("div");v.className="fa-veu";
+function motivoPerguntar(e,obrig){if(!e||document.querySelector(".mot-cx"))return;const v=document.createElement("div");v.className="fa-veu";
   const ops=[["💼","Trabalho"],["👨‍👩‍👧","Família"],["🩺","Saúde"],["✈️","Viagem"]];
-  v.innerHTML=`<div class="fa-cx mot-cx" role="dialog" aria-label="Qual o motivo?"><h3 style="margin:0 0 4px">👍 Resposta registrada</h3>
-    <p class="nota" style="margin:0 0 12px">Você não vai na <b>${es(e.e)}</b>. Quer dizer o motivo? Ele vai só para o comando.</p>
+  v.innerHTML=`<div class="fa-cx mot-cx" role="dialog" aria-label="Qual o motivo?"><h3 style="margin:0 0 4px">${obrig?"❌ Qual o motivo?":"👍 Resposta registrada"}</h3>
+    <p class="nota" style="margin:0 0 12px">${obrig?`Você não vai na <b>${es(e.e)}</b>. Nos eventos oficiais, o motivo é obrigatório: escolha um para enviar a sua resposta. Ele vai só para o comando.`:`Você não vai na <b>${es(e.e)}</b>. Quer dizer o motivo? Ele vai só para o comando.`}</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${ops.map(([i,t])=>`<button type="button" class="mot-op" data-mot="${t}"><span style="font-size:22px">${i}</span>${t}</button>`).join("")}</div>
     <div style="display:flex;gap:8px;margin:10px 0 4px"><input type="text" id="motOutro" maxlength="60" placeholder="Outro motivo…" class="mot-in"><button type="button" class="mot-ok" id="motOutroOk">Enviar</button></div>
-    <button type="button" class="fa-fechar" data-mot="">Prefiro não dizer</button></div>`;
+    <button type="button" class="fa-fechar" data-mot="">${obrig?"Cancelar (não responder agora)":"Prefiro não dizer"}</button></div>`;
   const fim=async mot=>{v.remove();if(!mot){return}
-    try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"📝|"+e.d+"|"+e.tk+"|"+e.e+"|"+mot,
+    try{if(obrig)await rsvpEnviar(e,"nao");   // oficial: primeiro a resposta, depois o motivo
+      await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"📝|"+e.d+"|"+e.tk+"|"+e.e+"|"+mot,
       aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));   // e acorda a nuvem
       let g={};try{g=JSON.parse(localStorage.getItem("rsvp_mot_"+D.email)||"{}")}catch(_){}g[e.d+"|"+e.e]=mot;try{localStorage.setItem("rsvp_mot_"+D.email,JSON.stringify(g))}catch(_){}
-      proxDesenha();alert("📝 Motivo enviado ("+mot+"). Valeu por avisar, irmão!")}catch(_){alert("Não consegui enviar o motivo agora. Tente de novo em instantes.")}};
+      proxDesenha();alert((obrig?"👍 Resposta e motivo enviados (":"📝 Motivo enviado (")+mot+"). Valeu por avisar, irmão!")}catch(_){alert("Não consegui enviar o motivo agora. Tente de novo em instantes.")}};
   v.onclick=ev=>{const b=ev.target.closest("[data-mot]");if(b)return fim(b.dataset.mot);if(ev.target===v)fim("")};
   v.querySelector("#motOutroOk").onclick=()=>{const t=v.querySelector("#motOutro").value.trim();if(t)fim(t)};document.body.appendChild(v)}
 // veio pelo aviso "toque para dizer o motivo": abre a pergunta daquele evento
 if(location.hash.startsWith("#motivo|")){try{const [,d,ev]=location.hash.split("|").map(decodeURIComponent);history.replaceState(null,"",location.pathname);
-  const e=(D.prox||[]).find(x=>x.d===d&&x.e===ev);if(e)setTimeout(()=>motivoPerguntar(e),600)}catch(_){}}
+  const e=(D.prox||[]).find(x=>x.d===d&&x.e===ev);if(e)setTimeout(()=>motivoPerguntar(e,!e.c),600)}catch(_){}}
 proxDesenha();if(location.hash==="#eventos"){const x=document.getElementById("eventos");if(x){x.open=true;x.scrollIntoView({behavior:"smooth"})}}
 // ---- 🎂 próximos aniversários e os parabéns (WhatsApp + notificação para o aniversariante) ----
 (function(){const el=document.getElementById("anivL");if(!el)return;
@@ -1853,13 +1856,13 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                  "aph": [{"nome": x["nome"], "tel": x["tel"]} for x in APH if x["st"] == "autorizado"],
                  "enq": ({"id": ENQ["id"], "p": ENQ["p"], "ops": ENQ["ops"], "meu": ENQ["votos"].get(email.strip().lower(), ("", ""))[1]}
                          if ENQ and ENQ.get("aberta") else None),
-                 "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]),
+                 "prox": [{"d": e["d"], "e": e["e"], "tk": token_rsvp(email, e["d"], e["e"]), **({"c": 1} if (e["d"], e["e"].strip().lower()) in CATS_SET else {}),
                            **({k: INFO_EV[(e["d"], e["e"].strip().lower())][k] for k in ("hora", "local", "endereco")}
                               if (e["d"], e["e"].strip().lower()) in INFO_EV else {}),
                            "clima": clima_evento(e["d"], lugar_evento(e["d"], e["e"])[1], lugar_evento(e["d"], e["e"])[0]),
                            "mapa": lugar_evento(e["d"], e["e"])[0],
                            "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
-                          for e in sorted(eventos, key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()],
+                          for e in sorted(list(eventos) + list(EVENTOS_CONV), key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()],   # oficiais e de convidado (estes só na agenda, fora da porcentagem)
                  "insp": (lambda ui: {"d": ui["d"], "e": ui["e"], "tk": token_rsvp(email, ui["d"], ui["e"])}
                           if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
                           max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
@@ -3632,6 +3635,7 @@ def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, li
             extra = {"para": em, "ru": ACESSOS_URL} if ACESSOS_URL and "@" in em else {}
             if rsvp and extra:   # botões ✅ Vou / ❌ Não vou: a resposta leva a assinatura daquele irmão
                 extra["rsvp"] = {"d": rsvp["d"], "e": rsvp["e"], "tk": token_rsvp(em, rsvp["d"], rsvp["e"]), "m": rsvp.get("m", "ev"),
+                                 **({"c": 1} if (rsvp["d"], str(rsvp["e"]).strip().lower()) in CATS_SET else {}),   # convidado: motivo opcional
                                  "ou": OTP_URL if otp_ativo() else ""}   # para acordar o painel na hora (a lista atualiza em 1 a 3 minutos)
             dados_i = json.dumps(dict(json.loads(dados), **extra), ensure_ascii=False) if extra else dados
             wp.webpush(subscription_info=info, data=dados_i, vapid_private_key=ARQ_VAPID_PEM,
@@ -4225,6 +4229,9 @@ self.addEventListener("notificationclick", e => {
     e.waitUntil(clients.openWindow("adm.html#motivo|" + encodeURIComponent(dd.mot.d) + "|" + encodeURIComponent(dd.mot.e))); return;
   }
   if (dd.rsvp && dd.rsvp.m === "ins" && !e.action) { e.waitUntil(clients.openWindow("adm.html#insight")); return; }
+  if (dd.rsvp && e.action === "nao" && !dd.rsvp.c && dd.rsvp.m !== "ins") {   // evento oficial: o "Não vou" pede o motivo (abre o app na pergunta)
+    e.waitUntil(clients.openWindow("adm.html#motivo|" + encodeURIComponent(dd.rsvp.d) + "|" + encodeURIComponent(dd.rsvp.e))); return;
+  }
   if (dd.rsvp && (e.action === "vou" || e.action === "nao") && dd.ru && dd.para) {   // respondeu direto na notificação
     const r = dd.rsvp, vou = e.action === "vou";
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
@@ -4624,6 +4631,7 @@ def main():
     # não contam na porcentagem do irmão (Meu painel, carteirinha, conquistas, honrarias, ranking); o comando vê pelo seletor da Presença
     global EVENTOS_CONV
     cats = {((str(d0)[:10] if isinstance(d0, str) else data_iso(d0, ano)), n0) for d0, n0 in CATS_RAW}
+    CATS_SET.clear(); CATS_SET.update(cats)   # (data, evento) dos eventos de convidado: o motivo do "Não vou" é opcional só neles
     EVENTOS_CONV = [e for e in eventos if (e["d"], e["e"].strip().lower()) in cats]
     eventos = [e for e in eventos if (e["d"], e["e"].strip().lower()) not in cats]
     if EVENTOS_CONV:
