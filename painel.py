@@ -3670,16 +3670,20 @@ def aparelhos_com_avisos():
             cont[em] = cont.get(em, 0) + 1
     return cont
 
+_INSCRITOS = [None, 0.0]   # os celulares cadastrados para os avisos (guardados por 2 minutos na rodada)
+
 def notificar(titulo, corpo, tag="aviso", zap=None, icone=None, so_para=None, link=None, link_rot=None, rsvp=None, imagem=None,
               todos=False, excluir=None, extra=None):
     """Manda a notificação. Sem so_para: só para os celulares do comando (ADM).
     Com so_para: só para os celulares daquele e-mail (lembretes individuais dos irmãos)."""
     if not ACESSOS_URL or not os.path.exists(ARQ_VAPID_PEM):
         return
-    import urllib.request, urllib.parse
-    try:
-        with urllib.request.urlopen(ACESSOS_URL + "?push=1&chave=" + urllib.parse.quote(ACESSOS_CHAVE), timeout=25) as r:
-            inscritos = json.loads(r.read().decode("utf-8"))
+    import urllib.request, urllib.parse, time as _time
+    try:   # a lista dos celulares: buscada uma vez a cada 2 minutos (antes, a cada aviso: 24 convites = 24 buscas)
+        if _INSCRITOS[0] is None or _time.time() - _INSCRITOS[1] > 120:
+            with urllib.request.urlopen(ACESSOS_URL + "?push=1&chave=" + urllib.parse.quote(ACESSOS_CHAVE), timeout=25) as r:
+                _INSCRITOS[0], _INSCRITOS[1] = json.loads(r.read().decode("utf-8")), _time.time()
+        inscritos = _INSCRITOS[0]
     except Exception as e:
         _log(f"Notificação não enviada (não consegui buscar os celulares: {e})"); return
     if not isinstance(inscritos, list) or not inscritos:

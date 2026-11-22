@@ -3790,7 +3790,7 @@ function montarListas(){
     if($("lEv"))$("lEv").value="novo";
     lancInfo={tipo:lw.tipo==="original"?"reuniao":lw.tipo,f:Object.assign({},lw.f[lw.tipo]||{}),mapas:!!lw.mapas};
     {const fl=lwFlyLer();window.__lancFly=fl?{fl,data:iso||"",tit:String((lw.f[lw.tipo]||{}).titulo||"").trim()}:null;   // o fly acompanha o evento (na memória do app)
-      try{if(fl){localStorage.setItem("lanc_fly",fl);localStorage.setItem("lanc_fly_data",iso||"")}else{localStorage.removeItem("lanc_fly");localStorage.removeItem("lanc_fly_data")}}catch(e){relatarErro("Levar para Lançar: guardar o fly",e)}}   // a lista inteira vai para o Lançar
+      try{if(fl){localStorage.setItem("lanc_fly",fl);localStorage.setItem("lanc_fly_data",iso||"");localStorage.setItem("lanc_fly_tit",String((lw.f[lw.tipo]||{}).titulo||"").trim())}else{["lanc_fly","lanc_fly_data","lanc_fly_tit"].forEach(k=>localStorage.removeItem(k))}}catch(e){relatarErro("Levar para Lançar: guardar o fly",e)}}   // a lista inteira vai para o Lançar
     // e a Lista fica limpa, pronta para a próxima
     try{localStorage.removeItem("lw_"+lw.tipo);localStorage.removeItem("lw_m_"+lw.tipo);localStorage.removeItem("lw_j_"+lw.tipo)}catch(_){}
     delete lw.f[lw.tipo];lw.marca={};lw.just={};if($("lwColar"))$("lwColar").value="";if($("lwLido"))$("lwLido").textContent="";
@@ -3954,11 +3954,14 @@ async function lancFlyChecar(){const d=$("lData")&&$("lData").value,n=$("lNome")
 function lwFlyArquivoDe(d){if(!d||d.indexOf(",")<0)return null;try{const b=atob(d.split(",")[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new File([u],"fly.jpg",{type:"image/jpeg"})}catch(_){return null}}
 function lancFlyBotao(){const z=$("lZapBtn");if(!z)return;z.innerHTML=lancFlyArq?`<img src="${URL.createObjectURL(lancFlyArq)}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px">📤 Enviar a lista alterada (com o fly)`:"📲 Enviar a lista alterada"}
 // o fly da lista para o aviso do comando: só se o lançamento for do mesmo evento da lista; versão pequena (cabe na planilha)
-function lancFlyLocal(d){const n=($("lNome")&&$("lNome").value.trim().toLowerCase())||"",M=window.__lancFly;
-  if(M&&M.fl&&(!M.data||M.data===d))return M.fl;   // 1º: o que veio da Lista agora (memória do app)
-  try{const s=localStorage.getItem("lanc_fly")||"",dl=localStorage.getItem("lanc_fly_data")||"";if(s&&(!dl||dl===d))return s}catch(_){}   // 2º: o guardado no Levar
+function lancNomeIgual(a,b){const s=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const x=s(a),y=s(b);return !!(x&&y&&(x===y||x.includes(y)||y.includes(x)))}   // o mesmo evento: o nome bate (sem acentos, emojis e maiúsculas)
+function lancFlyLocal(d){const n=($("lNome")&&$("lNome").value.trim())||"",M=window.__lancFly;
+  if(M&&M.fl&&M.data===d&&lancNomeIgual(M.tit,n))return M.fl;   // 1º: o que veio da Lista agora (memória do app), do mesmo evento
+  try{const s=localStorage.getItem("lanc_fly")||"",dl=localStorage.getItem("lanc_fly_data")||"",tl=localStorage.getItem("lanc_fly_tit")||"";
+    if(s&&dl===d&&lancNomeIgual(tl,n))return s}catch(_){}   // 2º: o guardado no Levar, do mesmo evento
   try{for(const k of Object.keys(localStorage)){if(!k.startsWith("lw_fly_"))continue;let m=null;try{m=JSON.parse(localStorage.getItem("lw_flymeta_"+k.slice(7))||"null")}catch(_){}
-    if(m&&((m.data&&lwDataISO(m.data)===d)||(m.tit&&n&&m.tit.toLowerCase()===n)))return localStorage.getItem(k)||""}}catch(_){}   // 3º: um fly da Lista do mesmo evento
+    if(m&&m.data&&lwDataISO(m.data)===d&&lancNomeIgual(m.tit,n))return localStorage.getItem(k)||""}}catch(_){}   // 3º: um flyer da Lista do mesmo evento (data e nome)
   return ""}
 async function lancFlyPequeno(d,limite){const src=lancFlyLocal(d);if(!src)return "";limite=Math.min(38000,limite||38000);
   const im=await new Promise((ok,er)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=er;i.src=src});
@@ -4715,6 +4718,7 @@ async function salvarLancamento(){
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
   const orig=(()=>{const k=($("lEv")||{}).value;const e=k&&k!=="novo"?EV_TODOS[+k]:null;return e?{d:e.d,e:e.e}:null})();   // o evento que estava aberto (se mudou o nome ou a data)
   if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca)."+flySt)){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);
+    window.__lancFly=null;try{["lanc_fly","lanc_fly_data","lanc_fly_tit"].forEach(k=>localStorage.removeItem(k))}catch(_){}   // o flyer levado já foi: não sobra para o próximo
     try{lancLocal({d,n,cat:($("lCat")||{}).value||"oficial",orig,info:lancInfo,
       p:M_FULL.map(m=>{const v=lanc[m.n];return v==="Sim"?1:v==="Staff"?"S":v==="Não"?0:v==="-"?"-":null}),
       j:Object.fromEntries(Object.entries(lancJust).filter(([k,v])=>lanc[k]==="Não"&&String(v||"").trim()))},true)}catch(e){relatarErro("Lançar: mostrar na hora",e)}
