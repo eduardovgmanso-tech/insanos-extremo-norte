@@ -3066,6 +3066,24 @@ function incentivoAbrir(o){if(!o||!(o.email||(o.multi&&o.multi.length))||documen
       avisoRapido("💬 Mensagem enviada para "+(o.multi?alvos.length+" irmãos":(o.ap||"o irmão"))+". Chega em 1 a 3 minutos.")}catch(e){relatarErro("Incentivo: enviar",e);alert("Não consegui enviar agora. Tente de novo em instantes.")}};
   document.body.appendChild(v)}
 setTimeout(()=>{if(location.hash.startsWith("#incentivo|")){try{const o=JSON.parse(decodeURIComponent(location.hash.slice(11)));history.replaceState(null,"",location.pathname);incentivoAbrir(o)}catch(_){}}},900);
+// ---- ⏳ o lançamento aparece na hora para quem salvou (a nuvem atualiza o app dos outros em ~1 minuto) ----
+function geradoTs(){if(DADOS.gts)return +DADOS.gts;const g=String(DADOS.gerado||DADOS.ger||""),m=g.match(/(\d{2})\/(\d{2})\/(\d{4})\D+(\d{1,2}):(\d{2})/);return m?new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5]).getTime():0}
+function lancLocal(x,guardar){const low=s=>String(s||"").trim().toLowerCase();let base=null;
+  [EV_OF,EV_CV].forEach(L=>{for(let k=L.length-1;k>=0;k--){const e=L[k];
+    if((e.d===x.d&&low(e.e)===low(x.n))||(x.orig&&e.d===x.orig.d&&low(e.e)===low(x.orig.e))){base=base||e;L.splice(k,1)}}});
+  const ev=Object.assign({},base||{},{d:x.d,e:x.n,p:x.p,j:x.j,info:x.info||(base&&base.info),pend:1});
+  const ord=(a,b)=>a.d<b.d?-1:a.d>b.d?1:0;(x.cat==="convidado"?EV_CV:EV_OF).push(ev);EV_OF.sort(ord);EV_CV.sort(ord);
+  EV_CVSET.clear();EV_CV.forEach(e=>EV_CVSET.add(e.d+"|"+low(e.e)));EV_TODOS.length=0;EV_OF.concat(EV_CV).sort(ord).forEach(e=>EV_TODOS.push(e));
+  try{lancEventos()}catch(_){}try{render()}catch(_){}
+  if(guardar){let L=[];try{L=JSON.parse(localStorage.getItem("lanc_pend")||"[]")}catch(_){}
+    L=L.filter(y=>!(y.d===x.d&&low(y.n)===low(x.n)));L.push(Object.assign({},x,{ts:Date.now()}));try{localStorage.setItem("lanc_pend",JSON.stringify(L.slice(-10)))}catch(_){}
+    lancPendAviso()}}
+function lancPendAviso(){let b=$("lancPend");if(!b){document.body.insertAdjacentHTML("beforeend",'<div id="lancPend" role="status" style="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:9000;max-width:92vw;background:#1d1a16;border:1px solid #E9B949;color:#ECE7DC;border-radius:999px;padding:9px 16px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.5)"></div>');b=$("lancPend")}
+  b.textContent="⏳ Lançamento enviado: já aparece aqui; para os irmãos, em cerca de 1 minuto.";b.hidden=false;clearTimeout(lancPendAviso.t);lancPendAviso.t=setTimeout(()=>{b.hidden=true},12000)}
+// ao abrir: os lançamentos feitos aqui que a versão da nuvem ainda não trouxe continuam aparecendo
+setTimeout(()=>{let L=[];try{L=JSON.parse(localStorage.getItem("lanc_pend")||"[]")}catch(_){}const g=geradoTs();
+  const vivos=L.filter(y=>y.ts>g&&Date.now()-y.ts<20*60*1000);try{localStorage.setItem("lanc_pend",JSON.stringify(vivos))}catch(_){}
+  vivos.forEach(y=>lancLocal(y,false))},700);
 // ---- 🚑 APH da regional (Gestão): o comando cadastra os dois; o app abre o SMS com o pedido de autorização ----
 try{localStorage.setItem("aph_ok",JSON.stringify((DADOS.aph||[]).filter(a=>a.st==="autorizado").map(a=>({nome:a.nome,tel:a.tel}))))}catch(_){}
 function aphAbrir(){if(document.querySelector(".aph-cx"))return;const L=DADOS.aph||[],v=document.createElement("div");v.className="fa-veu";
@@ -4695,7 +4713,12 @@ async function salvarLancamento(){
   let flySt="";try{const sobra=44000-JSON.stringify(dados).length-600,tem=!!lancFlyLocal(d),fl=tem&&sobra>8000?await lancFlyPequeno(d,sobra):"";if(fl)dados.fly=fl;
     flySt=fl?"\n\n📎 Fly: foi junto (aparece no aviso do comando).":tem?"\n\n📎 Fly: não foi (a lista ficou grande demais para levar a imagem).":"\n\n📎 Fly: não foi (nenhum fly lido na Lista para este evento)."}catch(e){flySt="\n\n📎 Fly: não foi (erro ao preparar a imagem).";relatarErro("Lançar: preparar o fly",e)}   // o fly (versão pequena): só o espaço que sobra (o recebedor corta em 45 mil caracteres)   // a lista do evento (aba Eventos) e a mensagem pronta para o aviso do comando
   const slug=n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"evento";
-  if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca)."+flySt)){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);return}
+  const orig=(()=>{const k=($("lEv")||{}).value;const e=k&&k!=="novo"?EV_TODOS[+k]:null;return e?{d:e.d,e:e.e}:null})();   // o evento que estava aberto (se mudou o nome ou a data)
+  if(await nuvemEnviar(dados,"Evento enviado para a planilha (aba Presenca)."+flySt)){$("lSalvar").textContent="Enviado para a planilha ✓";setTimeout(()=>$("lSalvar").textContent="💾 Salvar na nuvem",4000);
+    try{lancLocal({d,n,cat:($("lCat")||{}).value||"oficial",orig,info:lancInfo,
+      p:M_FULL.map(m=>{const v=lanc[m.n];return v==="Sim"?1:v==="Staff"?"S":v==="Não"?0:v==="-"?"-":null}),
+      j:Object.fromEntries(Object.entries(lancJust).filter(([k,v])=>lanc[k]==="Não"&&String(v||"").trim()))},true)}catch(e){relatarErro("Lançar: mostrar na hora",e)}
+    return}
   const arq=new File([JSON.stringify(dados,null,1)],`lancamento_${d}_${slug}.json`,{type:"application/json"});
   if(podeCompartilhar()){try{await navigator.share({files:[arq],title:arq.name});return}catch(e){if(e&&e.name==="AbortError")return}}
   const url=URL.createObjectURL(arq),a=document.createElement("a");a.href=url;a.download=arq.name;document.body.appendChild(a);a.click();a.remove();

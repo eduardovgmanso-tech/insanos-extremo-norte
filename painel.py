@@ -2355,17 +2355,17 @@ VERSAO_ATUAL = ""   # assinatura do conteúdo publicado: muda só quando o paine
 
 def snip_versao(auto):
     """Confere se há versão nova quando o app volta para a tela (app que ficou "dormindo" mostra a tela antiga)."""
-    return ('<script>(function(){var V="__VERSAO__",AUTO=' + ("true" if auto else "false") + ';if(!V||V.indexOf("__")===0)return;var b=null,ult=0,iv=0;'
+    return ('<script>(function(){var V="__VERSAO__",AUTO=' + ("true" if auto else "false") + ';if(!V||V.indexOf("__")===0)return;var b=null,ult=0,iv=0,t0=Date.now(),mexeu=false;addEventListener("pointerdown",function(){mexeu=true},{once:true,capture:true});'
             'function faixa(t,f){if(!b){b=document.createElement("div");b.id="verFaixa";b.style.cssText="position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:99999;background:#E9B949;color:#141210;border-radius:14px;padding:12px 14px;font:700 14px Barlow,Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);text-align:center;cursor:pointer";document.body.appendChild(b)}b.textContent=t;b.onclick=f;b.style.display="block"}'
             'function some(){if(b)b.style.display="none"}'
             'function ver(){if(AUTO&&!document.getElementById("cpf")){clearInterval(iv);return}'   # recarregar sozinho só na tela de entrada
             'var ag=Date.now();if(ag-ult<60000)return;ult=ag;fetch("versao.json?t="+ag,{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(j){if(!j||!j.v)return;'
-            'if(j.v!==V){if(AUTO){location.reload();return}faixa("🔄 Tem uma versão nova do painel · toque para atualizar",function(){location.reload()})}else some()})'
+            'if(j.v!==V){var ja="";try{ja=sessionStorage.getItem("recarregou_v")||""}catch(_){}if(ja!==j.v&&(AUTO||(!mexeu&&Date.now()-t0<20000))){try{sessionStorage.setItem("recarregou_v",j.v)}catch(_){}location.reload();return}faixa("🔄 Tem uma versão nova do painel · toque para atualizar",function(){location.reload()})}else some()})'
             '.catch(function(){faixa("📴 Sem internet · você está vendo a última versão guardada",some)})}'
             'document.addEventListener("visibilitychange",function(){if(!document.hidden)ver()});'
             'addEventListener("focus",ver);addEventListener("online",function(){ult=0;ver()});'
             'try{navigator.serviceWorker&&navigator.serviceWorker.addEventListener("message",function(e){if(e.data&&e.data.tipo==="verificar_versao"){ult=0;setTimeout(ver,1500)}})}catch(_){}'
-            'iv=setInterval(function(){if(!document.hidden)ver()},120000);setTimeout(ver,3000)})();</script>')
+            'iv=setInterval(function(){if(!document.hidden)ver()},120000);setTimeout(ver,400)})();</script>')
 
 def montar_lembretes(membros, eventos, eventos_ins, pag):
     """Pendências de cada irmão com e-mail: insights sem resposta (últimos 7 dias), eventos sem confirmação
@@ -3847,6 +3847,24 @@ def agendar(ativar=True):
 GITHUB_USUARIO = "eduardovgmanso-tech"
 GITHUB_REPO = "insanos-extremo-norte"
 SITE_URL = f"https://{GITHUB_USUARIO}.github.io/{GITHUB_REPO}/"
+PUBLICADO = [False]   # nesta rodada, o app novo foi enviado ao GitHub
+
+def esperar_site(limite=120):
+    """Espera o site (GitHub Pages) colocar no ar a versão nova antes dos avisos: quem toca no aviso já abre o app atualizado."""
+    import urllib.request, time
+    if not PUBLICADO[0] or not VERSAO_ATUAL:
+        return
+    ini = time.time()
+    while time.time() - ini < limite:
+        try:
+            with urllib.request.urlopen(f"{SITE_URL}versao.json?t={int(time.time() * 1000)}", timeout=8) as r:
+                if json.loads(r.read().decode("utf-8")).get("v") == VERSAO_ATUAL:
+                    print(f"Site atualizado (versão {VERSAO_ATUAL}) em {time.time() - ini:.0f} s: agora os avisos.")
+                    return
+        except Exception:
+            pass
+        time.sleep(5)
+    print(f"Aviso: o site não mostrou a versão nova em {limite} s; os avisos vão assim mesmo.")
 # No link, o ADM abre só com os CPFs do comando (a senha coletiva não vale lá). Troque para True se quiser liberar.
 ADM_NO_LINK_ACEITA_SENHA_COLETIVA = False
 # Nome completo e CPF dos integrantes no ADM do link (aba Kit/colete). True = vão para o link; False = só no computador.
@@ -3957,6 +3975,7 @@ def publicar(arquivos):
         try:   # o jeito rápido: tudo numa única alteração (uma publicação do site só)
             n_ = _publicar_lote(cfg, token, arquivos, quando)
             print(f"Publicado no link (de uma vez, {n_} arquivo(s) alterado(s)): {SITE_URL}adm.html")
+            PUBLICADO[0] = True
             return True
         except Exception as e_:
             print(f"Aviso: envio em lote não deu ({type(e_).__name__}: {e_}); enviando arquivo por arquivo.")
@@ -3979,6 +3998,7 @@ def publicar(arquivos):
                 corpo["sha"] = sha
             _github("PUT", base + nome, token, corpo)
         print(f"Publicado no link: {SITE_URL}adm.html  (a versão nova aparece em 1 a 2 minutos)")
+        PUBLICADO[0] = True
         return True
     except Exception as e:
         _log(f"Aviso: não consegui publicar no link ({e}). Os arquivos do computador foram gerados normalmente.")
@@ -4795,6 +4815,7 @@ def main():
     com_versao = lambda t: t.replace('src="fundo.mp4"', f'src="fundo.mp4?v={ver_video}"') if ver_video else t
 
     def gravar(caminho, dados, senha=None, sem_js="", extras=(), rotulo="E-mail", so_geral=False):
+        dados = dict(dados, gts=int(datetime.datetime.now().timestamp() * 1000))   # a hora da geração (o app sabe se já traz um lançamento feito no celular)
         pagina = com_versao(html.replace("__NOSCRIPT__", sem_js, 1).replace("__DATA__", json.dumps(dados, ensure_ascii=False), 1))
         pagina = pagina.replace("</body>", snip_versao(False) + "</body>", 1).replace("__VERSAO__", VERSAO_ATUAL)
         if dados.get("modo") == "adm":       # SOS dentro do painel ADM (quadrado do topo)

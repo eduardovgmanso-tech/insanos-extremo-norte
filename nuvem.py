@@ -2198,6 +2198,11 @@ def main():
         g._TEMPO = _tempo   # as marcas de dentro da montagem do app
         g.main()
         _tempo("montar e publicar o app")
+        try:   # os avisos só saem com o site já atualizado (quem toca no aviso abre o app novo); o SOS não espera
+            g.esperar_site()
+        except Exception as e:
+            print(f"(espera do site: {type(e).__name__}: {e})")
+        _tempo("esperar o site ficar com a versão nova")
         try:
             escrever_otp(api, planilha_id, g)
         except Exception as e:
