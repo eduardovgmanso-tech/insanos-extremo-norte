@@ -4355,6 +4355,12 @@ self.addEventListener("notificationclick", e => {
                 arq[nome] = f.read()
     return arq
 
+def _marca(rotulo):
+    """⏱️ Marca de tempo no relatório (a nuvem liga isso; no PC não faz nada)."""
+    f = globals().get("_TEMPO")
+    if f:
+        f(rotulo)
+
 def publicar_se_mudou(arquivos, assinatura, forcar=False):
     """Publica só quando o conteúdo mudou (ou quando forçado pelo PublicarAgora.bat)."""
     forcar = forcar or PUBLICAR_SEMPRE
@@ -4758,8 +4764,10 @@ def main():
             GERAL_RAW = pagina
         if senha:
             base = senhas + (senhas_so_geral if so_geral else [])
+            _marca("   montar a página (" + os.path.splitext(os.path.basename(caminho or SAIDA_ADM))[0][-20:] + ")")
             pagina = proteger(pagina, base + [x for x in extras if x not in base],
                               os.path.splitext(os.path.basename(caminho or SAIDA_ADM))[0], senha, img, rotulo)
+            _marca("   trancar com a chave de cada irmão")
             pagina = com_versao(pagina)
         if caminho:
             with open(caminho, "w", encoding="utf-8") as f:
@@ -5047,9 +5055,11 @@ def main():
     print("Acesso ao geral e ao ADM: e-mail de " + ", ".join(AUTORIZADOS) + " (ou a senha coletiva no geral)")
     if AUTORIZADOS_SO_GERAL:
         print("Só o painel geral, com o CPF: " + ", ".join(AUTORIZADOS_SO_GERAL))
+    _marca("   preparar a publicação")
     publicar_se_mudou({"index.html": INDEX_SO_ADM, "adm.html": pagina_adm_link, **arquivos_app(), **({"novo.html": pagina_novo} if pagina_novo else {})},
                       _assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm),
                       forcar="--publicar" in sys.argv)
+    _marca("   publicar no GitHub")
 
 if __name__ == "__main__":
     main()

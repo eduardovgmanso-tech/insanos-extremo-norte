@@ -1994,6 +1994,16 @@ def preparar_ambiente():
         json.dump({"token": os.environ.get("GITHUB_TOKEN", ""), "usuario": dono, "repo": repo}, f)
     return tok, dono, repo
 
+_T0 = [None, None]   # ⏱️ início da rodada e a última marca
+def _tempo(rotulo):
+    """⏱️ Escreve no relatório quanto tempo levou cada etapa da rodada (para achar onde está o peso)."""
+    import time
+    agora = time.time()
+    if _T0[0] is None:
+        _T0[0] = _T0[1] = agora
+    print(f"⏱️ {rotulo}: {agora - _T0[1]:.1f} s (total {agora - _T0[0]:.1f} s)")
+    _T0[1] = agora
+
 class _Coletor:
     """Repete tudo o que a rodada escreve no relatório e guarda as linhas de "Aviso" (os problemas que ninguém via)."""
     def __init__(self, base):
@@ -2069,9 +2079,12 @@ def main():
             print(f"Aviso: mensagens não processadas ({type(e).__name__}: {e}).")
         acompanhar_sos(api, planilha_id, g)
         return
+    _tempo("início (conexão com o Google)")
     aba_estado = estado_carregar(api, planilha_id)
+    _tempo("carregar a memória (_estado)")
     migrar_entradas(api, planilha_id)
     resumo_fila = processar_fila(api, planilha_id)
+    _tempo("fila de lançamentos")
     try:
         limpar_flys(g)   # os flys de eventos com mais de 6 meses saem da pasta e do site
         getattr(g, "APAGAR_SITE", set()).update(FLYS_APAGAR)   # e os dos eventos excluídos
@@ -2106,6 +2119,7 @@ def main():
     xlsx = os.path.join(PASTA, "Insanos.xlsx")
     print("Lendo a planilha do Google...")
     montar_planilha(ler_google(planilha_id, cred, api), xlsx)
+    _tempo("ler a planilha inteira")
     g.PLANILHA = xlsx
     g.ARQ_TOKEN = tok
     g.GITHUB_USUARIO, g.GITHUB_REPO = dono, repo
@@ -2145,8 +2159,12 @@ def main():
         print("Notificações: ligadas.")
     # boletos: nas rodadas de hora em hora (8h às 17h) e no botão "Run workflow"; nos lançamentos, não (para ser rápido)
     try:
+        _tempo("antes das respostas")
         if aplicar_respostas(api, planilha_id, g):
             montar_planilha(ler_google(planilha_id, cred, api), xlsx)
+            _tempo("respostas (e ler a planilha de novo)")
+        else:
+            _tempo("respostas (nenhuma nova)")
     except Exception as e:
         print(f"Aviso: respostas dos irmãos não aplicadas ({type(e).__name__}: {e}).")
     try:
@@ -2175,7 +2193,10 @@ def main():
         except Exception as e:
             print(f"Aviso: verificação de pagamentos falhou ({type(e).__name__}: {e}). O painel é gerado mesmo assim.")
     try:
+        _tempo("verificações antes do app")
+        g._TEMPO = _tempo   # as marcas de dentro da montagem do app
         g.main()
+        _tempo("montar e publicar o app")
         try:
             escrever_otp(api, planilha_id, g)
         except Exception as e:
@@ -2335,8 +2356,10 @@ def main():
                 avisar_problemas(g, sys.stdout.avisos)
         except Exception as e:
             print(f"(avisos da rodada: {type(e).__name__}: {e})")
+        _tempo("avisos e tarefas do fim")
         try:
             estado_salvar(api, planilha_id, aba_estado)
+            _tempo("guardar a memória (_estado)")
         except Exception as e:
             print(f"Aviso: não consegui guardar a memória na aba _estado ({e}).")
 
