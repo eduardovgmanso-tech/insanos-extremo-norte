@@ -1013,6 +1013,7 @@ def aplicar_visitante(d):
     return f"visitante liberado: {email} (uma entrada, até {lista[-1]['expira'][8:10]}/{lista[-1]['expira'][5:7]} às {lista[-1]['expira'][11:]})"
 
 RESPOSTAS = []          # respostas "Vou / Não vou" aplicadas nesta rodada (para avisar o comando)
+MOTIVOS_RODADA = {}     # (email, data, evento) -> motivo informado pelo irmão nesta rodada (vai no aviso do comando)
 
 def aplicar_respostas(api, pid, g):
     """Respostas "✅ Vou / ❌ Não vou" dos irmãos (registradas na aba Acessos com a assinatura):
@@ -1024,10 +1025,31 @@ def aplicar_respostas(api, pid, g):
     est = _json_ler("rsvp.json", {"vistos": [], "celulas": {}})
     vistos, celulas = set(est.get("vistos", [])), est.get("celulas", {})
     hoje = datetime.date.today().isoformat()
-    novas, motivos = {}, {}
+    novas, motivos, incs, reps = {}, {}, [], []
     for r in regs:
         r = list(r) + [""] * 5
         pn = str(r[3])
+        if pn.startswith("💬|") or pn.startswith("↩️|"):   # 💬 mensagem do comando para quem não vai · ↩️ a resposta do irmão
+            email = str(r[1]).strip().lower()
+            chave = f"{r[0]}|{email}|{pn[:90]}"
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            try:
+                if pn.startswith("💬|"):
+                    _, para, d, i, tk, nome = pn.split("|", 5)
+                    para = para.strip().lower()
+                    if d >= datetime.date.today().isoformat() and tk == g.token_rsvp("cmd", d, "inc|" + para):
+                        incs.append((str(r[0]), email, para, d, int(i), nome))
+                    else:
+                        print(f"Mensagem de incentivo ignorada (assinatura ou data): {email} → {para}")
+                else:
+                    _, op, d, tk, nome = pn.split("|", 4)
+                    if tk == g.token_rsvp(email, d, nome):
+                        reps.append((str(r[0]), email, op, d, nome))
+            except ValueError:
+                pass
+            continue
         if pn.startswith("📝|"):   # o motivo de quem não vai, informado pelo próprio irmão
             p5 = pn.split("|", 4)
             if len(p5) == 5:
@@ -1112,7 +1134,7 @@ def aplicar_respostas(api, pid, g):
                     if atual != novo:
                         gr.append((f"'{aba}'!{_col(cc)}{linha}", novo))
                     celulas[cel] = novo
-                    feitas.append((ap, nome, resp))
+                    feitas.append((ap, nome, resp, d, email))
         _gravar(api, pid, gr)
     # os motivos (📝) e os "Vou" que tiram um motivo dado antes, na aba Justificativas
     try:
@@ -1130,13 +1152,52 @@ def aplicar_respostas(api, pid, g):
                 if ap_de2.get(email) and not (motivos.get((email, d, nome), ("", ""))[0] > novas[(email, d, nome)][0]):
                     itens.append((d, nome, ap_de2[email], None))
             _just_do_irmao(api, pid, itens)
+            for (email, d, nome), (ts, mot) in motivos.items():
+                MOTIVOS_RODADA[(email, d, nome)] = mot
             if any(m for *_, m in itens):
                 print("Motivos dos irmãos gravados: " + ", ".join(f"{a} ({m})" for _, _, a, m in itens if m))
     except Exception as e:
         print(f"Aviso: motivos dos irmãos não gravados ({type(e).__name__}: {e}).")
+    # 💬 as mensagens de incentivo (uma por irmão por evento) e ↩️ as respostas, que voltam para quem mandou
+    if incs or reps:
+        try:
+            aba_di3, C3, _, _, _ = _di_mapa(api, pid)
+            vdi3 = _ler(api, pid, f"'{aba_di3}'!A1:AN400")
+            ap3 = {str((list(row) + [""] * 40)[C3["email"] - 1]).strip().lower(): str(row[1]).strip()
+                   for row in vdi3[1:] if C3.get("email") and "@" in str((list(row) + [""] * 40)[C3["email"] - 1])}
+            inc = _json_ler("incentivos.json", {})
+            lim = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()
+            inc = {k: x for k, x in inc.items() if k.split("|")[1] >= lim}
+            for ts, de, para, d, i, nome in sorted(incs):
+                k = f"{para}|{d}|{nome}"
+                ap_para, ap_dele = ap3.get(para, "o irmão"), ap3.get(de, "Comando")
+                baixa = i == getattr(g, "INC_BAIXA", -1)
+                if k in inc and not (baixa and not inc[k].get("b") and inc[k].get("i") != i):   # a de baixa adesão pode ir mesmo que já tenha recebido outra (no máximo 2)
+                    if inc[k]["de"] != de:
+                        g.notificar(f"ℹ️ {ap_para} já recebeu uma mensagem", f"{ap3.get(inc[k]['de'], 'Alguém do comando')} já mandou uma mensagem para ele sobre a {nome}.",
+                                    f"inc-ja-{para}-{d}", icone="notif-social.png", so_para=de)
+                    continue
+                frase = str((g.INC_FRASES + [""])[i] if 0 <= i < len(g.INC_FRASES) else "").replace("{evento}", nome)
+                if not frase:
+                    continue
+                g.notificar(f"💬 Mensagem de {ap_dele}", frase, f"inc-{para}-{d}", icone="notif-social.png", so_para=para,
+                            extra={"inc": {"d": d, "e": nome, "tk": g.token_rsvp(para, d, nome)}})
+                inc[k] = {"de": de, "ts": ts, "i": i, "b": bool(baixa or (inc.get(k) or {}).get("b"))}   # as respostas voltam para quem mandou por último
+                print(f"Mensagem de incentivo: {ap_dele} → {ap_para} ({nome}).")
+            for ts, email, op, d, nome in sorted(reps):
+                x = inc.get(f"{email}|{d}|{nome}")
+                if not x or x.get("resp") == op:
+                    continue
+                g.notificar(f"↩️ {ap3.get(email, 'O irmão')} respondeu", f"{g.INC_RESP.get(op, op)} · {nome}", f"inc-r-{email}-{d}",
+                            icone="notif-social.png", so_para=x["de"])
+                x["resp"] = op
+                print(f"Resposta ao incentivo: {ap3.get(email, email)} ({op}).")
+            _json_gravar("incentivos.json", inc)
+        except Exception as e:
+            print(f"Aviso: mensagens de incentivo não processadas ({type(e).__name__}: {e}).")
     _json_gravar("rsvp.json", {"vistos": sorted(vistos)[-800:], "celulas": celulas})
     if feitas:
-        print("Respostas dos irmãos aplicadas: " + ", ".join(f"{a} ({'vai' if r == 'vou' else 'respondeu' if r == 'resp' else 'não vai'})" for a, _, r in feitas))
+        print("Respostas dos irmãos aplicadas: " + ", ".join(f"{a} ({'vai' if r == 'vou' else 'respondeu' if r == 'resp' else 'não vai'})" for a, _, r, *_ in feitas))
     RESPOSTAS.extend(feitas)
     return feitas
 
@@ -1772,7 +1833,7 @@ def _resumo_item(d):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
 FLYS_APAGAR = set()   # flys de eventos excluídos (saem do site na publicação)
-ESTADO = ["avisos_vistos.json", "fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["incentivos.json", "avisos_vistos.json", "fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -1966,9 +2027,9 @@ def avisar_problemas(g, avisos):
     try:
         inv = getattr(g, "EMAIL_APELIDO_INV", {}) or {}   # o responsável (acessos_somente) está pelo apelido: vira e-mail
         resp = [e for e in ((str(n) if "@" in str(n) else inv.get(str(n).lower(), "")) for n in (getattr(g, "ACESSOS_SOMENTE", None) or [])) if "@" in e]
-        g.notificar("⚠️ A nuvem registrou um problema", "\n".join("• " + n.replace("Aviso:", "").strip() for n in novos[:3])
-                    + (f"\n(+{len(novos) - 3} outro(s) no relatório do GitHub)" if len(novos) > 3 else ""), "problema-nuvem",
-                    icone="notif-importante.png", so_para=resp or None)
+        corpo = "\n".join("• " + n.replace("Aviso:", "").strip() for n in novos[:3]) + (f"\n(+{len(novos) - 3} outro(s) no relatório do GitHub)" if len(novos) > 3 else "")
+        for em in (resp or [None]):   # um aviso por responsável (o envio aceita um e-mail por vez); sem responsável, vai para o comando
+            g.notificar("⚠️ A nuvem registrou um problema", corpo, "problema-nuvem", icone="notif-importante.png", so_para=em)
         print(f"Problemas novos avisados ao responsável: {len(novos)}.")
     except Exception as e:
         print(f"(não consegui avisar os problemas: {type(e).__name__}: {e})")
@@ -2219,9 +2280,18 @@ def main():
         if RESPOSTAS:
             try:
                 por = {}
-                for ap, nome, r in RESPOSTAS:
-                    por.setdefault(nome, []).append(f"{ap} {'✅' if r in ('vou', 'resp') else '❌'}")
-                g.notificar("✋ Respostas dos irmãos", " · ".join(f"{n}: {', '.join(x)}" for n, x in por.items()), "atualizacao", icone="notif-evento.png")
+                for ap, nome, r, d, email in RESPOSTAS:
+                    if r == "nao":   # cada "não vai" vira um aviso próprio, com o motivo
+                        mot = MOTIVOS_RODADA.get((email, d, nome), "")
+                        conv = (d, str(nome).strip().lower()) in getattr(g, "CATS_SET", set())
+                        g.notificar(f"❌ {ap} não vai na {nome}", (f"Motivo: {mot}" if mot else "Sem motivo informado")
+                                    + ("" if conv else " · Toque para mandar uma mensagem"), f"nv-{email}-{d}", icone="notif-evento.png",
+                                    extra=({} if conv else {"incv": {"email": email, "ap": ap, "d": d, "e": nome, "mot": mot, "tk": g.token_rsvp("cmd", d, "inc|" + email)}}))
+                    else:
+                        por.setdefault(nome, []).append(f"{ap} ✅")
+                if por:
+                    g.notificar("✋ Respostas dos irmãos", " · ".join(f"{n}: {', '.join(x)}" for n, x in por.items()), "atualizacao", icone="notif-evento.png")
+                MOTIVOS_RODADA.clear()
             except Exception as e:
                 print(f"Aviso: aviso das respostas não enviado ({e}).")
             RESPOSTAS.clear()

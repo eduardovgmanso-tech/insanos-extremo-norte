@@ -3046,6 +3046,26 @@ window.relatarErro=function(onde,e){try{let u="",em="";try{u=(typeof D!=="undefi
   fetch(u,{method:"POST",mode:"no-cors",body:JSON.stringify({email:em,ok:true,painel:"⚠️ Erro no app: "+onde+" · "+msg,aparelho:(/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Computador")})}).catch(()=>{})}catch(_){}};
 window.addEventListener("error",ev=>{if(ev.error||ev.message)relatarErro("página",ev.error||ev.message)});
 window.addEventListener("unhandledrejection",ev=>relatarErro("página",ev.reason));
+// ---- 💬 incentivo: o aviso "Fulano não vai" abre esta folha; o comando escolhe uma mensagem (uma por evento) ----
+function incentivoAbrir(o){if(!o||!(o.email||(o.multi&&o.multi.length))||document.querySelector(".inc-cx"))return;const F=DADOS.incf||[],ag=+(DADOS.inca||3),bx=+(DADOS.incb??4);
+  const delicado=!o.multi&&/sa[uú]de|fam[ií]lia/i.test(o.mot||"");
+  const ops=delicado?[ag]:(o.baixa?[bx]:[]).concat(F.map((_,i)=>i).filter(i=>i!==bx));
+  const txt=i=>String(F[i]||"").split("{evento}").join(o.e||"o evento");
+  const v=document.createElement("div");v.className="fa-veu";
+  v.innerHTML=`<div class="fa-cx inc-cx" role="dialog" aria-label="Mandar mensagem"><h3 style="margin:0 0 4px">💬 Mensagem para ${o.multi?`${o.multi.length} irmãos`:esc(o.ap||"o irmão")}</h3>
+    <p class="nota" style="margin:0 0 12px">${o.multi?`Os que não vão na <b>${esc(o.e||"")}</b>: ${esc(o.multi.map(x=>x.ap).join(", "))}.${o.pulados?` (Ficam de fora, pelo motivo: ${esc(o.pulados)}.)`:""} Escolha uma mensagem:`:`Não vai na <b>${esc(o.e||"")}</b>${o.mot?` · Motivo: <b>${esc(o.mot)}</b>`:""}.${delicado?" Como o motivo é delicado, fica só a mensagem de agradecimento.":" Escolha uma mensagem:"}`}</p>
+    ${o.baixa&&!delicado?`<p class="nota" style="margin:0 0 8px;color:#E9B949">📉 Baixa adesão: ${o.pc}% de confirmados até agora.</p>`:""}
+    ${ops.map(i=>`<button type="button" class="fa-it inc-op" data-inc="${i}" style="width:100%;text-align:left;white-space:normal;line-height:1.4">${i===bx?"📉 ":i===ag?"🙏 ":"🔥 "}${esc(txt(i))}</button>`).join("")}
+    <p class="nota" style="margin:10px 0 0">Ele recebe a mensagem com o seu nome e pode responder com um toque. Cada irmão recebe uma mensagem por evento (mais a de baixa adesão, se for o caso).</p>
+    <button type="button" class="fa-fechar">Agora não</button></div>`;
+  v.onclick=async ev=>{const b=ev.target.closest("[data-inc]");if(!b){if(ev.target===v||ev.target.closest(".fa-fechar"))v.remove();return}
+    v.remove();let em="";try{em=sessionStorage.getItem("painel_email")||""}catch(_){}
+    const alvos=o.multi||[{email:o.email,ap:o.ap,tk:o.tk}];
+    try{for(const a of alvos){await fetch(DADOS.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:em,ok:true,painel:"💬|"+a.email+"|"+o.d+"|"+b.dataset.inc+"|"+a.tk+"|"+o.e,aparelho:/Android/.test(navigator.userAgent)?"Celular Android":/iPhone|iPad/.test(navigator.userAgent)?"iPhone":"Computador"})})}
+      try{if(window.SOS_URL)fetch(window.SOS_URL,{method:"POST",body:JSON.stringify({tipo:"rsvp_acordar",email:em})}).catch(()=>{})}catch(_){}   // acorda a nuvem
+      avisoRapido("💬 Mensagem enviada para "+(o.multi?alvos.length+" irmãos":(o.ap||"o irmão"))+". Chega em 1 a 3 minutos.")}catch(e){relatarErro("Incentivo: enviar",e);alert("Não consegui enviar agora. Tente de novo em instantes.")}};
+  document.body.appendChild(v)}
+setTimeout(()=>{if(location.hash.startsWith("#incentivo|")){try{const o=JSON.parse(decodeURIComponent(location.hash.slice(11)));history.replaceState(null,"",location.pathname);incentivoAbrir(o)}catch(_){}}},900);
 // ---- 🚑 APH da regional (Gestão): o comando cadastra os dois; o app abre o SMS com o pedido de autorização ----
 try{localStorage.setItem("aph_ok",JSON.stringify((DADOS.aph||[]).filter(a=>a.st==="autorizado").map(a=>({nome:a.nome,tel:a.tel}))))}catch(_){}
 function aphAbrir(){if(document.querySelector(".aph-cx"))return;const L=DADOS.aph||[],v=document.createElement("div");v.className="fa-veu";
@@ -4564,6 +4584,10 @@ function montarLancamento(){
   ["lNome","lData"].forEach(id=>$(id).addEventListener("input",lancZapAtualiza));
   $("lZapCopiar").onclick=async()=>{try{await navigator.clipboard.writeText(lancZapTexto());$("lZapCopiar").textContent="Copiado ✓";setTimeout(()=>$("lZapCopiar").textContent="📋 Copiar",2500)}catch(_){alert("Não consegui copiar. Toque em Enviar a lista alterada.")}};
   lancCamposUI();
+  $("lSalvar").addEventListener("click",ev=>{   // nos eventos oficiais, o motivo da falta é obrigatório
+    if(($("lCat")||{}).value!=="convidado"){const sem=M.filter(m=>lanc[m.n]==="Não"&&!String(lancJust[m.n]||"").trim()).map(m=>m.n);
+      if(sem.length){ev.stopImmediatePropagation();alert("Falta o motivo da falta de: "+sem.join(", ")+".\n\nNos eventos oficiais, o motivo é obrigatório (se o irmão não deu satisfação, use \"Não respondeu\").");
+        const i=document.querySelector(`#lLista .lanc-just[data-jn="${CSS.escape(sem[0])}"]`);if(i){i.focus();i.scrollIntoView({block:"center"})}}}},true);
   $("lSalvar").addEventListener("click",salvarLancamento);
   // com o fly do evento: o botão manda a imagem e a lista (na hora do toque); sem fly, o link (só o texto)
   $("lZapBtn").addEventListener("click",ev=>{if(!lancFlyArq)return;const tx=lancZapTexto(),f=lancFlyArq;
@@ -4577,8 +4601,31 @@ function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
     (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
   document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])});
-  document.querySelectorAll("#lLista .lanc-just").forEach(i=>{const n=i.dataset.jn;i.hidden=lanc[n]!=="Não";if(document.activeElement!==i)i.value=lancJust[n]||""});
+  const conv=($("lCat")||{}).value==="convidado";
+  document.querySelectorAll("#lLista .lanc-just").forEach(i=>{const n=i.dataset.jn;i.hidden=lanc[n]!=="Não";if(document.activeElement!==i)i.value=lancJust[n]||"";
+    i.placeholder=conv?"Motivo da falta (opcional)":"Motivo da falta (obrigatório)"});
+  try{lancIncUI()}catch(_){}
   lancZapAtualiza()}
+// 💬 no Lançar: mensagem de incentivo para quem não vai (só em evento oficial, de hoje em diante, já lançado)
+function lancIncAlvo(){const d=($("lData")||{}).value||"",e=(($("lNome")||{}).value||"").trim(),conv=($("lCat")||{}).value==="convidado";
+  const hj=new Date(),hoje=`${hj.getFullYear()}-${String(hj.getMonth()+1).padStart(2,"0")}-${String(hj.getDate()).padStart(2,"0")}`;
+  const tks=(DADOS.inct||{})[d+"|"+e];if(conv||!d||d<hoje||!tks)return null;
+  const v=Object.values(lanc),conf=v.filter(x=>x==="Sim"||x==="Staff").length,tot=M.length||1;
+  return {d,e,tks,pc:Math.round(conf*100/tot),baixa:conf/tot<.5}}
+function incTk(A,n){if(!A||!A.tks)return null;const s=x=>String(x).normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase(),k=s(n);   // apelido sem maiúsculas e acentos
+  return A.tks[n]||A.tks[k]||(Object.entries(A.tks).find(([x])=>s(x)===k)||[])[1]||null}
+function lancIncUI(){const A=lancIncAlvo();document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(!b)return;const n=b.dataset.n;
+    let bt=l.querySelector(".lanc-inc");const ok=A&&lanc[n]==="Não"&&incTk(A,n);
+    if(!ok){if(bt)bt.remove();return}
+    if(!bt){l.querySelector(".lw-lin").insertAdjacentHTML("beforeend",`<button type="button" class="lanc-inc" data-in="${esc(n)}" title="Mandar mensagem de incentivo" style="margin-left:6px;font-size:18px;background:none;border:0;cursor:pointer">💬</button>`)}});
+  let bar=$("lIncBar");const nao=A?M.filter(m=>lanc[m.n]==="Não"&&incTk(A,m.n)):[];
+  if(!bar){$("lLista").insertAdjacentHTML("beforebegin",'<div id="lIncBar" style="margin:0 0 10px"></div>');bar=$("lIncBar")}
+  bar.innerHTML=nao.length>1?`<button type="button" class="btn" id="lIncTodos">💬 Mandar para todos que não vão (${nao.length})${A.baixa?" · 📉 "+A.pc+"%":""}</button>`:""}
+document.addEventListener("click",ev=>{const b=ev.target.closest(".lanc-inc"),t=ev.target.closest("#lIncTodos");if(!b&&!t)return;const A=lancIncAlvo();if(!A)return;
+  if(b){const n=b.dataset.in,[email,tk]=incTk(A,n)||[];if(email)incentivoAbrir({email,tk,ap:n,d:A.d,e:A.e,mot:lancJust[n]||"",baixa:A.baixa,pc:A.pc});return}
+  const del=[],multi=[];M.forEach(m=>{if(lanc[m.n]!=="Não"||!incTk(A,m.n))return;if(/sa[uú]de|fam[ií]lia/i.test(lancJust[m.n]||""))del.push(m.n);else multi.push({ap:m.n,email:incTk(A,m.n)[0],tk:incTk(A,m.n)[1]})});
+  if(!multi.length){alert("Todos os que não vão têm motivo de Saúde ou Família: para eles, mande o agradecimento individualmente (💬).");return}
+  incentivoAbrir({multi,pulados:del.join(", "),d:A.d,e:A.e,baixa:A.baixa,pc:A.pc})});
 const lancJust={};
 let lancInfo=null;   // a lista do evento no Lançar: tipo e campos (vêm da Lista ou do evento já lançado; em branco se não houver)
 function lancInfoPadrao(nome){return {tipo:"reuniao",f:{titulo:nome||""},mapas:true,padrao:true}}   // padrao = o evento não veio da Lista (sem endereço, sem campos)

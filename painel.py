@@ -631,7 +631,7 @@ document.getElementById("f").addEventListener("submit",async ev=>{
     // do comando e também com o Meu painel: pergunta como quer entrar (ou usa a escolha lembrada / o atalho do ícone)
     let meuH=null;if(!comoIrmao)for(const s of (P.pes||[])){if(s.t==="v")continue;try{meuH=await abrePes(s,kek);break}catch(e){}}
     if(!meuH&&!comoIrmao){try{sessionStorage.setItem("tem_meu","0")}catch(_){}}   // o seletor avisa que não achou o Meu painel
-    if(meuH){let modo="";const h=location.hash;if(h==="#moto"||h==="#eventos"||h.startsWith("#motivo"))modo="irm";else if(h==="#lancar"||h==="#lista")modo="cmd";
+    if(meuH){let modo="";const h=location.hash;if(h==="#moto"||h==="#eventos"||h.startsWith("#motivo")||h.startsWith("#incresp"))modo="irm";else if(h==="#lancar"||h==="#lista"||h.startsWith("#incentivo"))modo="cmd";
       try{if(sessionStorage.getItem("forcar_cmd")==="1"){sessionStorage.removeItem("forcar_cmd");modo="cmd"}}catch(_){}   // veio do "Voltar ao painel do comando"
       if(!modo){try{modo=localStorage.getItem("entrar_como")||""}catch(_){}}
       if(!modo){try{modo=localStorage.getItem("ultima_visao")||"cmd"}catch(_){modo="cmd"}}   // a última visão usada (troca pelo seletor 👑 Comando · 👤 Irmão)
@@ -660,6 +660,19 @@ LEMBRETES = {}         # pendências de cada irmão (a nuvem manda os lembretes 
 PAG_MEU = {}           # mensalidade de cada irmão para o Meu painel (situação, link do boleto, vencimento)
 INFO_EV = {}           # informações dos eventos (aba Eventos): (data ISO, evento em minúsculas) -> tipo, horário, local, endereço...
 APAGAR_SITE = set()    # arquivos a tirar do site (ex.: flys de eventos com mais de 6 meses)
+# 💬 incentivo: quando um irmão responde "Não vou", o comando pode mandar uma destas mensagens (uma por evento)
+INC_FRASES = [
+    "Fala, irmão! A {evento} fica melhor com você. Se conseguir dar um jeito, nem que seja por um tempo, vai ser massa te ver lá. 🤝",
+    "Irmão, vamos sentir sua falta na {evento}. Se mudar alguma coisa, é só tocar em Vou no app. Estamos contando com você! 🏍️",
+    "Sabemos que a vida aperta, irmão, mas a irmandade também é feita de presença. Vê se consegue encaixar a {evento}. 💀",
+    "Valeu por avisar, irmão! Contamos com você no próximo evento. Sua presença é sempre bem-vinda. 🤝",
+    "Irmão, a {evento} está com pouca confirmação até agora. Sua presença faz toda a diferença para a divisão: se puder rever, vai ser muito importante! 💀🤝",
+]
+INC_AGRADECE = 3   # a de agradecimento (a única para motivos de Saúde e Família)
+INC_BAIXA = 4      # a de baixa adesão (menos de 50% de confirmados): pode ir mesmo que o irmão já tenha recebido outra
+INC_RESP = {"dia": "⏳ Me dá um dia para ver se consigo", "vou": "✅ Consegui ajeitar, vou sim!",
+            "nao": "🙏 Infelizmente desta vez não dá, mas no próximo estarei lá"}
+
 CATS_RAW = []          # (data, evento) marcados como convidado na aba Categorias
 CATS_SET = set()       # o mesmo, já com a data em AAAA-MM-DD
 EVENTOS_CONV = []      # eventos em que a divisão foi como convidada (não contam na porcentagem dos irmãos)
@@ -1196,6 +1209,22 @@ function motivoPerguntar(e,obrig){if(!e||document.querySelector(".mot-cx"))retur
       proxDesenha();alert((obrig?"👍 Resposta e motivo enviados (":"📝 Motivo enviado (")+mot+"). Valeu por avisar, irmão!")}catch(_){alert("Não consegui enviar o motivo agora. Tente de novo em instantes.")}};
   v.onclick=ev=>{const b=ev.target.closest("[data-mot]");if(b)return fim(b.dataset.mot);if(ev.target===v)fim("")};
   v.querySelector("#motOutroOk").onclick=()=>{const t=v.querySelector("#motOutro").value.trim();if(t)fim(t)};document.body.appendChild(v)}
+// 💬 a mensagem do comando: o irmão responde com um toque (volta para quem mandou; "vou sim" muda a resposta para Vou)
+const INC_RESP={dia:"⏳ Me dá um dia para ver se consigo",vou:"✅ Consegui ajeitar, vou sim!",nao:"🙏 Infelizmente desta vez não dá, mas no próximo estarei lá"};
+function incResponder(e){if(!e||document.querySelector(".incr-cx"))return;const v=document.createElement("div");v.className="fa-veu";
+  v.innerHTML=`<div class="fa-cx incr-cx" role="dialog" aria-label="Responder ao comando"><h3 style="margin:0 0 4px">💬 Responder ao comando</h3>
+    <p class="nota" style="margin:0 0 12px">Sobre a <b>${es(e.e)}</b>:</p>
+    <div style="display:flex;flex-direction:column;gap:8px">${Object.entries(INC_RESP).map(([k,t])=>`<button type="button" class="mot-op" data-ir="${k}" style="flex-direction:row;justify-content:flex-start;text-align:left">${t}</button>`).join("")}</div>
+    <button type="button" class="fa-fechar">Agora não</button></div>`;
+  v.onclick=async ev=>{const b=ev.target.closest("[data-ir]");if(!b){if(ev.target===v||ev.target.closest(".fa-fechar"))v.remove();return}
+    const op=b.dataset.ir;v.remove();
+    try{await acordarDepois(fetch(D.ru,{method:"POST",mode:"no-cors",body:JSON.stringify({email:D.email,ok:true,painel:"↩️|"+op+"|"+e.d+"|"+e.tk+"|"+e.e,
+        aparelho:/iPhone|iPad/.test(navigator.userAgent)?"iPhone":/Android/.test(navigator.userAgent)?"Celular Android":"Outro"})}));
+      if(op==="vou")await rsvpEnviar(e,"vou");
+      alert(op==="vou"?"✅ Boa, irmão! Sua resposta mudou para Vou. 🤝":"👍 Resposta enviada ao comando.")}catch(_){alert("Não consegui enviar agora. Tente de novo em instantes.")}};
+  document.body.appendChild(v)}
+if(location.hash.startsWith("#incresp|")){try{const [,d,ev]=location.hash.split("|").map(decodeURIComponent);history.replaceState(null,"",location.pathname);
+  const e=(D.prox||[]).find(x=>x.d===d&&x.e===ev);if(e)setTimeout(()=>incResponder(e),600)}catch(_){}}
 // veio pelo aviso "toque para dizer o motivo": abre a pergunta daquele evento
 if(location.hash.startsWith("#motivo|")){try{const [,d,ev]=location.hash.split("|").map(decodeURIComponent);history.replaceState(null,"",location.pathname);
   const e=(D.prox||[]).find(x=>x.d===d&&x.e===ev);if(e)setTimeout(()=>motivoPerguntar(e,!e.c),600)}catch(_){}}
@@ -4133,6 +4162,9 @@ const aoPush = e => {
   if (d.link) { op.data.link = d.link; op.actions = [{action: "link", title: d.lrot || "Abrir"}]; }
   if (d.msg) { op.data.msg = d.msg; op.actions = (d.msg.rs || []).map(([a, t]) => ({action: a, title: t}));
     if (d.msg.imp) { op.requireInteraction = true; op.renotify = true; op.vibrate = [700, 250, 700, 250, 1200]; op.image = "notif-importante.png"; } }
+  if (d.incv) op.data.incv = d.incv;   // comando: "Fulano não vai" → tocar abre a folha da mensagem de incentivo
+  if (d.inc) { op.data.inc = d.inc; op.requireInteraction = true;   // irmão: a mensagem do comando, com respostas rápidas
+    op.actions = [{action: "inc_dia", title: "⏳ Me dá um dia"}, {action: "inc_vou", title: "✅ Vou sim"}]; }
   if (d.rsvp) { op.data.rsvp = d.rsvp; op.requireInteraction = true;
     op.actions = d.rsvp.m === "ins" ? [{action: "resp", title: "✅ Já respondi"}] : [{action: "vou", title: "✅ Vou"}, {action: "nao", title: "❌ Não vou"}]; }
   op.data.para = d.para || ""; op.data.ru = d.ru || ""; op.data.tt = d.title || ""; op.data.teste = teste ? 1 : 0;
@@ -4235,6 +4267,22 @@ self.addEventListener("notificationclick", e => {
     e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: JSON.stringify({email: dd.para, ok: true,
         painel: "✋|resp|" + r.d + "|" + r.tk + "|" + r.e, aparelho: aparelhoSW()})}).catch(() => {}).then(() => acordarPainel(r, dd.para))
       .then(() => self.registration.showNotification("✅ Marcado como respondido", {body: "Valeu, irmão! A sua resposta no " + r.e + " entra na lista.", icon: "icon-192.png", badge: "notif-badge.png", tag: "rsvp-ok"})));
+    return;
+  }
+  if (dd.incv && !e.action) {   // comando: abre a folha "Mandar mensagem" para o irmão que não vai
+    e.waitUntil(clients.openWindow("adm.html#incentivo|" + encodeURIComponent(JSON.stringify(dd.incv)))); return;
+  }
+  if (dd.inc && !e.action) {   // irmão: abre as três respostas
+    e.waitUntil(clients.openWindow("adm.html#incresp|" + encodeURIComponent(dd.inc.d) + "|" + encodeURIComponent(dd.inc.e))); return;
+  }
+  if (dd.inc && (e.action === "inc_dia" || e.action === "inc_vou") && dd.ru && dd.para) {   // irmão respondeu direto no aviso
+    const r = dd.inc, op = e.action === "inc_vou" ? "vou" : "dia", corpo = (pn) => JSON.stringify({email: dd.para, ok: true, painel: pn, aparelho: aparelhoSW()});
+    e.waitUntil(fetch(dd.ru, {method: "POST", mode: "no-cors", body: corpo("↩️|" + op + "|" + r.d + "|" + r.tk + "|" + r.e)}).catch(() => {})
+      .then(() => op === "vou" ? fetch(dd.ru, {method: "POST", mode: "no-cors", body: corpo("✋|vou|" + r.d + "|" + r.tk + "|" + r.e)}).catch(() => {}) : null)
+      .then(() => acordarPainel(r, dd.para))
+      .then(() => self.registration.showNotification(op === "vou" ? "✅ Presença confirmada" : "👍 Resposta enviada",
+        {body: op === "vou" ? "Boa, irmão! Você vai na " + r.e + ". 🤝" : "O comando vai saber que você está vendo se consegue ir na " + r.e + ".",
+         icon: "icon-192.png", badge: "notif-badge.png", tag: "inc-ok"})));
     return;
   }
   if (dd.mot && !e.action) {   // "toque para dizer o motivo": abre o Meu painel na pergunta do motivo
@@ -4910,10 +4958,13 @@ def main():
         _ap = str(EMAIL_APELIDO.get(_por, "") or (_por if "@" not in _por else _por.split("@")[0]))
         enq_adm["por"] = nomes_.get(_ap.lower(), _ap)   # o apelido de quem criou
         enq_adm.update({"res": res_, "total": len(membros)})
-    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": [_ev_adm(e) for e in EVENTOS_CONV], "ru": ACESSOS_URL, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
+    _hj = datetime.date.today().isoformat()   # 💬 as chaves para o comando mandar a mensagem de incentivo pelo Lançar (eventos oficiais futuros)
+    INC_TK = {f'{e["d"]}|{e["e"]}': {ap: [em, token_rsvp("cmd", e["d"], "inc|" + em)] for em, ap in EMAIL_APELIDO.items()}
+              for e in eventos if e["d"] >= _hj}
+    gravar(SAIDA_ADM, {"modo": "adm", "resp": (ACESSOS_SOMENTE or [""])[0], "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": [_ev_adm(e) for e in EVENTOS_CONV], "ru": ACESSOS_URL, "incf": INC_FRASES, "inca": INC_AGRADECE, "incb": INC_BAIXA, "inct": INC_TK, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}, "Painel ADM - Acesso restrito ao Comando.",
            extras=[x for x in extras if x], rotulo="E-mail ou senha de acesso")
     dados_adm = {"modo": "adm", "reg_adm": str(DIV.get("regional_adm", "")), "reinst": AVISO_REINSTALAR,
-                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": [_ev_adm(e) for e in EVENTOS_CONV], "ru": ACESSOS_URL, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
+                 "enq": enq_adm, "mapa": MAPA_INFO, "aph": APH, "excluidos": EXCLUIDOS, "ev_conv": [_ev_adm(e) for e in EVENTOS_CONV], "ru": ACESSOS_URL, "incf": INC_FRASES, "inca": INC_AGRADECE, "incb": INC_BAIXA, "inct": INC_TK, "resp": (ACESSOS_SOMENTE or [""])[0], "quem": {e: ap for e, ap in EMAIL_APELIDO.items() if e in ADM_EMAILS}, "m": membros, "ev": eventos_adm, "ev_ins": eventos_ins, "ev_staff": eventos_staff, "molde": molde, "pag": pag, "fotos": FOTOS_GAL, "fly": FLY, "acessos": ACESSOS, "afastados": AFASTADOS, "push": PUSH, "nuvem": NUVEM}
     global VERSAO_ATUAL
     import hashlib as _h
     VERSAO_ATUAL = _h.md5(json.dumps(_assinatura_conteudo({"modo": "geral", "m": sem_tel, "ev": eventos}, dados_adm), sort_keys=True, default=str).encode()).hexdigest()[:12]
