@@ -1833,7 +1833,7 @@ def _resumo_item(d):
 #  os arquivos de estado do painel ficam guardados na aba escondida "_estado" da planilha
 # ---------------------------------------------------------------------
 FLYS_APAGAR = set()   # flys de eventos excluídos (saem do site na publicação)
-ESTADO = ["incentivos.json", "avisos_vistos.json", "fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
+ESTADO = ["clima_cache.json", "incentivos.json", "avisos_vistos.json", "fly_indice.json", "geo_cache.json", "pagamentos_verificacao.json", "pagamentos_manual.json", "pagamentos_antecipados.json", "adm_extra.json", "visitantes.json", "lembretes_enviados.json", "rsvp.json", "Lancamentos/notificacoes_enviadas.json", "Lancamentos/ultima_fila.json",
           "Lancamentos/ultima_alteracao.json"]
 
 def _aba_estado(api, pid):
@@ -2167,19 +2167,20 @@ def main():
             _tempo("respostas (nenhuma nova)")
     except Exception as e:
         print(f"Aviso: respostas dos irmãos não aplicadas ({type(e).__name__}: {e}).")
-    try:
-        remover_abas_sem_uso(api, planilha_id)
-    except Exception as e:
-        print(f"Aviso: não consegui apagar as abas sem uso ({type(e).__name__}: {e}).")
-    try:
-        limpar_totais(api, planilha_id)
-    except Exception as e:
-        print(f"Aviso: limpeza das contas de Sim/Não/% falhou ({type(e).__name__}: {e}).")
-    try:                                         # virada do mês: boletos do mês seguinte (coluna K) passam para a J
-        if promover_antecipados(api, planilha_id):
-            montar_planilha(ler_google(planilha_id, cred, api), xlsx)
-    except Exception as e:
-        print(f"Aviso: virada dos boletos antecipados falhou ({type(e).__name__}: {e}).")
+    if evento in ("workflow_dispatch", "schedule"):   # manutenção: só nas rodadas de rotina (as de resposta e lançamento ficam mais rápidas)
+        try:
+            remover_abas_sem_uso(api, planilha_id)
+        except Exception as e:
+            print(f"Aviso: não consegui apagar as abas sem uso ({type(e).__name__}: {e}).")
+        try:
+            limpar_totais(api, planilha_id)
+        except Exception as e:
+            print(f"Aviso: limpeza das contas de Sim/Não/% falhou ({type(e).__name__}: {e}).")
+        try:                                         # virada do mês: boletos do mês seguinte (coluna K) passam para a J
+            if promover_antecipados(api, planilha_id):
+                montar_planilha(ler_google(planilha_id, cred, api), xlsx)
+        except Exception as e:
+            print(f"Aviso: virada dos boletos antecipados falhou ({type(e).__name__}: {e}).")
     if evento in ("workflow_dispatch", "schedule"):  # pagamentos antecipados: em todas as rodadas automáticas
         try:
             verificar_antecipados(api, planilha_id, g)

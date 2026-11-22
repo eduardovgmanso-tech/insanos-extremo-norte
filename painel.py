@@ -684,7 +684,25 @@ ZAP_CTX = {}           # o que a mensagem do evento para o WhatsApp precisa (int
 HOJE_EVS = []          # eventos de hoje (nome, horário): o bom-dia das 9h cita
 ZAP_PAG = ""           # mensagem pronta da situação dos pagamentos (vai dentro do aviso de pagamento novo: abre direto no WhatsApp)
 
-CLIMA_GEO, CLIMA_PREV = {}, {}   # nesta rodada: endereço -> coordenadas, e (lugar, data) -> previsão
+CLIMA_GEO, CLIMA_PREV = {}, {}   # endereço -> coordenadas, e (lugar, data) -> previsão (guardados em clima_cache.json)
+CLIMA_FALHOU = [False]           # o serviço não respondeu nesta rodada: não insiste
+ARQ_CLIMA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clima_cache.json")
+def _clima_carregar():
+    try:
+        c = json.load(open(ARQ_CLIMA, encoding="utf-8"))
+        agora = datetime.datetime.now().timestamp()
+        CLIMA_GEO.update({k: (tuple(v) if v else None) for k, v in (c.get("geo") or {}).items()})
+        CLIMA_PREV.update({(tuple(json.loads(k)[0]), json.loads(k)[1]): v["h"] for k, v in (c.get("prev") or {}).items() if agora - v.get("t", 0) < 3 * 3600})
+    except Exception:
+        pass
+def _clima_guardar():
+    try:
+        agora = datetime.datetime.now().timestamp()
+        json.dump({"geo": {k: (list(v) if v else None) for k, v in CLIMA_GEO.items()},
+                   "prev": {json.dumps([list(g), d]): {"h": h, "t": agora} for (g, d), h in CLIMA_PREV.items()}},
+                  open(ARQ_CLIMA, "w", encoding="utf-8"), ensure_ascii=False)
+    except Exception:
+        pass
 def lugar_evento(data_iso, nome):
     """O endereço do evento (aba Eventos: endereço ou local), ou o da sede; e o horário, se houver."""
     inf = INFO_EV.get((str(data_iso)[:10], str(nome).strip().lower()), {})
@@ -698,15 +716,17 @@ def clima_evento(data_iso, hora="", endereco=""):
         dia = _dt.date.fromisoformat(str(data_iso)[:10])
         if not endereco or not (0 <= (dia - _dt.date.today()).days <= 15):
             return ""
+        if CLIMA_FALHOU[0] and (endereco not in CLIMA_GEO or (CLIMA_GEO.get(endereco) and (CLIMA_GEO[endereco], dia.isoformat()) not in CLIMA_PREV)):
+            return ""   # o serviço já falhou nesta rodada: não espera de novo
         if endereco not in CLIMA_GEO:
             u = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode({"format": "json", "limit": 1, "countrycodes": "br", "q": endereco})
             req = urllib.request.Request(u, headers={"User-Agent": "PainelInsanos/1.0 (painel da divisao)"})
-            r = json.loads(urllib.request.urlopen(req, timeout=8).read().decode("utf-8"))
+            r = json.loads(urllib.request.urlopen(req, timeout=3).read().decode("utf-8"))
             if not r:   # endereço não achado: tenta só a cidade (depois do último hífen ou vírgula)
                 cid = _r.split(r"[-,]", endereco)[-1].strip() or "São Paulo"
                 req = urllib.request.Request("https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode({"format": "json", "limit": 1, "countrycodes": "br", "q": cid}),
                                              headers={"User-Agent": "PainelInsanos/1.0 (painel da divisao)"})
-                r = json.loads(urllib.request.urlopen(req, timeout=8).read().decode("utf-8"))
+                r = json.loads(urllib.request.urlopen(req, timeout=3).read().decode("utf-8"))
             CLIMA_GEO[endereco] = (float(r[0]["lat"]), float(r[0]["lon"])) if r else None
         geo = CLIMA_GEO.get(endereco)
         if not geo:
@@ -716,7 +736,8 @@ def clima_evento(data_iso, hora="", endereco=""):
             u = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode({"latitude": geo[0], "longitude": geo[1],
                 "hourly": "temperature_2m,precipitation_probability,weathercode", "timezone": "America/Sao_Paulo",
                 "start_date": dia.isoformat(), "end_date": dia.isoformat()})
-            CLIMA_PREV[k] = json.loads(urllib.request.urlopen(u, timeout=8).read().decode("utf-8")).get("hourly") or {}
+            CLIMA_PREV[k] = json.loads(urllib.request.urlopen(u, timeout=3).read().decode("utf-8")).get("hourly") or {}
+            _clima_guardar()
         hh = CLIMA_PREV[k]
         m = _r.match(r"\s*(\d{1,2})", str(hora or ""))
         h = min(23, int(m.group(1))) if m else 12
@@ -728,7 +749,9 @@ def clima_evento(data_iso, hora="", endereco=""):
         chuva = f"chance alta de chuva ({pr}%)" if pr >= 60 else f"pode chover ({pr}%)" if pr >= 30 else "sem chuva"
         return f"{ico} {round(t)}°C, {chuva}"
     except Exception as e:
-        print(f"Aviso: previsão do tempo indisponível ({type(e).__name__}).")
+        if not CLIMA_FALHOU[0]:
+            print(f"Previsão do tempo indisponível nesta rodada ({type(e).__name__}): sem esperar de novo.")
+        CLIMA_FALHOU[0] = True
         return ""
 
 FRASES_BOMDIA = [
@@ -2483,16 +2506,32 @@ def estatico(m, evs, rank):
             f'<div class="kpi falta"><div class="v">{au}</div><div class="l">faltas</div></div></div>'
             f'{extra}<h2 style="margin-top:20px">Por evento</h2>{linhas}</section></noscript>')
 
+_SAL_RODADA, _KEK_CACHE = [None], {}
+def _sal():
+    """O "sal" das chaves: um novo a cada rodada (a proteção é a mesma), igual para todas as páginas da rodada."""
+    import secrets
+    if _SAL_RODADA[0] is None:
+        _SAL_RODADA[0] = secrets.token_bytes(16)
+    return _SAL_RODADA[0]
+
+def _kek(segredo):
+    """A chave de cada irmão (lenta de propósito): calculada uma vez por rodada e reaproveitada nas outras páginas."""
+    import hashlib
+    k = _KEK_CACHE.get(segredo)
+    if k is None:
+        k = _KEK_CACHE[segredo] = hashlib.pbkdf2_hmac("sha256", segredo.encode(), _sal(), ITERACOES, 32)
+    return k
+
 def cifrar_para(obj, senhas):
     """Embaralha um conteúdo (JSON) com a mesma proteção do painel, que só abre com uma das senhas dadas."""
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     import hashlib, secrets
     b64 = lambda x: base64.b64encode(x).decode()
-    chave = AESGCM.generate_key(bit_length=256); iv = secrets.token_bytes(12); sal = secrets.token_bytes(16)
+    chave = AESGCM.generate_key(bit_length=256); iv = secrets.token_bytes(12); sal = _sal()
     ct = AESGCM(chave).encrypt(iv, json.dumps(obj, ensure_ascii=False).encode("utf-8"), None)
     slots = []
     for s_ in senhas:
-        kek = hashlib.pbkdf2_hmac("sha256", s_.encode(), sal, ITERACOES, 32); iv_s = secrets.token_bytes(12)
+        kek = _kek(s_); iv_s = secrets.token_bytes(12)
         slots.append({"iv": b64(iv_s), "ct": b64(AESGCM(kek).encrypt(iv_s, chave, None))})
     return {"sal": b64(sal), "it": ITERACOES, "iv": b64(iv), "ct": b64(ct), "slots": slots}
 
@@ -2504,10 +2543,10 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
     chave = AESGCM.generate_key(bit_length=256)
     iv = secrets.token_bytes(12)
     ct = AESGCM(chave).encrypt(iv, html.encode("utf-8"), None)
-    sal = secrets.token_bytes(16)
+    sal = _sal()
     slots = []
     for s in senhas:
-        kek = hashlib.pbkdf2_hmac("sha256", chave_de(s).encode(), sal, ITERACOES, 32)
+        kek = _kek(chave_de(s))
         iv_s = secrets.token_bytes(12)
         slots.append({"iv": b64(iv_s), "ct": b64(AESGCM(kek).encrypt(iv_s, chave, None))})
     secrets.SystemRandom().shuffle(slots)
@@ -2518,7 +2557,7 @@ def proteger(html, senhas, titulo, subtitulo, img, rotulo="E-mail"):
         mt = {"iv": b64(iv_m), "ct": b64(AESGCM(km).encrypt(iv_m, MEU_BASE.replace("__VERSAO__", VERSAO_ATUAL).encode("utf-8"), None))}
     for item in PESSOAIS:              # "Meu painel" (irmão): só os dados + a chave do código · visitante: a página inteira
         email = item[0]
-        kek = hashlib.pbkdf2_hmac("sha256", chave_de(email).encode(), sal, ITERACOES, 32)
+        kek = _kek(chave_de(email))
         iv_p = secrets.token_bytes(12)
         if len(item) > 2 and item[2] == "m":
             conteudo = json.dumps({"k": b64(km), "d": item[1]}, ensure_ascii=False)
@@ -4386,6 +4425,7 @@ def publicar_se_mudou(arquivos, assinatura, forcar=False):
                        "quando": datetime.datetime.now().strftime("%d/%m/%Y %H:%M")}, f)
 
 def main():
+    _clima_carregar()   # a previsão do tempo guardada (vale por 3 horas)
     try:
         import openpyxl
     except ImportError:
