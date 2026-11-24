@@ -1497,6 +1497,14 @@ def enviar_aviso_insight(g, ins_novos):
     if n:
         print(f"Aviso do insight enviado: {n} irmão(s).")
 
+def _fly_do_evento(g, d, nome):
+    """O endereço do flyer do evento no site (se existir): vai grande no convite e nos lembretes (Android)."""
+    try:
+        f = fly_nome({"data": d, "evento": nome})
+        return (getattr(g, "SITE_URL", "") + f) if getattr(g, "SITE_URL", "") and os.path.exists(os.path.join(PASTA, f)) else None
+    except Exception:
+        return None
+
 def enviar_convites(g, eventos_novos):
     """Assim que um evento é lançado: convite com os botões ✅ Vou / ❌ Não vou para quem ainda não respondeu."""
     L = getattr(g, "LEMBRETES", None) or {}
@@ -1513,7 +1521,7 @@ def enviar_convites(g, eventos_novos):
             emoji, icone = _tipo_aviso({"tipo": "lancamento_presenca", "aba": "Presenca", "evento": nome})
             try:
                 g.notificar(f"{emoji} {nome} · {d[8:10]}/{d[5:7]}", f"Fala, {p['n']}! Você vai na {nome}? Responde aqui embaixo. 🤝",
-                            "convite", icone=icone, so_para=p["email"], rsvp={"d": d, "e": nome})
+                            "convite", icone=icone, so_para=p["email"], rsvp={"d": d, "e": nome}, imagem=_fly_do_evento(g, d, nome))
                 env[k] = 1; n += 1
             except Exception as e:
                 print(f"Aviso: convite não enviado ({e}).")
@@ -1631,11 +1639,12 @@ def enviar_lembretes(g):
             if ev["d"] == hoje.isoformat():
                 tit, corpo = f"{emoji} {ev['nome']} é hoje", f"Fala, {ap}! Hoje tem {ev['nome']}{' às ' + hr_ if hr_ else ''}. Se ainda não confirmou, dá um toque no grupo. Contamos com você! 🤝{prev}"
                 mapa = ("https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(end_)) if end_ else None
-                manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email,
+                manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email, imagem=_fly_do_evento(g, ev["d"], ev["nome"]),
                       **({"link": mapa, "link_rot": "🗺️ Como chegar"} if mapa else {"rsvp": {"d": ev["d"], "e": ev["nome"]}}))
             else:
                 tit, corpo = f"{emoji} {ev['nome']} · {br(ev['d'])}", f"Fala, {ap}! A lista da {ev['nome']} está aberta. Você vai? Responde aqui embaixo. Contamos com você! 🤝{prev}"
-                manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email, rsvp={"d": ev["d"], "e": ev["nome"]})
+                manda(f"{hoje}|{slot}|ev|{ev['d']}|{ev['nome']}|{email}", tit, corpo, "lembrete-ev", icone=icone, so_para=email, rsvp={"d": ev["d"], "e": ev["nome"]},
+                      imagem=_fly_do_evento(g, ev["d"], ev["nome"]))
         # mensalidade: 9h, de 3 dias antes até o dia do vencimento (só quem ainda não aparece como pago)
         if slot == "m" and venc and not p.get("pago"):
             k = (venc - hoje).days
