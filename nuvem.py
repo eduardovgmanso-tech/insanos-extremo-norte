@@ -624,7 +624,7 @@ def _linha_pgto(api, pid, ap, r_di, log):
     _estrutura(api, pid, [{"copyPaste": {"source": _faixa(sid, ult, ult, 1, 26), "destination": _faixa(sid, ult + 1, ult + 1, 1, 26), "pasteType": "PASTE_NORMAL"}}])
     di = _aba_real(api, pid, "Dados Integrantes")
     _gravar(api, pid, [(f"'{aba}'!B{ult + 1}", f"='{di}'!F{r_di}&\" - \"&'{di}'!B{r_di}"),
-                       (f"'{aba}'!C{ult + 1}", "Em aberto"), (f"'{aba}'!J{ult + 1}", "")])
+                       (f"'{aba}'!C{ult + 1}", f"Adesão paga {datetime.date.today():%m/%Y}"), (f"'{aba}'!J{ult + 1}", "")])   # entra pago no mês do cadastro
     log.append("linha criada na aba PGTO")
 
 def _mudar_cargo(api, pid, d, aba, C, linhas, fim_tab, ult_col):
@@ -1913,9 +1913,13 @@ def verificar_boletos(api, pid, g):
     for r, row in enumerate(v[1:], start=2):
         row = list(row) + [""] * 10
         link = str(row[9]).strip()
+        rotulo, atual = str(row[1]).strip(), str(row[2]).strip()
+        ma = re.search(r"(\d{2})/(\d{4})", atual) if "ades" in _sa(atual) else None
+        if ma and (int(ma.group(2)), int(ma.group(1))) < (ciclo.year, ciclo.month):   # a adesão foi de um mês anterior: volta a ser cobrado
+            grav.append((f"'{aba}'!C{r}", "Em aberto")); print(f"  {rotulo}: adesão de {ma.group(0)} encerrada, volta para Em aberto")
+            atual = "Em aberto"
         if not link.startswith("http"):
             continue
-        rotulo, atual = str(row[1]).strip(), str(row[2]).strip()
         if any(rotulo.lower().endswith(ap) for ap in inativos):
             print(f"  {rotulo}: afastado/excluído (não verificado)"); continue
         if "ades" in _sa(atual) and f"{ciclo:%m/%Y}" in atual:     # pagou a adesão neste mês: não cobra a mensalidade
