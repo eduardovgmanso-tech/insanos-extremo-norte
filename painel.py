@@ -1442,11 +1442,22 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     return {km:x.distance/1000,h:x.duration/3600,pts:P.filter((_,i)=>i%passo===0||i===P.length-1).map(([lng,lat])=>[+lat.toFixed(4),+lng.toFixed(4)])}}
   const kmEntre=(a,b)=>{const R=6371,x=(b.lat-a.lat)*Math.PI/180,y=((b.lon??b.lng)-(a.lon??a.lng))*Math.PI/180,h=Math.sin(x/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
   // praças de pedágio e pontos turísticos perto da estrada (mapa aberto, gratuito; o preço do pedágio não vem daqui)
-  async function viaArredores(pts,dest){const passo=Math.max(1,Math.ceil(pts.length/35)),S=pts.filter((_,i)=>i%passo===0||i===pts.length-1),ll=S.map(p=>p[0]+","+p[1]).join(",");
+  async function viaSugerir(pts,km){   // uma parada a cada ~200 km, na cidade da estrada (para abastecer e descansar)
+    const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+kmEntre({lat:pts[i-1][0],lon:pts[i-1][1]},{lat:pts[i][0],lon:pts[i][1]}));
+    const tot=cum[cum.length-1]||km,out=[];for(let alvo=200;alvo<tot-80;alvo+=200){const i=cum.findIndex(c=>c>=alvo);if(i<0)break;const [la,lo]=pts[i];
+      let n="";try{await new Promise(r=>setTimeout(r,1100));const j=await(await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=pt-BR&lat=${la}&lon=${lo}`)).json(),A=(j&&j.address)||{};
+        const uf=String(A["ISO3166-2-lvl4"]||"").split("-")[1]||"";n=[A.city||A.town||A.municipality||A.village||A.county||"",uf].filter(Boolean).join(" - ")}catch(_){}
+      out.push({n:(n||"Parada")+` · km ${Math.round(cum[i])}`,lat:la,lng:lo,o:i,min:30,sug:1})}
+    return out}
+  async function viaArredores(pts,dest){let kmR=0;for(let i=1;i<pts.length;i++)kmR+=kmEntre({lat:pts[i-1][0],lon:pts[i-1][1]},{lat:pts[i][0],lon:pts[i][1]});
+    const longa=kmR>400,passo=Math.max(1,Math.ceil(pts.length/(longa?24:30))),S=pts.filter((_,i)=>i%passo===0||i===pts.length-1),ll=S.map(p=>p[0]+","+p[1]).join(","),RA=longa?2500:4000;   // rota longa: busca mais leve
     const tur='["tourism"~"^(viewpoint|attraction|museum|theme_park|zoo|gallery)$"]["name"]',his='["historic"~"^(monument|memorial|castle)$"]["name"]',dd=dest?`${dest.lat},${dest.lng}`:"";
-    const q=`[out:json][timeout:25];(nwr(around:4000,${ll})${tur};nwr(around:4000,${ll})${his};${dd?`nwr(around:10000,${dd})${tur};nwr(around:10000,${dd})${his};`:""}node(around:400,${ll})["barrier"="toll_booth"];);out center tags 300;`;
-    const r=await Promise.race([fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)}),new Promise((_,n)=>setTimeout(()=>n(new Error("tempo")),25000))]);
-    const el=((await r.json()).elements||[]).filter(e=>e.tags).map(e=>({...e,lat:e.lat??(e.center&&e.center.lat),lon:e.lon??(e.center&&e.center.lon)})).filter(e=>e.lat!=null);
+    const busca=async q=>{const r=await Promise.race([fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)}),
+      new Promise((_,n)=>setTimeout(()=>n(new Error("tempo")),28000))]);return (await r.json()).elements||[]};
+    const R=await Promise.allSettled([busca(`[out:json][timeout:${longa?40:25}];(nwr(around:${RA},${ll})${tur};nwr(around:${RA},${ll})${his};node(around:400,${ll})["barrier"="toll_booth"];);out center tags 250;`),
+      dd?busca(`[out:json][timeout:20];(nwr(around:10000,${dd})${tur};nwr(around:10000,${dd})${his};);out center tags 120;`):Promise.resolve([])]);
+    if(R[0].status!=="fulfilled")throw new Error("busca do caminho falhou");   // sem a busca da estrada: avisa e oferece tentar de novo
+    const el=R.flatMap(x=>x.status==="fulfilled"?x.value:[]).filter(e=>e.tags).map(e=>({...e,lat:e.lat??(e.center&&e.center.lat),lon:e.lon??(e.center&&e.center.lon)})).filter(e=>e.lat!=null);
     const pr=[];el.filter(e=>e.tags.barrier==="toll_booth").forEach(e=>{if(!pr.some(x=>kmEntre(x,e)<1.5))pr.push(e)});   // cabines a menos de 1,5 km = a mesma praça
     const ordem=e=>{let b=0,d=1e9;pts.forEach((p,i)=>{const z=kmEntre({lat:p[0],lon:p[1]},e);if(z<d){d=z;b=i}});return b};
     const T={viewpoint:"🏞️ Mirante",attraction:"⭐ Atração",museum:"🏛️ Museu",theme_park:"🎢 Parque",zoo:"🦁 Zoológico",gallery:"🖼️ Galeria",monument:"🗿 Monumento",memorial:"🕯️ Memorial",castle:"🏰 Castelo"};
@@ -1459,18 +1470,20 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     const cam=todos.filter(x=>x.g==="c").sort((a,b)=>b.w-a.w||a.o-b.o).slice(0,8).sort((a,b)=>a.o-b.o),   // os mais conhecidos, na ordem da estrada
       des=todos.filter(x=>x.g==="d").sort((a,b)=>b.w-a.w||a.dd-b.dd).slice(0,8);
     const marca=(L)=>{const top=[...L].sort((a,b)=>b.w-a.w).slice(0,3);return L.map(x=>({...x,on:top.includes(x)}))};
-    return {pracas:pr.length,pois:marca(cam).concat(marca(des))}}
+    return {pracas:R[0].status==="fulfilled"?pr.length:null,pois:marca(cam).concat(marca(des))}}   // a busca do caminho falhou: a contagem das praças fica desconhecida
+  const horas=h=>h<1?Math.max(1,Math.round(h*60))+" min":Math.round(h)+" h";   // 19,2 h → 19 h · 19,6 h → 20 h
   const REF=[["cafe","☕","Café"],["alm","🍽️","Almoço"],["jan","🍲","Janta"]];
   function viaContas(x){const f=x.iv?2:1,km=(x.km||0)*f,h=(x.h||0)*f,lit=x.kml>0?km/x.kml:0,comb=lit*(x.preco||0),noi=noites(x.ida,x.volta),dias=noi+1,hot=noi*(x.diaria||0);
     const pedC=(x.pedCarro||0)*f,ped=x.pedMan!==""&&x.pedMan!=null?+x.pedMan:pedC/2,R=x.ref||{};
     const ref=REF.map(([k,ic,r])=>{const q=(R[k]&&R[k].q!==""&&R[k].q!=null)?+R[k].q:dias,v=(R[k]&&+R[k].v)||0;return {k,ic,r,q,v,t:q*v}}),alim=ref.reduce((a,b)=>a+b.t,0);
-    return {km,h,lit,comb,hot,pedC,ped,ref,alim,noi,dias,tot:comb+hot+ped+alim}}
+    const parMin=(x.paradas||[]).reduce((a,p)=>a+(+p.min||0),0);
+    return {km,h,lit,comb,hot,pedC,ped,ref,alim,noi,dias,parMin,tot:comb+hot+ped+alim}}
   function viaChecklist(x,c){const L=[],ate=x.volta||x.ida;
     DOCS.forEach(([k,r])=>{const d=M.docs[k];if(!d)L.push(`📝 ${r}: cadastre o vencimento em Documentos`);else if(ate&&d<=ate)L.push(`⚠️ ${r} vence ${d<=(x.ida||d)?"antes":"durante"} a viagem (${br(d)})`);else L.push(`✅ ${r} em dia`)});
     MAN.forEach(([k,r])=>{const f=falta(k);if(f!=null&&f<c.km)L.push(`⚠️ ${r}: faltam ${nKm(Math.max(0,f))} km e a viagem tem ${nKm(Math.round(c.km))} km. Faça antes de sair!`)});
     if(!kmlMedia())L.push("ℹ️ Sem o km/l da sua moto ainda: registre 2 abastecimentos para a conta do combustível ficar exata");
     return L}
-  const viaMaps=x=>{const w=(x.pois||[]).filter(p=>p.on).slice(0,9).map(p=>p.lat+","+p.lng).join("|");
+  const viaMaps=x=>{const w=(x.paradas||[]).filter(p=>p.lat!=null).map(p=>({...p,o:p.o??0})).concat((x.pois||[]).filter(p=>p.on)).sort((a,b)=>(a.o||0)-(b.o||0)).slice(0,9).map(p=>p.lat+","+p.lng).join("|");
     return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(x.orig)+"&destination="+encodeURIComponent(x.dest)+(w?"&waypoints="+encodeURIComponent(w):"")+"&travelmode=driving"};
   function viaDesenha(C){const V=M.viagens;
     if(!viaEd){C.innerHTML=`<div class="card"><h2>🗺️ Viagens</h2><p class="nota" style="margin:0 0 8px">Planeje a viagem: a rota, os pontos turísticos no caminho, o combustível da <b>sua</b> moto, o pedágio, o hotel e a alimentação. E gere o flyer para mandar no grupo.</p>
@@ -1490,7 +1503,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       <label>Preço do litro (R$)<input type="text" inputmode="decimal" id="vPreco" placeholder="Ex.: 6,29" value="${fx(x.preco)}"></label></div>
       <p class="nota" style="margin:6px 0 0">${kmlMedia()?`O km/l veio dos seus abastecimentos (média ${dec(kmlMedia(),1)}).`:"Registre abastecimentos na Minha moto para o km/l vir sozinho."}</p>
       <div class="qbts" style="margin-top:10px"><button class="qz" id="vCalc">🧮 Calcular</button></div><p class="nota" id="vMsg" style="margin:8px 0 0"></p>
-      ${c?`<div class="via-res"><div><b>${nKm(Math.round(c.km))} km</b><span>${x.iv?"ida e volta":"só ida"} · ~${dec(c.h,1)} h de estrada</span></div><div><b>${R$(c.comb)}</b><span>⛽ combustível · ~${dec(c.lit,1)} L</span></div>
+      ${c?`<div class="via-res"><div><b>${nKm(Math.round(c.km))} km</b><span>${x.iv?"ida e volta":"só ida"} · ~${horas(c.h)} de estrada</span></div><div><b>${R$(c.comb)}</b><span>⛽ combustível · ~${dec(c.lit,1)} L</span></div>
         <div><b>${R$(c.ped)}</b><span>🛣️ pedágio (moto)</span></div><div><b>${R$(c.alim)}</b><span>🍽️ alimentação</span></div>${c.noi?`<div style="grid-column:1/-1"><b>${R$(c.hot)}</b><span>🏨 hotel · ${c.noi} noite${c.noi>1?"s":""}</span></div>`:""}
         <div class="via-tot"><b>${R$(c.tot)}</b><span>custo estimado da viagem</span></div></div>
       <h3 style="margin:14px 0 6px;font-size:16px">🛣️ Pedágio</h3><div class="mf">
@@ -1508,10 +1521,16 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
         <label>Volta: saída do destino<input type="time" id="vHVol" value="${x.hVol||""}"></label><label>Onde comer (opcional)<input type="text" id="vCom" maxlength="40" placeholder="Ex.: Rancho do Mineiro" value="${es(x.com||"")}"></label>
         <label class="inteiro">Observações<input type="text" id="vObs" maxlength="80" placeholder="Ex.: Tanque cheio na saída" value="${es(x.obs||"")}"></label></div>
       ${x.clima?`<p class="nota" style="margin:6px 0 0">${x.clima.p>=40?"🌧️":"☀️"} Previsão para ${br(x.ida).slice(0,5)} em ${es(x.dest)}: ${x.clima.tmin}° a ${x.clima.tmax}°C, ${x.clima.p}% de chance de chuva.</p>`:""}
+      <h3 style="margin:14px 0 6px;font-size:16px">🛑 Paradas (abastecer, descansar, comer)</h3>
+      ${(x.paradas||[]).map((p2,i)=>`<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(236,231,220,.08)"><span style="flex:1">🛑 <b>${es(p2.n)}</b> · ${p2.min} min${p2.sug?' <small style="color:#BDB7AA">(sugerida)</small>':""}${p2.lat==null?' <small style="color:#E9B949">(não achei no mapa: entra só no cronograma)</small>':""}</span><button type="button" data-par-del="${i}" aria-label="Tirar a parada" style="background:none;border:0;font-size:18px">🗑️</button></div>`).join("")}
+      <div class="mf" style="grid-template-columns:1fr 90px auto;align-items:end;margin-top:6px"><label>Lugar<input type="text" id="vParN" maxlength="60" placeholder="Ex.: Posto Graal, Ribeirão Preto"></label>
+        <label>Minutos<input type="text" inputmode="numeric" id="vParM" value="30"></label><button type="button" id="vParAdd" style="padding:11px 12px;border-radius:10px;border:0;background:#E9B949;color:#141210;font-weight:800">➕</button></div>
+      <p class="nota" style="margin:6px 0 0">Elas entram no cronograma (com o horário estimado), somam o tempo parado na chegada, vão no mapa do flyer e viram paradas no Maps.</p>
       <h3 style="margin:14px 0 6px;font-size:16px">📍 Pontos turísticos no caminho</h3>
       ${(x.pois||[]).length?`<div>${[["c","🛣️ No caminho"],["d","🏁 No destino"]].map(([gr,rot])=>{const L=x.pois.map((p2,i)=>[p2,i]).filter(([p2])=>(p2.g||"c")===gr);
           return L.length?`<p style="margin:10px 0 2px;font-weight:800;color:#E9B949">${rot}</p>`+L.map(([p2,i])=>`<label class="chk" style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(236,231,220,.08)"><input type="checkbox" data-poi="${i}"${p2.on?" checked":""} style="width:20px;height:20px"><span>${p2.t} · <b>${es(p2.n)}</b></span></label>`).join(""):""}).join("")}</div>
         <p class="nota" style="margin:6px 0 0">${on>9?"⚠️ O Google Maps aceita até 9 paradas: vão as 9 primeiras.":"Desmarque os que não quiser. Os marcados viram paradas no Maps e vão no flyer."}</p>`
+        :x.poisErro?`<p class="nota" style="margin:0;color:#E9B949">⚠️ O serviço de mapas não respondeu a tempo (acontece em rotas longas).</p><div class="qbts" style="margin-top:6px"><button id="vPoisDeNovo">🔄 Buscar os pontos de novo</button></div>`
         :`<p class="nota" style="margin:0">${x.pois?"Nenhum ponto turístico encontrado perto da estrada.":"…"}</p>`}
       <div class="qbts" style="margin-top:10px"><button id="vMaps">🗺️ Abrir a rota no Maps${on?` (${Math.min(on,9)} parada${on>1?"s":""})`:""}</button></div>
       <h3 style="margin:14px 0 0;font-size:16px">✅ Antes de sair</h3><ul class="via-ck">${viaChecklist(x,c).map(t=>`<li>${es(t)}</li>`).join("")}</ul>
@@ -1522,16 +1541,25 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       if(q("#vPedC")){x.pedCarro=n(q("#vPedC").value);x.pedMan=n(q("#vPedM").value)}if(q("#vDia"))x.diaria=n(q("#vDia").value);
       [["#vNome","nome"],["#vHEnc","hEnc"],["#vHSai","hSai"],["#vLEnc","lEnc"],["#vHVol","hVol"],["#vCom","com"],["#vObs","obs"]].forEach(([i,k])=>{const e=q(i);if(e)x[k]=e.value.trim()});
       x.ref=x.ref||{};C.querySelectorAll("[data-rq]").forEach(i=>{const k=i.dataset.rq;x.ref[k]=x.ref[k]||{};x.ref[k].q=n(i.value)});C.querySelectorAll("[data-rv]").forEach(i=>{const k=i.dataset.rv;x.ref[k]=x.ref[k]||{};x.ref[k].v=n(i.value)})};
-    C.querySelectorAll("input:not(#vOrig):not(#vDest)").forEach(i=>i.onchange=()=>{const y=scrollY;le();if(x.km){desenha();scrollTo(0,y)}});
+    C.querySelectorAll("input:not(#vOrig):not(#vDest):not(#vParN):not(#vParM)").forEach(i=>i.onchange=()=>{const y=scrollY;le();if(x.km){desenha();scrollTo(0,y)}});
     C.querySelectorAll("[data-poi]").forEach(i=>i.onchange=()=>{const y=scrollY;le();x.pois[+i.dataset.poi].on=i.checked;desenha();scrollTo(0,y)});
     q("#vVolta2").onclick=()=>{viaEd=null;desenha()};
+    {const pn=q("#vPoisDeNovo");if(pn)pn.onclick=async()=>{le();pn.disabled=true;pn.textContent="⏳ Buscando…";
+      try{const ar=await viaArredores(x.pts,x.b);x.pois=ar.pois;x.pracas=ar.pracas;x.poisErro=false}catch(_){x.poisErro=true}const y=scrollY;desenha();scrollTo(0,y)}}
+    {const ad=q("#vParAdd");if(ad)ad.onclick=async()=>{le();const n=q("#vParN").value.trim(),mn=Math.max(0,parseInt(q("#vParM").value,10)||0);if(!n){q("#vParN").focus();return}
+      ad.disabled=true;ad.textContent="⏳";const p={n,min:mn};
+      try{const gg=await viaGeo(n);p.lat=gg.lat;p.lng=gg.lng;let b_=0,d_=1e9;(x.pts||[]).forEach((pp,i)=>{const z=kmEntre({lat:pp[0],lon:pp[1]},{lat:gg.lat,lon:gg.lng});if(z<d_){d_=z;b_=i}});p.o=b_;
+        if(d_>40)p.longe=Math.round(d_)}catch(_){}
+      x.paradas=(x.paradas||[]).concat([p]).sort((a,b)=>(a.o??1e9)-(b.o??1e9));const y=scrollY;desenha();scrollTo(0,y);if(p.longe)alert(`⚠️ "${n}" fica a ${p.longe} km da rota. Confira se é o lugar certo.`)}}
+    C.querySelectorAll("[data-par-del]").forEach(b=>b.onclick=()=>{le();x.paradas.splice(+b.dataset.parDel,1);const y=scrollY;desenha();scrollTo(0,y)});
     {const ap=q("#vApaga");if(ap)ap.onclick=()=>{if(!confirm("Apagar esta viagem?"))return;M.viagens=M.viagens.filter(y=>y.id!==x.id);grava(M);viaEd=null;desenha()}}
     {const mp=q("#vMaps");if(mp)mp.onclick=()=>{le();window.open(viaMaps(x),"_blank")}}
     q("#vCalc").onclick=async()=>{le();const m=q("#vMsg");if(!x.orig||!x.dest){m.textContent="Preencha de onde sai e o destino.";return}
       if(!(x.kml>0)||!(x.preco>0)){m.textContent="Preencha quantos km/l a sua moto faz e o preço do litro.";return}
       m.textContent="🧭 Calculando a rota…";try{const a=await viaGeo(x.orig);await new Promise(r=>setTimeout(r,1100));const b=await viaGeo(x.dest);const r=await viaRota(a,b);
         Object.assign(x,{a,b,km:r.km,h:r.h,pts:r.pts});m.textContent="📍 Procurando pontos turísticos e pedágios no caminho…";
-        try{const ar=await viaArredores(r.pts,b);x.pois=ar.pois;x.pracas=ar.pracas}catch(_){x.pois=x.pois||[];x.pracas=null}
+        try{const ar=await viaArredores(r.pts,b);x.pois=ar.pois;x.pracas=ar.pracas;x.poisErro=false}catch(_){x.pois=x.pois||[];x.pracas=null;x.poisErro=true}
+        if(r.km>250){m.textContent="🛑 Sugerindo paradas no caminho…";try{x.paradas=(x.paradas||[]).filter(p=>!p.sug).concat(await viaSugerir(r.pts,r.km)).sort((a,b)=>(a.o??1e9)-(b.o??1e9))}catch(_){}}
         x.clima=null;try{const dd=Math.round((new Date(x.ida+"T12:00:00")-new Date())/864e5);if(x.ida&&dd>=-1&&dd<=15){   // previsão do tempo no destino (Open-Meteo, gratuito)
           const w=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${b.lat}&longitude=${b.lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=America%2FSao_Paulo&start_date=${x.ida}&end_date=${x.ida}`)).json();
           const dy=w.daily||{};x.clima={p:Math.round((dy.precipitation_probability_max||[0])[0]||0),tmin:Math.round((dy.temperature_2m_min||[0])[0]),tmax:Math.round((dy.temperature_2m_max||[0])[0])}}}catch(_){}
@@ -1579,13 +1607,13 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     // faixa de informações
     painel(24,280,W-48,118);const sem=["DOMINGO","SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"],dI=x.ida?new Date(x.ida+"T12:00:00"):null;
     const cel=[["🗓️","DATA",x.ida?br(x.ida):"–",dI?sem[dI.getDay()]+(x.volta&&x.volta!==x.ida?" a "+br(x.volta).slice(0,5):""):""],["⏰","ENCONTRO",x.hEnc||"–",x.lEnc||""],["🏍️","SAÍDA",x.hSai||"–",ORI],
-      ["📏","DISTÂNCIA",nKm(Math.round(c.km))+" km",x.iv?"ida e volta":"só ida"],["⏱️","NA ESTRADA","~"+dec(c.h,1)+" h",x.iv?"ida e volta":""]];
+      ["📏","DISTÂNCIA",nKm(Math.round(c.km))+" km",x.iv?"ida e volta":"só ida"],["⏱️","NA ESTRADA","~"+horas(c.h),x.iv?"ida e volta":""]];
     cel.forEach(([ic,r,v,sub],k)=>{const X=24+k*(W-48)/5,cw=(W-48)/5;if(k){g.fillStyle=th.a(.6);g.fillRect(X,300,2,78)}
       T(ic,X+14,346,{s:34,f:FB});T(r,X+60,322,{s:22,f:FT,w:400,cor:BR,max:cw-66});T(v,X+60,356,{s:30,f:FT,w:400,cor:AM,max:cw-66});T(sub,X+60,384,{s:18,cor:CZ,w:400,max:cw-66})});
     // ---- as peças do flyer (cada uma se ajusta ao espaço que o layout der) ----
     const secTrajeto=async(MX,MY,MW,MH)=>{painel(MX,MY,MW,MH,"TRAJETO");const ix=MX+12,iy=MY+54,iw=MW-24,ih=MH-66;
     if(x.pts&&x.pts.length>1){const Q=x.pts,px=(la,lo,z)=>[(lo+180)/360*256*2**z,(1-Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180))/Math.PI)/2*256*2**z];
-      const todos=Q.concat(Pc.map(p=>[p.lat,p.lng]));let z=14;for(;z>3;z--){const xs=todos.map(p=>px(p[0],p[1],z)[0]),ys=todos.map(p=>px(p[0],p[1],z)[1]);if(Math.max(...xs)-Math.min(...xs)<iw-150&&Math.max(...ys)-Math.min(...ys)<ih-120)break}
+      const todos=Q.concat(Pc.map(p=>[p.lat,p.lng])).concat((x.paradas||[]).filter(p=>p.lat!=null&&!p.longe).map(p=>[p.lat,p.lng]));let z=14;for(;z>3;z--){const xs=todos.map(p=>px(p[0],p[1],z)[0]),ys=todos.map(p=>px(p[0],p[1],z)[1]);if(Math.max(...xs)-Math.min(...xs)<iw-150&&Math.max(...ys)-Math.min(...ys)<ih-120)break}
       const xs=todos.map(p=>px(p[0],p[1],z)[0]),ys=todos.map(p=>px(p[0],p[1],z)[1]),cx=(Math.max(...xs)+Math.min(...xs))/2,cy=(Math.max(...ys)+Math.min(...ys))/2;
       const k=Math.max(1,Math.min(1.95,(iw-150)/Math.max(1,Math.max(...xs)-Math.min(...xs)),(ih-120)/Math.max(1,Math.max(...ys)-Math.min(...ys))));   // aproxima entre os níveis do mapa
       const pt=p=>{const [a,b]=px(p[0],p[1],z);return [ix+iw/2+(a-cx)*k,iy+ih/2+(b-cy)*k]},x0=cx-iw/2/k,y0=cy-ih/2/k;
@@ -1595,33 +1623,39 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       g.lineJoin="round";g.lineCap="round";g.beginPath();Q.forEach((p,k)=>{const [a,b]=pt(p);k?g.lineTo(a,b):g.moveTo(a,b)});g.strokeStyle="rgba(0,0,0,.7)";g.lineWidth=16;g.stroke();g.strokeStyle=AM;g.lineWidth=9;g.stroke();
       const pino=(p,cor,txt,rot)=>{const [a,b]=pt(p);g.fillStyle=cor;g.strokeStyle="#111";g.lineWidth=4;g.beginPath();g.arc(a,b,txt?19:15,0,7);g.fill();g.stroke();if(txt)T(txt,a,b+8,{s:22,f:FT,w:400,cor:"#111",al:"center"});
         if(rot){g.font=`400 28px ${FT}`;const tw=g.measureText(rot).width,lx=Math.min(Math.max(a-tw/2,ix+8),ix+iw-tw-8),ly=b>iy+ih-60?b-30:b+46;g.fillStyle="rgba(0,0,0,.75)";rr(lx-8,ly-28,tw+16,36,8);g.fill();T(rot,lx,ly,{s:28,f:FT,w:400,cor:AM})}};
-      Pc.forEach((p,k)=>pino([p.lat,p.lng],BR,String(k+1)));pino(Q[0],"#2ecc71",null,ORI.toUpperCase());pino(Q[Q.length-1],"#e74c3c",null,CAI.toUpperCase());
+      Pc.forEach((p,k)=>pino([p.lat,p.lng],BR,String(k+1)));
+      (x.paradas||[]).filter(p=>p.lat!=null).forEach(p=>{const [a,b]=pt([p.lat,p.lng]);g.fillStyle=AM;g.strokeStyle="#111";g.lineWidth=4;rr(a-15,b-15,30,30,6);g.fill();g.stroke();T("P",a,b+9,{s:22,f:FT,w:400,cor:th.tb,al:"center"})});pino(Q[0],"#2ecc71",null,ORI.toUpperCase());pino(Q[Q.length-1],"#e74c3c",null,CAI.toUpperCase());
       T("N",ix+iw-40,iy+40,{s:30,f:FT,w:400,cor:BR,al:"center"});g.fillStyle=BR;g.beginPath();g.moveTo(ix+iw-40,iy+46);g.lineTo(ix+iw-50,iy+76);g.lineTo(ix+iw-30,iy+76);g.closePath();g.fill();
       T("© OpenStreetMap",ix+iw-10,iy+ih-10,{s:16,w:400,cor:"rgba(255,255,255,.6)",al:"right"});g.restore()}};
     const secDist=(X,Y,w,h)=>{painel(X,Y,w,h,"DISTÂNCIA");const kI=nKm(Math.round(kmIda))+" km";
-      if(w>h*1.35){const B=[["🏍️","IDA",kI],["↩️","VOLTA",x.iv?kI:"–"],["🛣️","TOTAL",nKm(Math.round(c.km))+" km"],["⏱️","NA ESTRADA","~"+dec(c.h,1)+" h"]],cw=(w-40)/2,ch=(h-84)/2;
+      if(w>h*1.35){const B=[["🏍️","IDA",kI],["↩️","VOLTA",x.iv?kI:"–"],["🛣️","TOTAL",nKm(Math.round(c.km))+" km"],["⏱️","NA ESTRADA","~"+horas(c.h)]],cw=(w-40)/2,ch=(h-84)/2;
         B.forEach(([ic,r,v],k)=>{const bx=X+20+(k%2)*cw,by=Y+56+Math.floor(k/2)*ch;T(ic,bx,by+ch*.66,{s:30});T(r,bx+46,by+ch*.42,{s:22,f:FT,w:400,max:cw-56});T(v,bx+46,by+ch*.42+38,{s:k===2?42:32,f:FT,w:400,cor:k===2?AM:BR,max:cw-56})});
         T(`⛽ ~${dec(c.lit,1)} L · ${dec(x.kml||0,1)} km/l`,X+w-20,Y+h-14,{s:20,w:400,cor:CZ,al:"right"});return}
       const sy=h/470,L=(o)=>Y+o*sy;
       [["🏍️","IDA",kI],["↩️","VOLTA",x.iv?kI:"–"]].forEach(([ic,r,v],k)=>{const yy=L(110+k*72);T(ic,X+22,yy,{s:34});T(r,X+76,yy,{s:36,f:FT,w:400});T(v,X+w-22,yy,{s:40,f:FT,w:400,al:"right"});g.fillStyle=th.a(.35);g.fillRect(X+20,yy+20,w-40,2)});
-      T("🛣️",X+22,L(266),{s:34});T("TOTAL",X+76,L(268),{s:40,f:FT,w:400});T(nKm(Math.round(c.km))+" km",X+w-22,L(272),{s:64,f:FT,w:400,cor:AM,al:"right",max:w-170});
+      T("🛣️",X+22,L(266),{s:34});T("TOTAL",X+76,L(268),{s:40,f:FT,w:400});T(nKm(Math.round(c.km))+" km",X+w-22,L(272),{s:64,f:FT,w:400,cor:AM,al:"right",max:w-200});
       g.fillStyle=th.a(.35);g.fillRect(X+20,L(296),w-40,2);
-      T("⏱️",X+22,L(350),{s:34});T("TEMPO DE ESTRADA",X+76,L(340),{s:24,f:FT,w:400,max:w-110});T("~"+dec(c.h,1)+" h"+(x.iv?" (ida e volta)":""),X+76,L(376),{s:30,f:FT,w:400,cor:AM,max:w-100});
+      T("⏱️",X+22,L(350),{s:34});T("TEMPO DE ESTRADA",X+76,L(340),{s:24,f:FT,w:400,max:w-110});T("~"+horas(c.h)+(x.iv?" (ida e volta)":""),X+76,L(376),{s:30,f:FT,w:400,cor:AM,max:w-100});
       T("⛽",X+22,L(430),{s:34});T("CONSUMO",X+76,L(420),{s:24,f:FT,w:400});T(`~${dec(c.lit,1)} L · ${dec(x.kml||0,1)} km/l`,X+76,L(452),{s:28,f:FT,w:400,cor:AM,max:w-100})};
-    const tChega=hm(x.hSai,hIda*60+Pc.length*20),dv=x.volta&&x.volta!==x.ida?` (${br(x.volta).slice(0,5)})`:"";
-    const cr=[[x.hEnc,`Encontro${x.lEnc?" no "+x.lEnc:""}.`],[x.hSai,`Saída de ${ORI}.`],[tChega,`Chegada a ${CAI}${Pc.length?` (com ${Pc.length} parada${Pc.length>1?"s":""} no caminho)`:""}.`],
-      [x.com?"🍽️":null,x.com?`Refeição no ${x.com}.`:null],[x.hVol&&x.hVol+dv,x.iv||x.hVol?`Saída de ${CAI} (retorno).`:null],[x.hVol?hm(x.hVol,hIda*60):"",x.iv||x.hVol?`Chegada prevista em ${ORI}.`:null]].filter(l=>l[1]).slice(0,6);
-    const secCron=(X,Y,w,h)=>{painel(X,Y,w,h,"CRONOGRAMA");const st=Math.min(40,(h-70)/cr.length);
-      cr.forEach(([hh,t],k)=>{const yy=Y+70+st*(k+.75);T("🕒",X+16,yy,{s:24});T(hh||"--:--",X+54,yy,{s:28,f:/^\d/.test(hh||"")?FT:FB,w:400,cor:AM});T(t,X+156,yy,{s:26,w:400,max:w-170})})};
+    const PAR=(x.paradas||[]),nPts=(x.pts||[]).length||1;let acum=0;
+    const crPar=PAR.slice(0,2).map(p=>{const t=x.hSai?hm(x.hSai,hIda*60*Math.min(1,(p.o??nPts*.5)/nPts)+acum):"";acum+=+p.min||0;return [t,`Parada: ${p.n} (${p.min} min).`]});
+    if(PAR.length>2)crPar.push(["🛑",`+ ${PAR.length-2} parada${PAR.length>3?"s":""} no caminho (veja a lista).`]);   // no máximo 2 no cronograma: a letra não fica miúda
+    const tChega=hm(x.hSai,hIda*60+Pc.length*20+c.parMin),dv=x.volta&&x.volta!==x.ida?` (${br(x.volta).slice(0,5)})`:"";
+    const cr=[[x.hEnc,`Encontro${x.lEnc?" no "+x.lEnc:""}.`],[x.hSai,`Saída de ${ORI}.`]].concat(crPar).concat([[tChega,`Chegada a ${CAI}${Pc.length?` (com ${Pc.length} ponto${Pc.length>1?"s":""} turístico${Pc.length>1?"s":""} no caminho)`:""}.`],
+      [x.com?"🍽️":null,x.com?`Refeição no ${x.com}.`:null],[x.hVol,x.iv||x.hVol?`Saída de ${CAI} (retorno)${dv}.`:null],[x.hVol?hm(x.hVol,hIda*60+c.parMin):"",x.iv||x.hVol?`Chegada prevista em ${ORI}${dv}.`:null]]).filter(l=>l[1]).slice(0,9);
+    const secCron=(X,Y,w,h)=>{painel(X,Y,w,h,"CRONOGRAMA");const st=Math.min(40,(h-70)/cr.length),fs=Math.min(26,st*.78);
+      cr.forEach(([hh,t],k)=>{const yy=Y+70+st*(k+.75);T("🕒",X+16,yy,{s:fs-2});T(hh||"--:--",X+54,yy,{s:fs+2,f:/^\d/.test(hh||"")?FT:FB,w:400,cor:AM,max:96});T(t,X+156,yy,{s:fs,w:400,max:w-170})})};
     const cu=[["⛽","COMBUSTÍVEL",R$(c.comb)],["🛣️","PEDÁGIOS",(x.pracas!=null?x.pracas+" praça"+(x.pracas===1?"":"s")+" · ":"")+R$(c.ped)],["🍽️","ALIMENTAÇÃO",R$(c.alim)]].concat(c.noi?[["🏨","HOSPEDAGEM",R$(c.hot)]]:[]);
-    const secCustos=(X,Y,w,h)=>{painel(X,Y,w,h,"CUSTOS ESTIMADOS");const st=Math.min(56,(h-160)/cu.length);
-      cu.forEach(([ic,r,v],k)=>{const yy=Y+60+st*(k+.7);T(ic,X+20,yy+4,{s:28});T(r,X+66,yy,{s:24,f:FT,w:400,max:w*.5-56});T(v,X+w-20,yy,{s:26,f:FT,w:400,cor:AM,al:"right",max:w*.46})});
+    const secCustos=(X,Y,w,h)=>{painel(X,Y,w,h,"CUSTOS ESTIMADOS");const st=Math.min(56,(h-150)/cu.length);
+      if(st<36){const cw=(w-40)/2,ch=(h-150)/Math.ceil(cu.length/2);   // não cabem em linhas: grade de 2 colunas
+        cu.forEach(([ic,r,v],k)=>{const bx=X+20+(k%2)*cw,by=Y+56+Math.floor(k/2)*ch;T(ic,bx,by+ch*.62,{s:26});T(r,bx+40,by+ch*.42,{s:20,f:FT,w:400,max:cw-48});T(v,bx+40,by+ch*.42+26,{s:24,f:FT,w:400,cor:AM,max:cw-48})})}
+      else cu.forEach(([ic,r,v],k)=>{const yy=Y+60+st*(k+.7);T(ic,X+20,yy+4,{s:28});T(r,X+66,yy,{s:24,f:FT,w:400,max:w*.5-56});T(v,X+w-20,yy,{s:26,f:FT,w:400,cor:AM,al:"right",max:w*.46})});
       g.setLineDash([8,6]);g.strokeStyle=CZ;g.lineWidth=2;g.beginPath();g.moveTo(X+20,Y+h-78);g.lineTo(X+w-20,Y+h-78);g.stroke();g.setLineDash([]);
       T("TOTAL ESTIMADO",X+20,Y+h-40,{s:30,f:FT,w:400,cor:AM,max:w*.5});T(R$(c.tot),X+w-20,Y+h-20,{s:42,f:FT,w:400,cor:BR,al:"right",max:w*.48})};
-    const Pl=Pc.map((p,k)=>[p,String(k+1)]).concat(P.filter(p=>p.g==="d").map(p=>[p,"🏁"]));
+    const Pl=Pc.map((p,k)=>[p,String(k+1)]).concat((x.paradas||[]).map(p=>[{n:`Parada: ${p.n} (${p.min} min)`},"🛑"])).concat(P.filter(p=>p.g==="d").map(p=>[p,"🏁"]));
     const secPontos=(X,Y,w,h)=>{painel(X,Y,w,h,"PONTOS TURÍSTICOS");const n=Math.max(1,Math.floor((h-96)/32)),L=Pl.slice(0,n);
       if(!L.length){T("Direto ao destino 🏁",X+16,Y+110,{s:28,w:400});return}
-      L.forEach(([p,m],k)=>{const yy=Y+88+k*32;if(m==="🏁")T("🏁",X+16,yy,{s:22});else{g.fillStyle=BR;g.beginPath();g.arc(X+28,yy-8,14,0,7);g.fill();T(m,X+28,yy-1,{s:19,f:FT,w:400,cor:"#111",al:"center"})}
+      L.forEach(([p,m],k)=>{const yy=Y+88+k*32;if(m==="🏁"||m==="🛑")T(m,X+16,yy,{s:22});else{g.fillStyle=BR;g.beginPath();g.arc(X+28,yy-8,14,0,7);g.fill();T(m,X+28,yy-1,{s:19,f:FT,w:400,cor:"#111",al:"center"})}
         T(p.n,X+54,yy,{s:23,w:400,max:w-70})});
       if(L.some(([p])=>p.g==="d"))T("🏁 no destino",X+w-20,Y+h-12,{s:18,w:400,cor:CZ,al:"right"})};
     const secHosp=(X,Y,w,h)=>{painel(X,Y,w,h,"HOSPEDAGEM");
@@ -1657,7 +1691,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
   function consumo(){const L=[...M.abs].sort((a,b)=>a.km-b.km);L.forEach((a,i)=>{a.kml=i>0&&a.km>L[i-1].km&&a.l>0?(a.km-L[i-1].km)/a.l:null});return L}
   // ---- a aba em três bolinhas: Documentos, Abastecimento e Manutenção (por km) ----
   const MAN=[["rev","🔧 Revisão"],["oleo","🛢️ Troca de óleo"],["pneu","🛞 Pneus"],["rel","⛓️ Relação / corrente"]];
-  let aberta=null;
+  let aberta=null,absEd=null;   // absEd: o abastecimento sendo editado
   const kmAt=()=>M.abs.length?Math.max(...M.abs.map(a=>a.km)):null;
   const prox=k=>{const m=M.man||{};if(k==="rev")return +m.rev_km||null;const u=+m[k+"_ult"],n=+m[k+"_int"];return u>0&&n>0?u+n:null};
   const falta=k=>{const p=prox(k),a=kmAt();return p&&a!=null?p-a:null};
@@ -1686,16 +1720,19 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     if(aberta==="doc")C.innerHTML=`<div class="card"><h2>📄 Documentos</h2><p class="nota" style="margin:0 0 6px">Coloque os vencimentos: o ícone da Minha moto avisa 30 dias antes.</p>
       ${DOCS.map(([k,r])=>{const d=M.docs[k]||"",f=d?faltam(d):null,cr=f==null?"#BDB7AA":f<0?"#E26D6B":f<=30?"#E9B949":"#8FD9A3";
         return `<div class="doc"><b>${r}</b><input type="date" data-doc="${k}" value="${d}"><small style="color:${cr}">${f==null?"–":f<0?"vencido":f===0?"vence hoje":"em "+f+" dias"}</small></div>`}).join("")}</div>`;
-    if(aberta==="abs")C.innerHTML=`<div class="card"><h2>⛽ Novo abastecimento</h2><div class="mf">
-      <label>Data<input type="date" id="abD" value="${new Date().toISOString().slice(0,10)}"></label>
-      <label>Odômetro (km)<input type="text" inputmode="numeric" id="abK" placeholder="${ka!=null?"Último: "+nKm(ka):"Ex.: 23450"}"></label>
-      <label>Valor total (R$)<input type="text" inputmode="decimal" id="abV" placeholder="Ex.: 85,00"></label>
-      <label>Preço por litro (R$)<input type="text" inputmode="decimal" id="abP" placeholder="Ex.: 6,29"></label>
-      <label class="inteiro">Combustível<select id="abT"><option>Gasolina comum</option><option>Gasolina aditivada</option><option>Gasolina premium</option><option>Etanol</option></select></label>
-      <div class="litros" id="abL">Litros: –</div></div>
-      <div class="qbts" style="margin-top:10px"><button class="qz" id="abS">💾 Registrar abastecimento</button></div></div>
+    const AE=absEd!=null?M.abs.find(a=>a.id===absEd):null,fv=n=>n==null||n===""?"":String(Number(n).toFixed(2)).replace(".",",");
+    if(aberta==="abs")C.innerHTML=`<div class="card"${AE?' style="border-color:#E9B949"':""}><h2>${AE?"✏️ Editar abastecimento":"⛽ Novo abastecimento"}</h2><div class="mf">
+      <label>Data<input type="date" id="abD" value="${AE?AE.d:new Date().toISOString().slice(0,10)}"></label>
+      <label>Odômetro (km)<input type="text" inputmode="numeric" id="abK" placeholder="${ka!=null?"Último: "+nKm(ka):"Ex.: 23450"}" value="${AE?AE.km:""}"></label>
+      <label>Valor total (R$)<input type="text" inputmode="decimal" id="abV" placeholder="Ex.: 85,00" value="${AE?fv(AE.v):""}"></label>
+      <label>Preço por litro (R$)<input type="text" inputmode="decimal" id="abP" placeholder="Ex.: 6,29" value="${AE?fv(AE.p):""}"></label>
+      <label class="inteiro">Combustível<select id="abT">${["Gasolina comum","Gasolina aditivada","Gasolina premium","Etanol"].map(t=>`<option${AE&&AE.t===t?" selected":""}>${t}</option>`).join("")}</select></label>
+      <label class="inteiro">Local (opcional)<span style="display:flex;gap:6px;margin-top:4px"><input type="text" id="abLoc" maxlength="60" placeholder="Ex.: Posto Shell da Av. Salim" value="${es(AE&&AE.loc||"")}" style="margin-top:0">
+        <button type="button" id="abGps" aria-label="Usar a minha localização" style="flex:none;width:48px;border-radius:10px;border:1px solid rgba(236,231,220,.22);background:rgba(233,185,73,.12);font-size:20px">📍</button></span></label>
+      <div class="litros" id="abL">Litros: ${AE?dec(AE.l,2)+" L":"–"}</div></div>
+      <div class="qbts" style="margin-top:10px"><button class="qz" id="abS">${AE?"💾 Salvar alteração":"💾 Registrar abastecimento"}</button>${AE?'<button id="abCanc">Cancelar</button>':""}</div></div>
       <div class="card"><h2>📊 Consumo</h2><div class="res-m"><div><b>${media?dec(media,1):"–"}</b><span>km/l (média)</span></div><div><b>${doMes.length?R$(doMes.reduce((s,a)=>s+a.v,0)):"–"}</b><span>gasto no mês</span></div><div><b>${L.length}</b><span>abastecimentos</span></div></div>
-      ${L.length?`<table class="tab-m"><thead><tr><th>Data</th><th>Valor</th><th>Litros</th><th>km/l</th><th></th></tr></thead><tbody>${[...L].reverse().map(a=>`<tr><td>${br(a.d)}<br><small style="color:#8f887d">${nKm(a.km)} km · ${a.t||""}</small></td><td>${R$(a.v)}</td><td>${dec(a.l,2)}</td><td>${a.kml==null?'<small style="color:#8f887d">Primeiro registro</small>':"<b>"+dec(a.kml,1)+"</b>"}</td><td><button data-del="${a.id}" aria-label="Apagar">🗑️</button></td></tr>`).join("")}</tbody></table>`:'<p class="nota" style="margin:0">Nenhum abastecimento ainda. O primeiro registro serve de ponto de partida para o km/l.</p>'}</div>`;
+      ${L.length?`<table class="tab-m"><thead><tr><th>Data</th><th>Valor</th><th>Litros</th><th>km/l</th><th></th></tr></thead><tbody>${[...L].reverse().map(a=>`<tr${a.id===absEd?' style="background:rgba(233,185,73,.10)"':""}><td>${br(a.d)}<br><small style="color:#8f887d">${nKm(a.km)} km · ${a.t||""}</small>${a.loc?`<br><small style="color:#BDB7AA">📍 ${es(a.loc)}</small>`:""}</td><td>${R$(a.v)}</td><td>${dec(a.l,2)}</td><td>${a.kml==null?'<small style="color:#8f887d">Primeiro registro</small>':"<b>"+dec(a.kml,1)+"</b>"}</td><td style="white-space:nowrap"><button data-ed="${a.id}" aria-label="Editar">✏️</button><button data-del="${a.id}" aria-label="Apagar">🗑️</button></td></tr>`).join("")}</tbody></table>`:'<p class="nota" style="margin:0">Nenhum abastecimento ainda. O primeiro registro serve de ponto de partida para o km/l.</p>'}</div>`;
     
     if(aberta==="via"){viaDesenha(C)}
     if(aberta==="man")C.innerHTML=`<div class="card"><h2>🔧 Manutenção</h2><p class="nota" style="margin:0 0 10px">Tudo por km. O app usa o odômetro do último abastecimento${ka!=null?` (<b>${nKm(ka)} km</b>)`:""} para mostrar quanto falta, e o ícone da Minha moto avisa quando faltar menos de 300 km.</p>
@@ -1718,8 +1755,20 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       ["#abV","#abP"].forEach(q=>v.querySelector(q).addEventListener("input",calc));
       v.querySelector("#abS").onclick=()=>{const d=v.querySelector("#abD").value,km=parseInt(String(v.querySelector("#abK").value).split(".").join(""),10),vv=num2(v.querySelector("#abV").value),pp=num2(v.querySelector("#abP").value);
         if(!d||!(km>0)||!(vv>0)||!(pp>0)){alert("Preencha a data, o odômetro, o valor total e o preço por litro.");return}
+        const loc=v.querySelector("#abLoc").value.trim(),t=v.querySelector("#abT").value;
+        if(absEd!=null){const a=M.abs.find(x=>x.id===absEd);if(a)Object.assign(a,{d,km,v:vv,p:pp,l:vv/pp,t,loc});absEd=null;grava(M);desenha();atualizaBadge();alert("✅ Abastecimento corrigido.");return}
         const ult=consumo().slice(-1)[0];if(ult&&km<=ult.km&&!confirm(`O odômetro (${km} km) é menor ou igual ao último registro (${ult.km} km). Registrar mesmo assim?`))return;
-        M.abs.push({id:Date.now(),d,km,v:vv,p:pp,l:vv/pp,t:v.querySelector("#abT").value});grava(M);desenha();atualizaBadge();try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}};
+        M.abs.push({id:Date.now(),d,km,v:vv,p:pp,l:vv/pp,t,loc});grava(M);desenha();atualizaBadge();try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}};
+      {const cn=v.querySelector("#abCanc");if(cn)cn.onclick=()=>{absEd=null;desenha()}}
+      v.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>{absEd=+b.dataset.ed;desenha();const c=document.getElementById("bolC");if(c)c.scrollIntoView({behavior:"smooth",block:"start"})});
+      v.querySelector("#abGps").onclick=()=>{const b=v.querySelector("#abGps"),inp=v.querySelector("#abLoc");if(!navigator.geolocation){alert("Este celular não deu acesso à localização.");return}
+        b.textContent="⏳";navigator.geolocation.getCurrentPosition(async p=>{let t="";const la=+p.coords.latitude.toFixed(5),lo=+p.coords.longitude.toFixed(5);
+          try{const j=await Promise.race([fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=pt-BR&lat=${la}&lon=${lo}`).then(r=>r.json()),new Promise((_,n)=>setTimeout(()=>n(0),6000))]);
+            const A=(j&&j.address)||{},posto=(j&&j.name)||A.amenity||A.shop||"",bai=[A.suburb||A.neighbourhood||A.quarter||A.city_district||A.village||"",A.city||A.town||A.municipality||""].filter(Boolean).join(", ");
+            t=[posto,bai].filter(Boolean).join(" · ")}catch(_){}   // o nome do posto (quando o mapa conhece) e o bairro
+          if(!t){try{if(window.sosBairro)t=await sosBairro(la,lo)}catch(_){}}
+          b.textContent="📍";if(t){inp.value=t}else alert("Não consegui achar o local agora. Escreva o nome do posto, se quiser.")},
+          ()=>{b.textContent="📍";alert("Não consegui a localização. Libere a localização para o app nas configurações do celular.")},{enableHighAccuracy:true,timeout:12000,maximumAge:60000})};
       v.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(!confirm("Apagar este abastecimento?"))return;M.abs=M.abs.filter(a=>String(a.id)!==b.dataset.del);grava(M);desenha();atualizaBadge()})}
     v.querySelector("#bkC").onclick=async()=>{const t="INSANOS-MOTO:"+btoa(unescape(encodeURIComponent(JSON.stringify({...M,foto:fotoLer(),fundo:fundoLer(),cartimg:cartImgLer(),motofoto:motoFotoLer()}))));
       try{await navigator.clipboard.writeText(t);alert("Backup copiado. Cole numa conversa sua no WhatsApp para guardar.")}catch(_){prompt("Copie o backup:",t)}};
