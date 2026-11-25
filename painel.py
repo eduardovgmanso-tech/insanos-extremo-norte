@@ -1332,7 +1332,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
 // ---- 🏍️ Minha moto (só neste celular: documentos e abastecimentos; nada vai para a planilha, a nuvem ou o comando) ----
 (function(){if(document.getElementById("motoV"))return;const K="moto_"+(D.email||"eu");
   const ler=()=>{try{return JSON.parse(localStorage.getItem(K)||"{}")}catch(_){return {}}},grava=o=>{try{localStorage.setItem(K,JSON.stringify(o))}catch(_){alert("Não consegui salvar neste celular.")}};
-  let M=ler();M.docs=M.docs||{};M.abs=M.abs||[];
+  let M=ler();M.docs=M.docs||{};M.abs=M.abs||[];M.viagens=M.viagens||[];
   const num=v=>{const n=parseFloat(String(v||"").trim().split(".").join("").split(",").join("."));return isFinite(n)?n:NaN};   // aceita 6,29 e 1.234,56
   const num2=v=>{const t=String(v||"").trim();return t.indexOf(",")>=0?num(t):parseFloat(t)};
   const R$=v=>"R$ "+Number(v).toFixed(2).split(".").join(","),dec=(v,c)=>Number(v).toFixed(c).split(".").join(",");
@@ -1365,7 +1365,12 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
 #msgIco{margin-left:auto;width:44px;height:44px;border-radius:50%;border:1px solid rgba(236,231,220,.25);background:rgba(236,231,220,.06);font-size:20px;flex:none}
     .tri button{aspect-ratio:auto!important;min-height:0;padding:8px 9px!important;gap:2px!important;border-radius:14px!important}
     .tri .ti{font-size:16px!important;display:inline}.tri .tt{font-size:10.5px!important}.tri .tp{font-size:12.5px!important;-webkit-line-clamp:1!important}.tri .ts{font-size:11px!important}
-    .bols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
+    .bols{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0 0 14px}
+    .via-it{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(236,231,220,.08)}.via-it b{display:block}.via-it small{color:#BDB7AA;font-size:12.5px}
+    .via-res{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}.via-res div{background:rgba(236,231,220,.05);border-radius:12px;padding:10px}.via-res b{display:block;font-size:18px;color:#E9B949}.via-res span{font-size:12px;color:#BDB7AA}
+    .via-tot{background:rgba(233,185,73,.14)!important;border:1px solid rgba(233,185,73,.5);grid-column:1/-1;text-align:center}.via-tot b{font-size:24px!important}
+    .via-ck{margin:6px 0 0;padding:0;list-style:none}.via-ck li{padding:6px 0;font-size:14px;border-bottom:1px solid rgba(236,231,220,.06)}
+    .mf .chk{display:flex;gap:8px;align-items:center;font-size:14px;color:#ECE7DC}.mf .chk input{width:20px;height:20px;margin:0}
     .priv-l{margin:0 0 12px;font-size:12.5px;color:#8f887d}.priv-l summary{cursor:pointer;list-style:none;text-align:center}.priv-l summary::-webkit-details-marker{display:none}.priv-l p{margin:6px 0 0;color:#BDB7AA;line-height:1.4}
     .emg-env{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:13.5px;color:#BDB7AA}.emg-env input{width:20px;height:20px;flex:none;margin-top:1px}
     .bol{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px 10px;border-radius:20px;border:1px solid rgba(236,231,220,.18);background:rgba(236,231,220,.05);color:inherit;font:inherit;text-align:center}
@@ -1425,6 +1430,230 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     v.querySelectorAll("[data-emc]").forEach(i=>i.onchange=()=>{const k=+i.dataset.emc[0],f=i.dataset.emc[1];M.emg.c=M.emg.c||[{},{}];M.emg.c[k]=M.emg.c[k]||{};M.emg.c[k][f]=String(i.value||"").trim();grava(M)});
     v.querySelector("#emgEnv").onchange=e=>{M.emg.enviar=e.target.checked;grava(M)};v.querySelector("#emgCt").onchange=e=>{M.emg.enviarCt=e.target.checked;grava(M)};
     v.querySelector("#emgVer").onclick=()=>{grava(M);if(window.fichaMostrar)fichaMostrar(D.email||"eu")}};
+  // ---- 🗺️ Viagens: planejador individual (rota real, combustível pela própria moto, hotel, pedágio) e o flyer da viagem ----
+  let viaEd=null;   // a viagem aberta no formulário
+  const kmlMedia=()=>{const L=consumo().filter(a=>a.kml!=null);return L.length?L.reduce((s,a)=>s+a.kml*a.l,0)/L.reduce((s,a)=>s+a.l,0):null};
+  const precoUlt=()=>{const L=[...M.abs].sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);return L.length?L[L.length-1].p:null};
+  const noites=(a,b)=>a&&b?Math.max(0,Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5)):0;
+  async function viaGeo(q){const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&accept-language=pt-BR&q="+encodeURIComponent(q));
+    const j=await r.json();if(!j||!j[0])throw new Error("não achei o lugar “"+q+"”");return {lat:+(+j[0].lat).toFixed(5),lng:+(+j[0].lon).toFixed(5)}}
+  async function viaRota(a,b){const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=simplified&geometries=geojson`);
+    const j=await r.json();if(!j.routes||!j.routes[0])throw new Error("não encontrei uma rota de estrada");const x=j.routes[0],P=x.geometry.coordinates,passo=Math.max(1,Math.ceil(P.length/160));
+    return {km:x.distance/1000,h:x.duration/3600,pts:P.filter((_,i)=>i%passo===0||i===P.length-1).map(([lng,lat])=>[+lat.toFixed(4),+lng.toFixed(4)])}}
+  const kmEntre=(a,b)=>{const R=6371,x=(b.lat-a.lat)*Math.PI/180,y=((b.lon??b.lng)-(a.lon??a.lng))*Math.PI/180,h=Math.sin(x/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+  // praças de pedágio e pontos turísticos perto da estrada (mapa aberto, gratuito; o preço do pedágio não vem daqui)
+  async function viaArredores(pts,dest){const passo=Math.max(1,Math.ceil(pts.length/35)),S=pts.filter((_,i)=>i%passo===0||i===pts.length-1),ll=S.map(p=>p[0]+","+p[1]).join(",");
+    const tur='["tourism"~"^(viewpoint|attraction|museum|theme_park|zoo|gallery)$"]["name"]',his='["historic"~"^(monument|memorial|castle)$"]["name"]',dd=dest?`${dest.lat},${dest.lng}`:"";
+    const q=`[out:json][timeout:25];(nwr(around:4000,${ll})${tur};nwr(around:4000,${ll})${his};${dd?`nwr(around:10000,${dd})${tur};nwr(around:10000,${dd})${his};`:""}node(around:400,${ll})["barrier"="toll_booth"];);out center tags 300;`;
+    const r=await Promise.race([fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)}),new Promise((_,n)=>setTimeout(()=>n(new Error("tempo")),25000))]);
+    const el=((await r.json()).elements||[]).filter(e=>e.tags).map(e=>({...e,lat:e.lat??(e.center&&e.center.lat),lon:e.lon??(e.center&&e.center.lon)})).filter(e=>e.lat!=null);
+    const pr=[];el.filter(e=>e.tags.barrier==="toll_booth").forEach(e=>{if(!pr.some(x=>kmEntre(x,e)<1.5))pr.push(e)});   // cabines a menos de 1,5 km = a mesma praça
+    const ordem=e=>{let b=0,d=1e9;pts.forEach((p,i)=>{const z=kmEntre({lat:p[0],lon:p[1]},e);if(z<d){d=z;b=i}});return b};
+    const T={viewpoint:"🏞️ Mirante",attraction:"⭐ Atração",museum:"🏛️ Museu",theme_park:"🎢 Parque",zoo:"🦁 Zoológico",gallery:"🖼️ Galeria",monument:"🗿 Monumento",memorial:"🕯️ Memorial",castle:"🏰 Castelo"};
+    const vis=new Set(),todos=[];
+    el.filter(e=>(e.tags.tourism||e.tags.historic)&&e.tags.name).forEach(e=>{const k=e.tags.name.trim().toLowerCase();if(vis.has(k))return;vis.add(k);
+      const noDest=dest&&kmEntre({lat:dest.lat,lon:dest.lng},e)<=10;
+      todos.push({n:e.tags.name.trim(),t:T[e.tags.tourism]||T[e.tags.historic]||"📍",lat:+(+e.lat).toFixed(5),lng:+(+e.lon).toFixed(5),o:ordem(e),g:noDest?"d":"c",
+        w:(e.tags.wikipedia||e.tags.wikidata?2:0)+(e.tags.tourism==="attraction"||e.tags.tourism==="museum"||e.tags.historic==="monument"?1:0),
+        dd:dest?kmEntre({lat:dest.lat,lon:dest.lng},e):0})});
+    const cam=todos.filter(x=>x.g==="c").sort((a,b)=>b.w-a.w||a.o-b.o).slice(0,8).sort((a,b)=>a.o-b.o),   // os mais conhecidos, na ordem da estrada
+      des=todos.filter(x=>x.g==="d").sort((a,b)=>b.w-a.w||a.dd-b.dd).slice(0,8);
+    const marca=(L)=>{const top=[...L].sort((a,b)=>b.w-a.w).slice(0,3);return L.map(x=>({...x,on:top.includes(x)}))};
+    return {pracas:pr.length,pois:marca(cam).concat(marca(des))}}
+  const REF=[["cafe","☕","Café"],["alm","🍽️","Almoço"],["jan","🍲","Janta"]];
+  function viaContas(x){const f=x.iv?2:1,km=(x.km||0)*f,h=(x.h||0)*f,lit=x.kml>0?km/x.kml:0,comb=lit*(x.preco||0),noi=noites(x.ida,x.volta),dias=noi+1,hot=noi*(x.diaria||0);
+    const pedC=(x.pedCarro||0)*f,ped=x.pedMan!==""&&x.pedMan!=null?+x.pedMan:pedC/2,R=x.ref||{};
+    const ref=REF.map(([k,ic,r])=>{const q=(R[k]&&R[k].q!==""&&R[k].q!=null)?+R[k].q:dias,v=(R[k]&&+R[k].v)||0;return {k,ic,r,q,v,t:q*v}}),alim=ref.reduce((a,b)=>a+b.t,0);
+    return {km,h,lit,comb,hot,pedC,ped,ref,alim,noi,dias,tot:comb+hot+ped+alim}}
+  function viaChecklist(x,c){const L=[],ate=x.volta||x.ida;
+    DOCS.forEach(([k,r])=>{const d=M.docs[k];if(!d)L.push(`📝 ${r}: cadastre o vencimento em Documentos`);else if(ate&&d<=ate)L.push(`⚠️ ${r} vence ${d<=(x.ida||d)?"antes":"durante"} a viagem (${br(d)})`);else L.push(`✅ ${r} em dia`)});
+    MAN.forEach(([k,r])=>{const f=falta(k);if(f!=null&&f<c.km)L.push(`⚠️ ${r}: faltam ${nKm(Math.max(0,f))} km e a viagem tem ${nKm(Math.round(c.km))} km. Faça antes de sair!`)});
+    if(!kmlMedia())L.push("ℹ️ Sem o km/l da sua moto ainda: registre 2 abastecimentos para a conta do combustível ficar exata");
+    return L}
+  const viaMaps=x=>{const w=(x.pois||[]).filter(p=>p.on).slice(0,9).map(p=>p.lat+","+p.lng).join("|");
+    return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(x.orig)+"&destination="+encodeURIComponent(x.dest)+(w?"&waypoints="+encodeURIComponent(w):"")+"&travelmode=driving"};
+  function viaDesenha(C){const V=M.viagens;
+    if(!viaEd){C.innerHTML=`<div class="card"><h2>🗺️ Viagens</h2><p class="nota" style="margin:0 0 8px">Planeje a viagem: a rota, os pontos turísticos no caminho, o combustível da <b>sua</b> moto, o pedágio, o hotel e a alimentação. E gere o flyer para mandar no grupo.</p>
+      ${V.length?[...V].sort((a,b)=>(a.ida||"")<(b.ida||"")?1:-1).map(x=>{const c=viaContas(x);return `<div class="via-it"><span style="flex:1"><b>${es(x.dest)}</b><small>${x.ida?br(x.ida):""}${x.volta&&x.volta!==x.ida?" a "+br(x.volta):""} · ${nKm(Math.round(c.km))} km · ${R$(c.tot)}</small></span><button type="button" data-via-ab="${x.id}" style="padding:8px 12px;border-radius:999px;border:0;background:#E9B949;color:#141210;font-weight:800">Abrir</button></div>`}).join(""):'<p class="nota" style="margin:0">Nenhuma viagem ainda.</p>'}
+      <div class="qbts" style="margin-top:12px"><button class="qz" id="viaNova">➕ Nova viagem</button></div></div>`;
+      C.querySelector("#viaNova").onclick=()=>{const rp=M.refPadrao||{};viaEd={id:Date.now(),orig:D.sede||"",dest:"",ida:"",volta:"",iv:true,diaria:"",pedCarro:"",pedMan:"",kml:kmlMedia()?+kmlMedia().toFixed(1):"",preco:precoUlt()||"",
+        ref:{cafe:{q:"",v:rp.cafe||""},alm:{q:"",v:rp.alm||""},jan:{q:"",v:rp.jan||""}},pois:[]};desenha()};
+      C.querySelectorAll("[data-via-ab]").forEach(b=>b.onclick=()=>{viaEd=JSON.parse(JSON.stringify(V.find(x=>String(x.id)===b.dataset.viaAb)));desenha()});return}
+    const x=viaEd,c=x.km?viaContas(x):null,fx=n=>n===""||n==null?"":String(n).replace(".",",");
+    const on=(x.pois||[]).filter(p=>p.on).length;
+    C.innerHTML=`<div class="card"><h2>🗺️ ${x.dest?es(x.dest):"Nova viagem"}</h2><div class="mf">
+      <label class="inteiro">Saindo de<input type="text" id="vOrig" maxlength="80" placeholder="Ex.: Vila Ema, São Paulo - SP" value="${es(x.orig||"")}"></label>
+      <label class="inteiro">Destino<input type="text" id="vDest" maxlength="80" placeholder="Ex.: Jundiaí - SP" value="${es(x.dest||"")}"></label>
+      <label>Ida<input type="date" id="vIda" value="${x.ida||""}"></label><label>Volta<input type="date" id="vVolta" value="${x.volta||""}"></label>
+      <label class="inteiro chk"><input type="checkbox" id="vIv"${x.iv?" checked":""}> Ida e volta pela mesma estrada (dobra os km e o pedágio)</label>
+      <label>Sua moto faz (km/l)<input type="text" inputmode="decimal" id="vKml" placeholder="Ex.: 22" value="${fx(x.kml)}"></label>
+      <label>Preço do litro (R$)<input type="text" inputmode="decimal" id="vPreco" placeholder="Ex.: 6,29" value="${fx(x.preco)}"></label></div>
+      <p class="nota" style="margin:6px 0 0">${kmlMedia()?`O km/l veio dos seus abastecimentos (média ${dec(kmlMedia(),1)}).`:"Registre abastecimentos na Minha moto para o km/l vir sozinho."}</p>
+      <div class="qbts" style="margin-top:10px"><button class="qz" id="vCalc">🧮 Calcular</button></div><p class="nota" id="vMsg" style="margin:8px 0 0"></p>
+      ${c?`<div class="via-res"><div><b>${nKm(Math.round(c.km))} km</b><span>${x.iv?"ida e volta":"só ida"} · ~${dec(c.h,1)} h de estrada</span></div><div><b>${R$(c.comb)}</b><span>⛽ combustível · ~${dec(c.lit,1)} L</span></div>
+        <div><b>${R$(c.ped)}</b><span>🛣️ pedágio (moto)</span></div><div><b>${R$(c.alim)}</b><span>🍽️ alimentação</span></div>${c.noi?`<div style="grid-column:1/-1"><b>${R$(c.hot)}</b><span>🏨 hotel · ${c.noi} noite${c.noi>1?"s":""}</span></div>`:""}
+        <div class="via-tot"><b>${R$(c.tot)}</b><span>custo estimado da viagem</span></div></div>
+      <h3 style="margin:14px 0 6px;font-size:16px">🛣️ Pedágio</h3><div class="mf">
+        <label>Do carro, só ida (veja no Maps)<input type="text" inputmode="decimal" id="vPedC" placeholder="Ex.: 18,40" value="${fx(x.pedCarro)}"></label>
+        <label>Da moto (total)<input type="text" inputmode="decimal" id="vPedM" placeholder="${c.pedC?fx((c.pedC/2).toFixed(2)):"automático"}" value="${fx(x.pedMan)}"></label></div>
+      <p class="nota" style="margin:6px 0 0">⚠️ A moto paga <b>metade</b> do carro na maioria das rodovias: o app calcula sozinho${x.iv?" (ida e volta)":""}. Se souber o valor exato, escreva no campo da moto.${x.pracas!=null?` · 🛣️ ${x.pracas} praça${x.pracas===1?"":"s"} de pedágio no caminho (só ida)`:""}</p>
+      ${c.noi?`<h3 style="margin:14px 0 6px;font-size:16px">🏨 Hotel</h3><div class="mf"><label>Hotel por noite (R$)<input type="text" inputmode="decimal" id="vDia" placeholder="Ex.: 180" value="${fx(x.diaria)}"></label></div>`:""}
+      <h3 style="margin:14px 0 6px;font-size:16px">🍽️ Alimentação · ${c.dias} dia${c.dias>1?"s":""}</h3>
+      ${c.ref.map(r=>`<div class="mf" style="grid-template-columns:1.2fr .8fr 1fr;align-items:end;margin-bottom:6px"><b style="align-self:center">${r.ic} ${r.r}</b><label>Qtd.<input type="text" inputmode="numeric" data-rq="${r.k}" value="${r.q}"></label><label>Valor (R$)<input type="text" inputmode="decimal" data-rv="${r.k}" placeholder="Ex.: ${r.k==="cafe"?"25":r.k==="alm"?"45":"55"}" value="${fx(r.v||"")}"></label></div>`).join("")}
+      <p class="nota" style="margin:0">1 de cada por dia. Café incluso no hotel? É só zerar a quantidade.</p>
+      <h3 style="margin:14px 0 6px;font-size:16px">📝 Programação (vai no flyer)</h3><div class="mf">
+        <label class="inteiro">Nome do rolê<input type="text" id="vNome" maxlength="40" placeholder="Ex.: Rolê Aleatório" value="${es(x.nome||"")}"></label>
+        <label>Encontro (hora)<input type="time" id="vHEnc" value="${x.hEnc||""}"></label><label>Saída (hora)<input type="time" id="vHSai" value="${x.hSai||""}"></label>
+        <label class="inteiro">Local do encontro<input type="text" id="vLEnc" maxlength="60" placeholder="Ex.: Posto da Salim" value="${es(x.lEnc||"")}"></label>
+        <label>Volta: saída do destino<input type="time" id="vHVol" value="${x.hVol||""}"></label><label>Onde comer (opcional)<input type="text" id="vCom" maxlength="40" placeholder="Ex.: Rancho do Mineiro" value="${es(x.com||"")}"></label>
+        <label class="inteiro">Observações<input type="text" id="vObs" maxlength="80" placeholder="Ex.: Tanque cheio na saída" value="${es(x.obs||"")}"></label></div>
+      ${x.clima?`<p class="nota" style="margin:6px 0 0">${x.clima.p>=40?"🌧️":"☀️"} Previsão para ${br(x.ida).slice(0,5)} em ${es(x.dest)}: ${x.clima.tmin}° a ${x.clima.tmax}°C, ${x.clima.p}% de chance de chuva.</p>`:""}
+      <h3 style="margin:14px 0 6px;font-size:16px">📍 Pontos turísticos no caminho</h3>
+      ${(x.pois||[]).length?`<div>${[["c","🛣️ No caminho"],["d","🏁 No destino"]].map(([gr,rot])=>{const L=x.pois.map((p2,i)=>[p2,i]).filter(([p2])=>(p2.g||"c")===gr);
+          return L.length?`<p style="margin:10px 0 2px;font-weight:800;color:#E9B949">${rot}</p>`+L.map(([p2,i])=>`<label class="chk" style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(236,231,220,.08)"><input type="checkbox" data-poi="${i}"${p2.on?" checked":""} style="width:20px;height:20px"><span>${p2.t} · <b>${es(p2.n)}</b></span></label>`).join(""):""}).join("")}</div>
+        <p class="nota" style="margin:6px 0 0">${on>9?"⚠️ O Google Maps aceita até 9 paradas: vão as 9 primeiras.":"Desmarque os que não quiser. Os marcados viram paradas no Maps e vão no flyer."}</p>`
+        :`<p class="nota" style="margin:0">${x.pois?"Nenhum ponto turístico encontrado perto da estrada.":"…"}</p>`}
+      <div class="qbts" style="margin-top:10px"><button id="vMaps">🗺️ Abrir a rota no Maps${on?` (${Math.min(on,9)} parada${on>1?"s":""})`:""}</button></div>
+      <h3 style="margin:14px 0 0;font-size:16px">✅ Antes de sair</h3><ul class="via-ck">${viaChecklist(x,c).map(t=>`<li>${es(t)}</li>`).join("")}</ul>
+      <div class="qbts" style="margin-top:12px;flex-wrap:wrap"><button class="qz" id="vFly">📤 Gerar o flyer da viagem</button>${x.tema!=null?'<button id="vTema">🎲 Sortear outro tema</button>':""}<button id="vSalva">💾 Salvar</button></div>`:""}
+      <div class="qbts" style="margin-top:10px">${M.viagens.some(y=>y.id===x.id)?'<button id="vApaga">🗑️ Apagar</button>':""}<button id="vVolta2">‹ Voltar</button></div></div>`;
+    const q=id=>C.querySelector(id),n=v=>{const t=num2(v);return isFinite(t)&&t>=0&&String(v).trim()!==""?t:""};
+    const le=()=>{x.orig=q("#vOrig").value.trim();x.dest=q("#vDest").value.trim();x.ida=q("#vIda").value;x.volta=q("#vVolta").value||x.ida;x.iv=q("#vIv").checked;x.kml=n(q("#vKml").value);x.preco=n(q("#vPreco").value);
+      if(q("#vPedC")){x.pedCarro=n(q("#vPedC").value);x.pedMan=n(q("#vPedM").value)}if(q("#vDia"))x.diaria=n(q("#vDia").value);
+      [["#vNome","nome"],["#vHEnc","hEnc"],["#vHSai","hSai"],["#vLEnc","lEnc"],["#vHVol","hVol"],["#vCom","com"],["#vObs","obs"]].forEach(([i,k])=>{const e=q(i);if(e)x[k]=e.value.trim()});
+      x.ref=x.ref||{};C.querySelectorAll("[data-rq]").forEach(i=>{const k=i.dataset.rq;x.ref[k]=x.ref[k]||{};x.ref[k].q=n(i.value)});C.querySelectorAll("[data-rv]").forEach(i=>{const k=i.dataset.rv;x.ref[k]=x.ref[k]||{};x.ref[k].v=n(i.value)})};
+    C.querySelectorAll("input:not(#vOrig):not(#vDest)").forEach(i=>i.onchange=()=>{const y=scrollY;le();if(x.km){desenha();scrollTo(0,y)}});
+    C.querySelectorAll("[data-poi]").forEach(i=>i.onchange=()=>{const y=scrollY;le();x.pois[+i.dataset.poi].on=i.checked;desenha();scrollTo(0,y)});
+    q("#vVolta2").onclick=()=>{viaEd=null;desenha()};
+    {const ap=q("#vApaga");if(ap)ap.onclick=()=>{if(!confirm("Apagar esta viagem?"))return;M.viagens=M.viagens.filter(y=>y.id!==x.id);grava(M);viaEd=null;desenha()}}
+    {const mp=q("#vMaps");if(mp)mp.onclick=()=>{le();window.open(viaMaps(x),"_blank")}}
+    q("#vCalc").onclick=async()=>{le();const m=q("#vMsg");if(!x.orig||!x.dest){m.textContent="Preencha de onde sai e o destino.";return}
+      if(!(x.kml>0)||!(x.preco>0)){m.textContent="Preencha quantos km/l a sua moto faz e o preço do litro.";return}
+      m.textContent="🧭 Calculando a rota…";try{const a=await viaGeo(x.orig);await new Promise(r=>setTimeout(r,1100));const b=await viaGeo(x.dest);const r=await viaRota(a,b);
+        Object.assign(x,{a,b,km:r.km,h:r.h,pts:r.pts});m.textContent="📍 Procurando pontos turísticos e pedágios no caminho…";
+        try{const ar=await viaArredores(r.pts,b);x.pois=ar.pois;x.pracas=ar.pracas}catch(_){x.pois=x.pois||[];x.pracas=null}
+        x.clima=null;try{const dd=Math.round((new Date(x.ida+"T12:00:00")-new Date())/864e5);if(x.ida&&dd>=-1&&dd<=15){   // previsão do tempo no destino (Open-Meteo, gratuito)
+          const w=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${b.lat}&longitude=${b.lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=America%2FSao_Paulo&start_date=${x.ida}&end_date=${x.ida}`)).json();
+          const dy=w.daily||{};x.clima={p:Math.round((dy.precipitation_probability_max||[0])[0]||0),tmin:Math.round((dy.temperature_2m_min||[0])[0]),tmax:Math.round((dy.temperature_2m_max||[0])[0])}}}catch(_){}
+        desenha();setTimeout(()=>{const e=document.querySelector(".via-res");if(e)e.scrollIntoView({behavior:"smooth",block:"center"})},80)}
+      catch(e){m.textContent="⚠️ Não consegui calcular ("+(e.message||e)+"). Confira os nomes dos lugares (cidade e estado) e a internet."}};
+    {const sv=q("#vSalva");if(sv)sv.onclick=()=>{le();const i=M.viagens.findIndex(y=>y.id===x.id);if(i>=0)M.viagens[i]=JSON.parse(JSON.stringify(x));else M.viagens.push(JSON.parse(JSON.stringify(x)));
+      M.refPadrao={cafe:(x.ref.cafe||{}).v||"",alm:(x.ref.alm||{}).v||"",jan:(x.ref.jan||{}).v||""};grava(M);try{navigator.vibrate&&navigator.vibrate(15)}catch(_){}sv.textContent="✅ Salva"}}
+    const gera=async(b,trocar)=>{le();b.disabled=true;const t0=b.textContent;b.textContent="Gerando…";try{await viaFlyer(x,trocar)}catch(e){alert("Não consegui gerar o flyer agora.")}
+      const i=M.viagens.findIndex(y=>y.id===x.id);if(i>=0){M.viagens[i].tema=x.tema;M.viagens[i].fundo=x.fundo;M.viagens[i].layout=x.layout;M.viagens[i].temasRec=x.temasRec;grava(M)}   // o tema sorteado fica guardado na viagem
+      b.disabled=false;b.textContent=t0;if(!q("#vTema")){const y=scrollY;desenha();scrollTo(0,y)}};
+    {const fb=q("#vFly");if(fb)fb.onclick=()=>gera(fb,false)}{const tb=q("#vTema");if(tb)tb.onclick=()=>gera(tb,true)}}
+  async function viaFontes(){let l=document.getElementById("viaFontes");
+    if(!l){l=document.createElement("link");l.id="viaFontes";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Anton&family=Roboto+Condensed:wght@400;700&display=swap";
+      await new Promise(r=>{l.onload=r;l.onerror=r;document.head.appendChild(l);setTimeout(r,4000)})}
+    const carrega=()=>Promise.all(['60px "Anton"','700 30px "Roboto Condensed"','400 30px "Roboto Condensed"'].map(f=>document.fonts.load(f))).catch(()=>{});
+    await Promise.race([carrega().then(()=>document.fonts.ready),new Promise(r=>setTimeout(r,6000))])}
+  const VIA_TEMAS=[["Amarelo","#F5C518","#0b0b0a"],["Vermelho","#E53935","#0d0606"],["Verde","#39D353","#060c07"],["Azul","#29B6F6","#050a10"],["Laranja","#FF8F1F","#0d0805"],["Prata","#D9D9D9","#0a0a0b"],["Roxo","#B388FF","#09060f"]],VIA_FUNDOS=["pontos","diagonais","brilho"];
+  function viaTema(x,trocar){const n=VIA_TEMAS.length;if(trocar||x.tema==null){const rec=(x.temasRec||[]).concat(x.tema!=null?[x.tema]:[]).slice(-3);let t;do{t=Math.floor(Math.random()*n)}while(n>4&&rec.includes(t));   // não repete os 3 últimos
+      x.temasRec=rec;x.tema=t;let f;do{f=Math.floor(Math.random()*VIA_FUNDOS.length)}while(VIA_FUNDOS.length>1&&f===x.fundo);x.fundo=f;
+      let l;do{l=Math.floor(Math.random()*3)}while(x.layout!=null&&l===x.layout);x.layout=l}
+    const [nome,ac,bg]=VIA_TEMAS[x.tema%n],r=parseInt(ac.slice(1,3),16),g=parseInt(ac.slice(3,5),16),b=parseInt(ac.slice(5,7),16),lum=(.299*r+.587*g+.114*b)/255;
+    return {nome,ac,bg,fundo:VIA_FUNDOS[(x.fundo||0)%VIA_FUNDOS.length],a:k=>`rgba(${r},${g},${b},${k})`,pn:`rgba(${Math.round(r*.08+14)},${Math.round(g*.08+13)},${Math.round(b*.08+12)},.93)`,
+      tb:lum>.55?"#111":"#fff",tx:"#F3F0EA",ok:x.tema%n===2?"#F5C518":"#7bd88f"}}
+  async function viaFlyer(x,trocar){await viaFontes();const th=viaTema(x,trocar),c=viaContas(x),W=1080,H=1830,AM=th.ac,BR=th.tx,CZ="#BDB7AA",FT='"Anton",Impact,"Arial Narrow",sans-serif',FB='"Roboto Condensed","Arial Narrow",Arial,sans-serif';
+    const P=(x.pois||[]).filter(p=>p.on).slice(0,8),Pc=P.filter(p=>(p.g||"c")==="c"),cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d");
+    const ld=src=>new Promise(r=>{if(!src)return r(null);const im=new Image();im.crossOrigin="anonymous";im.onload=()=>r(im);im.onerror=()=>r(null);im.src=src});
+    const rr=(X,Y,w,h,r)=>{g.beginPath();g.moveTo(X+r,Y);g.arcTo(X+w,Y,X+w,Y+h,r);g.arcTo(X+w,Y+h,X,Y+h,r);g.arcTo(X,Y+h,X,Y,r);g.arcTo(X,Y,X+w,Y,r);g.closePath()};
+    const T=(t,X,Y,{s=30,f=FB,w=700,cor=BR,al="left",max=0}={})=>{t=String(t);let z=s;g.font=`${w} ${z}px ${f}`;if(max)while(g.measureText(t).width>max&&z>12){z-=1;g.font=`${w} ${z}px ${f}`}g.fillStyle=cor;g.textAlign=al;g.fillText(t,X,Y);g.textAlign="left"};
+    const painel=(X,Y,w,h,tit)=>{g.fillStyle=th.pn;rr(X,Y,w,h,18);g.fill();g.strokeStyle=AM;g.lineWidth=3;rr(X,Y,w,h,18);g.stroke();
+      if(tit){g.fillStyle=AM;g.beginPath();g.moveTo(X+w*.12,Y);g.lineTo(X+w*.88,Y);g.lineTo(X+w*.84,Y+44);g.lineTo(X+w*.16,Y+44);g.closePath();g.fill();T(tit,X+w/2,Y+35,{s:30,f:FT,w:400,cor:th.tb,al:"center",max:w*.66})}};
+    const hm=(t,min)=>{if(!t)return "";const [a,b]=t.split(":").map(Number);const m=a*60+b+Math.round(min);return String(Math.floor(m/60)%24).padStart(2,"0")+":"+String(m%60).padStart(2,"0")};
+    const CAI=x.dest.split(/[-,]/)[0].trim(),ORI=x.orig.split(/[-,]/)[0].trim(),f=x.iv?2:1,kmIda=c.km/f,hIda=c.h/f;
+    // fundo
+    g.fillStyle=th.bg;g.fillRect(0,0,W,H);
+    if(th.fundo==="pontos"){for(let k=0;k<900;k++){g.fillStyle=`rgba(255,255,255,${Math.random()*.035})`;g.fillRect(Math.random()*W,Math.random()*H,2,2)}}
+    else if(th.fundo==="diagonais"){g.save();g.strokeStyle=th.a(.06);g.lineWidth=18;for(let k=-H;k<W+H;k+=70){g.beginPath();g.moveTo(k,0);g.lineTo(k+H,H);g.stroke()}g.restore()}
+    else{const rg=g.createRadialGradient(W*.5,0,40,W*.5,0,H*.75);rg.addColorStop(0,th.a(.22));rg.addColorStop(1,"rgba(0,0,0,0)");g.fillStyle=rg;g.fillRect(0,0,W,H)}
+    g.strokeStyle=AM;g.lineWidth=6;rr(8,8,W-16,H-16,26);g.stroke();
+    // cabeçalho
+    const cav=await ld(CAV);g.fillStyle=th.pn;g.beginPath();g.arc(140,138,104,0,7);g.fill();g.strokeStyle=AM;g.lineWidth=4;g.stroke();if(cav){const h=150,w=h*cav.width/cav.height;g.drawImage(cav,140-w/2,63,w,h)}
+    T((x.nome||("Rolê para "+CAI)).toUpperCase(),660,118,{s:96,f:FT,w:400,cor:AM,al:"center",max:780});
+    g.fillStyle=AM;g.beginPath();g.moveTo(290,140);g.lineTo(1040,140);g.lineTo(1020,196);g.lineTo(270,196);g.closePath();g.fill();
+    T(`${ORI} ➜ ${CAI}`.toUpperCase(),655,184,{s:42,f:FT,w:400,cor:th.tb,al:"center",max:720});
+    g.fillStyle=AM;g.fillRect(290,236,90,4);g.fillRect(940,236,90,4);T(`INSANOS M.C. · DIVISÃO ${String(D.div).toUpperCase()} · ${D.reg}`,660,248,{s:34,f:FT,w:400,cor:BR,al:"center",max:540});
+    // faixa de informações
+    painel(24,280,W-48,118);const sem=["DOMINGO","SEGUNDA","TERÇA","QUARTA","QUINTA","SEXTA","SÁBADO"],dI=x.ida?new Date(x.ida+"T12:00:00"):null;
+    const cel=[["🗓️","DATA",x.ida?br(x.ida):"–",dI?sem[dI.getDay()]+(x.volta&&x.volta!==x.ida?" a "+br(x.volta).slice(0,5):""):""],["⏰","ENCONTRO",x.hEnc||"–",x.lEnc||""],["🏍️","SAÍDA",x.hSai||"–",ORI],
+      ["📏","DISTÂNCIA",nKm(Math.round(c.km))+" km",x.iv?"ida e volta":"só ida"],["⏱️","NA ESTRADA","~"+dec(c.h,1)+" h",x.iv?"ida e volta":""]];
+    cel.forEach(([ic,r,v,sub],k)=>{const X=24+k*(W-48)/5,cw=(W-48)/5;if(k){g.fillStyle=th.a(.6);g.fillRect(X,300,2,78)}
+      T(ic,X+14,346,{s:34,f:FB});T(r,X+60,322,{s:22,f:FT,w:400,cor:BR,max:cw-66});T(v,X+60,356,{s:30,f:FT,w:400,cor:AM,max:cw-66});T(sub,X+60,384,{s:18,cor:CZ,w:400,max:cw-66})});
+    // ---- as peças do flyer (cada uma se ajusta ao espaço que o layout der) ----
+    const secTrajeto=async(MX,MY,MW,MH)=>{painel(MX,MY,MW,MH,"TRAJETO");const ix=MX+12,iy=MY+54,iw=MW-24,ih=MH-66;
+    if(x.pts&&x.pts.length>1){const Q=x.pts,px=(la,lo,z)=>[(lo+180)/360*256*2**z,(1-Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180))/Math.PI)/2*256*2**z];
+      const todos=Q.concat(Pc.map(p=>[p.lat,p.lng]));let z=14;for(;z>3;z--){const xs=todos.map(p=>px(p[0],p[1],z)[0]),ys=todos.map(p=>px(p[0],p[1],z)[1]);if(Math.max(...xs)-Math.min(...xs)<iw-150&&Math.max(...ys)-Math.min(...ys)<ih-120)break}
+      const xs=todos.map(p=>px(p[0],p[1],z)[0]),ys=todos.map(p=>px(p[0],p[1],z)[1]),cx=(Math.max(...xs)+Math.min(...xs))/2,cy=(Math.max(...ys)+Math.min(...ys))/2;
+      const k=Math.max(1,Math.min(1.95,(iw-150)/Math.max(1,Math.max(...xs)-Math.min(...xs)),(ih-120)/Math.max(1,Math.max(...ys)-Math.min(...ys))));   // aproxima entre os níveis do mapa
+      const pt=p=>{const [a,b]=px(p[0],p[1],z);return [ix+iw/2+(a-cx)*k,iy+ih/2+(b-cy)*k]},x0=cx-iw/2/k,y0=cy-ih/2/k;
+      g.save();rr(ix,iy,iw,ih,12);g.clip();g.fillStyle="#1b1a17";g.fillRect(ix,iy,iw,ih);const ts=[];for(let tx=Math.floor(x0/256);tx<=Math.floor((x0+iw/k)/256);tx++)for(let ty=Math.floor(y0/256);ty<=Math.floor((y0+ih/k)/256);ty++)ts.push([tx,ty]);
+      await Promise.race([Promise.all(ts.map(([tx,ty])=>ld(`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`).then(im=>{if(im){g.globalAlpha=.55;g.filter="grayscale(1) brightness(.55) contrast(1.2)";
+        g.drawImage(im,ix+iw/2+(tx*256-cx)*k,iy+ih/2+(ty*256-cy)*k,256*k+1,256*k+1);g.filter="none";g.globalAlpha=1}}))),new Promise(r=>setTimeout(r,6000))]);
+      g.lineJoin="round";g.lineCap="round";g.beginPath();Q.forEach((p,k)=>{const [a,b]=pt(p);k?g.lineTo(a,b):g.moveTo(a,b)});g.strokeStyle="rgba(0,0,0,.7)";g.lineWidth=16;g.stroke();g.strokeStyle=AM;g.lineWidth=9;g.stroke();
+      const pino=(p,cor,txt,rot)=>{const [a,b]=pt(p);g.fillStyle=cor;g.strokeStyle="#111";g.lineWidth=4;g.beginPath();g.arc(a,b,txt?19:15,0,7);g.fill();g.stroke();if(txt)T(txt,a,b+8,{s:22,f:FT,w:400,cor:"#111",al:"center"});
+        if(rot){g.font=`400 28px ${FT}`;const tw=g.measureText(rot).width,lx=Math.min(Math.max(a-tw/2,ix+8),ix+iw-tw-8),ly=b>iy+ih-60?b-30:b+46;g.fillStyle="rgba(0,0,0,.75)";rr(lx-8,ly-28,tw+16,36,8);g.fill();T(rot,lx,ly,{s:28,f:FT,w:400,cor:AM})}};
+      Pc.forEach((p,k)=>pino([p.lat,p.lng],BR,String(k+1)));pino(Q[0],"#2ecc71",null,ORI.toUpperCase());pino(Q[Q.length-1],"#e74c3c",null,CAI.toUpperCase());
+      T("N",ix+iw-40,iy+40,{s:30,f:FT,w:400,cor:BR,al:"center"});g.fillStyle=BR;g.beginPath();g.moveTo(ix+iw-40,iy+46);g.lineTo(ix+iw-50,iy+76);g.lineTo(ix+iw-30,iy+76);g.closePath();g.fill();
+      T("© OpenStreetMap",ix+iw-10,iy+ih-10,{s:16,w:400,cor:"rgba(255,255,255,.6)",al:"right"});g.restore()}};
+    const secDist=(X,Y,w,h)=>{painel(X,Y,w,h,"DISTÂNCIA");const kI=nKm(Math.round(kmIda))+" km";
+      if(w>h*1.35){const B=[["🏍️","IDA",kI],["↩️","VOLTA",x.iv?kI:"–"],["🛣️","TOTAL",nKm(Math.round(c.km))+" km"],["⏱️","NA ESTRADA","~"+dec(c.h,1)+" h"]],cw=(w-40)/2,ch=(h-84)/2;
+        B.forEach(([ic,r,v],k)=>{const bx=X+20+(k%2)*cw,by=Y+56+Math.floor(k/2)*ch;T(ic,bx,by+ch*.66,{s:30});T(r,bx+46,by+ch*.42,{s:22,f:FT,w:400,max:cw-56});T(v,bx+46,by+ch*.42+38,{s:k===2?42:32,f:FT,w:400,cor:k===2?AM:BR,max:cw-56})});
+        T(`⛽ ~${dec(c.lit,1)} L · ${dec(x.kml||0,1)} km/l`,X+w-20,Y+h-14,{s:20,w:400,cor:CZ,al:"right"});return}
+      const sy=h/470,L=(o)=>Y+o*sy;
+      [["🏍️","IDA",kI],["↩️","VOLTA",x.iv?kI:"–"]].forEach(([ic,r,v],k)=>{const yy=L(110+k*72);T(ic,X+22,yy,{s:34});T(r,X+76,yy,{s:36,f:FT,w:400});T(v,X+w-22,yy,{s:40,f:FT,w:400,al:"right"});g.fillStyle=th.a(.35);g.fillRect(X+20,yy+20,w-40,2)});
+      T("🛣️",X+22,L(266),{s:34});T("TOTAL",X+76,L(268),{s:40,f:FT,w:400});T(nKm(Math.round(c.km))+" km",X+w-22,L(272),{s:64,f:FT,w:400,cor:AM,al:"right",max:w-170});
+      g.fillStyle=th.a(.35);g.fillRect(X+20,L(296),w-40,2);
+      T("⏱️",X+22,L(350),{s:34});T("TEMPO DE ESTRADA",X+76,L(340),{s:24,f:FT,w:400,max:w-110});T("~"+dec(c.h,1)+" h"+(x.iv?" (ida e volta)":""),X+76,L(376),{s:30,f:FT,w:400,cor:AM,max:w-100});
+      T("⛽",X+22,L(430),{s:34});T("CONSUMO",X+76,L(420),{s:24,f:FT,w:400});T(`~${dec(c.lit,1)} L · ${dec(x.kml||0,1)} km/l`,X+76,L(452),{s:28,f:FT,w:400,cor:AM,max:w-100})};
+    const tChega=hm(x.hSai,hIda*60+Pc.length*20),dv=x.volta&&x.volta!==x.ida?` (${br(x.volta).slice(0,5)})`:"";
+    const cr=[[x.hEnc,`Encontro${x.lEnc?" no "+x.lEnc:""}.`],[x.hSai,`Saída de ${ORI}.`],[tChega,`Chegada a ${CAI}${Pc.length?` (com ${Pc.length} parada${Pc.length>1?"s":""} no caminho)`:""}.`],
+      [x.com?"🍽️":null,x.com?`Refeição no ${x.com}.`:null],[x.hVol&&x.hVol+dv,x.iv||x.hVol?`Saída de ${CAI} (retorno).`:null],[x.hVol?hm(x.hVol,hIda*60):"",x.iv||x.hVol?`Chegada prevista em ${ORI}.`:null]].filter(l=>l[1]).slice(0,6);
+    const secCron=(X,Y,w,h)=>{painel(X,Y,w,h,"CRONOGRAMA");const st=Math.min(40,(h-70)/cr.length);
+      cr.forEach(([hh,t],k)=>{const yy=Y+70+st*(k+.75);T("🕒",X+16,yy,{s:24});T(hh||"--:--",X+54,yy,{s:28,f:/^\d/.test(hh||"")?FT:FB,w:400,cor:AM});T(t,X+156,yy,{s:26,w:400,max:w-170})})};
+    const cu=[["⛽","COMBUSTÍVEL",R$(c.comb)],["🛣️","PEDÁGIOS",(x.pracas!=null?x.pracas+" praça"+(x.pracas===1?"":"s")+" · ":"")+R$(c.ped)],["🍽️","ALIMENTAÇÃO",R$(c.alim)]].concat(c.noi?[["🏨","HOSPEDAGEM",R$(c.hot)]]:[]);
+    const secCustos=(X,Y,w,h)=>{painel(X,Y,w,h,"CUSTOS ESTIMADOS");const st=Math.min(56,(h-160)/cu.length);
+      cu.forEach(([ic,r,v],k)=>{const yy=Y+60+st*(k+.7);T(ic,X+20,yy+4,{s:28});T(r,X+66,yy,{s:24,f:FT,w:400,max:w*.5-56});T(v,X+w-20,yy,{s:26,f:FT,w:400,cor:AM,al:"right",max:w*.46})});
+      g.setLineDash([8,6]);g.strokeStyle=CZ;g.lineWidth=2;g.beginPath();g.moveTo(X+20,Y+h-78);g.lineTo(X+w-20,Y+h-78);g.stroke();g.setLineDash([]);
+      T("TOTAL ESTIMADO",X+20,Y+h-40,{s:30,f:FT,w:400,cor:AM,max:w*.5});T(R$(c.tot),X+w-20,Y+h-20,{s:42,f:FT,w:400,cor:BR,al:"right",max:w*.48})};
+    const Pl=Pc.map((p,k)=>[p,String(k+1)]).concat(P.filter(p=>p.g==="d").map(p=>[p,"🏁"]));
+    const secPontos=(X,Y,w,h)=>{painel(X,Y,w,h,"PONTOS TURÍSTICOS");const n=Math.max(1,Math.floor((h-96)/32)),L=Pl.slice(0,n);
+      if(!L.length){T("Direto ao destino 🏁",X+16,Y+110,{s:28,w:400});return}
+      L.forEach(([p,m],k)=>{const yy=Y+88+k*32;if(m==="🏁")T("🏁",X+16,yy,{s:22});else{g.fillStyle=BR;g.beginPath();g.arc(X+28,yy-8,14,0,7);g.fill();T(m,X+28,yy-1,{s:19,f:FT,w:400,cor:"#111",al:"center"})}
+        T(p.n,X+54,yy,{s:23,w:400,max:w-70})});
+      if(L.some(([p])=>p.g==="d"))T("🏁 no destino",X+w-20,Y+h-12,{s:18,w:400,cor:CZ,al:"right"})};
+    const secHosp=(X,Y,w,h)=>{painel(X,Y,w,h,"HOSPEDAGEM");
+      if(h<215||w>h*1.6){const cy_=Y+44+(h-44)/2;   // compacto: o ícone ao lado do texto
+        const ic=c.noi?"🏨":"🚫🏨";g.font=`44px ${FB}`;const ew=g.measureText(ic).width,tx=X+20+ew+18;T(ic,X+20,cy_+16,{s:44});   // o texto começa depois do ícone
+        if(c.noi){T(`${c.noi} NOITE${c.noi>1?"S":""}`,tx,cy_-2,{s:34,f:FT,w:400,cor:AM,max:X+w-tx-14});T(R$(x.diaria||0)+" / noite",tx,cy_+30,{s:22,w:400,max:X+w-tx-14})}
+        else T("NÃO NECESSÁRIA",tx,cy_+14,{s:34,f:FT,w:400,cor:th.ok,max:X+w-tx-14});return}
+      const sy=h/262;if(c.noi){T("🏨",X+w/2,Y+130*sy,{s:60,al:"center"});T(`${c.noi} NOITE${c.noi>1?"S":""}`,X+w/2,Y+190*sy,{s:34,f:FT,w:400,cor:AM,al:"center"});T(R$(x.diaria||0)+" / noite",X+w/2,Y+226*sy,{s:22,w:400,al:"center"})}
+      else{T("NÃO",X+w/2,Y+108*sy,{s:36,f:FT,w:400,cor:th.ok,al:"center"});T("NECESSÁRIA",X+w/2,Y+146*sy,{s:36,f:FT,w:400,cor:th.ok,al:"center"});T("🚫🏨",X+w/2,Y+222*sy,{s:52,al:"center"})}};
+    const ck=viaChecklist(x,c),docOk=!ck.some(t=>/🪪|📄|CNH|Licenc/.test(t)&&!t.startsWith("✅")),manOk=!ck.some(t=>t.startsWith("⚠️")&&/Troca|Revis|Pneu|Rela/.test(t));
+    const CK=[["Documentação em dia",docOk],["Manutenção em dia",manOk],["Moto abastecida",0],["Pneus calibrados",0],["Capa de chuva",0],["Celular carregado",0]];
+    const secCheck=(X,Y,w,h)=>{painel(X,Y,w,h,"CHECKLIST");const col=w>520?2:1,lin=Math.ceil(CK.length/col),st=Math.min(30,(h-74)/lin),cw=(w-20)/col;
+      CK.forEach(([t,ok],k)=>{const bx=X+18+Math.floor(k/lin)*cw,yy=Y+66+st*(k%lin+.8);g.strokeStyle=AM;g.lineWidth=2;g.strokeRect(bx,yy-18,20,20);
+        if(ok){g.strokeStyle=th.ok;g.lineWidth=4;g.beginPath();g.moveTo(bx+2,yy-8);g.lineTo(bx+9,yy);g.lineTo(bx+22,yy-20);g.stroke()}T(t,bx+32,yy,{s:22,w:400,max:cw-50})})};
+    const ob=[];if(x.clima)ob.push(x.clima.p>=40?`🌧️ Possibilidade de chuva (${x.clima.p}%): LEVE CAPA DE CHUVA!`:`☀️ Previsão: ${x.clima.tmin}° a ${x.clima.tmax}°C, ${x.clima.p}% de chuva.`);
+    if(x.obs)ob.push("📌 "+x.obs);if(!ob.length)ob.push("🤝 Respeite a formação e o ritmo do grupo.");
+    const secObs=(X,Y,w,h)=>{painel(X,Y,w,h,"OBSERVAÇÕES");const n=Math.max(1,Math.floor((h-58)/40));ob.slice(0,n).forEach((t,k)=>T(t,X+20,Y+84+k*40,{s:26,w:700,cor:k===0&&x.clima&&x.clima.p>=40?AM:BR,max:w-36}))};
+    const secBora=(X,Y,w,h)=>{painel(X,Y,w,h);T("BORA RODAR!",X+w/2,Y+h*(h<120?.52:.46),{s:Math.min(52,h*.44),f:FT,w:400,cor:BR,al:"center",max:w-30});
+      T("RESPEITO · UNIÃO · LIBERDADE",X+w/2,Y+h*(h<120?.82:.72),{s:22,f:FT,w:400,cor:AM,al:"center",max:w-24});if(h>=120)T("A ESTRADA É NOSSA!",X+w/2,Y+h*.91,{s:20,w:700,cor:CZ,al:"center"})};
+    // ---- os layouts (sorteados junto com o tema): [peça, x, y, largura, altura]
+    const LAYOUTS=[
+      [[secTrajeto,24,414,630,470],[secDist,670,414,386,470],[secCron,24,900,630,330],[secCustos,670,900,386,330],[secPontos,24,1246,420,262],[secHosp,460,1246,250,262],[secCheck,726,1246,330,262],[secObs,24,1524,686,180],[secBora,726,1524,330,180]],
+      [[secTrajeto,24,414,1032,440],[secDist,24,870,508,250],[secCustos,548,870,508,250],[secCron,24,1136,640,270],[secPontos,680,1136,376,270],[secCheck,24,1422,540,170],[secObs,24,1608,540,96],[secHosp,580,1422,476,140],[secBora,580,1578,476,126]],
+      [[secDist,24,414,400,450],[secCustos,24,880,400,320],[secHosp,24,1216,400,170],[secCheck,24,1402,400,302],[secTrajeto,440,414,616,520],[secCron,440,950,616,290],[secPontos,440,1256,616,200],[secObs,440,1472,616,132],[secBora,440,1620,616,84]]];
+    for(const [fn,a,b,w,h] of LAYOUTS[(x.layout||0)%LAYOUTS.length])await fn(a,b,w,h);
+    // rodapé
+    const FY=H-58;g.fillStyle=th.a(.6);g.fillRect(24,FY-34,W-48,2);const mt=motoNome();
+    T(`🛡️ ${D.n}${mt?" · 🏍️ "+mt:""}`,40,FY,{s:26,w:700,max:520});T("NINGUÉM FICA PARA TRÁS!",W-40,FY+2,{s:40,f:FT,w:400,cor:AM,al:"right",max:470});
+    T("Valores estimados · pedágio da moto ≈ metade do carro",40,FY+30,{s:18,w:400,cor:CZ});
+    const blob=await new Promise(r=>cv.toBlob(r,"image/png"));if(!blob)throw 0;const fl=new File([blob],"viagem-insanos.png",{type:"image/png"});
+    try{if(navigator.canShare&&navigator.canShare({files:[fl]})){await navigator.share({files:[fl],title:"Viagem · "+x.dest});return}}catch(e){if(e&&e.name==="AbortError")return}
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="viagem-insanos.png";document.body.appendChild(a);a.click();a.remove()}
   function consumo(){const L=[...M.abs].sort((a,b)=>a.km-b.km);L.forEach((a,i)=>{a.kml=i>0&&a.km>L[i-1].km&&a.l>0?(a.km-L[i-1].km)/a.l:null});return L}
   // ---- a aba em três bolinhas: Documentos, Abastecimento e Manutenção (por km) ----
   const MAN=[["rev","🔧 Revisão"],["oleo","🛢️ Troca de óleo"],["pneu","🛞 Pneus"],["rel","⛓️ Relação / corrente"]];
@@ -1448,7 +1677,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       <label>Ano<input type="text" inputmode="numeric" id="mtAno" maxlength="4" placeholder="Ex.: 2019" value="${es(M.moto.ano||"")}"></label></div>
       ${mf?'<div class="qbts" style="margin-top:8px"><button type="button" id="mtTroca">🖼️ Trocar a foto</button><button type="button" id="mtRem">🗑️ Remover</button></div>':""}
       <p class="nota" style="margin:8px 0 0">A foto da moto aparece também na sua carteirinha.</p></div>
-    <div class="bols">${bol("doc","📄","Documentos",docAl?`⚠️ ${docAl} vence logo`:docOk?"Em dia":"Cadastrar",docAl)}${bol("abs","⛽","Abastecimento",media?dec(media,1)+" km/l":L.length?L.length+" registro":"Registrar",0)}${bol("man","🔧","Manutenção",manMin==null?(ka==null?"Abasteça 1ª vez":"Cadastrar"):manMin<0?`⚠️ passou ${nKm(-manMin)} km`:`faltam ${nKm(manMin)} km`,manAl)}</div>
+    <div class="bols">${bol("doc","📄","Documentos",docAl?`⚠️ ${docAl} vence logo`:docOk?"Em dia":"Cadastrar",docAl)}${bol("abs","⛽","Abastecimento",media?dec(media,1)+" km/l":L.length?L.length+" registro":"Registrar",0)}${bol("via","🗺️","Viagens",M.viagens.length?`${M.viagens.length} planejada${M.viagens.length>1?"s":""}`:"Planejar",0)}${bol("man","🔧","Manutenção",manMin==null?(ka==null?"Abasteça 1ª vez":"Cadastrar"):manMin<0?`⚠️ passou ${nKm(-manMin)} km`:`faltam ${nKm(manMin)} km`,manAl)}</div>
     <div id="bolC"></div>
     <div class="card"><h2>💾 Backup</h2><p class="nota" style="margin:0 0 8px">Guarde uma cópia (por exemplo, mandando para você mesmo no WhatsApp) para não perder os dados ao trocar de celular.</p>
       <div class="qbts"><button id="bkC">📋 Copiar backup</button><button id="bkR">📥 Restaurar backup</button></div></div>
@@ -1468,6 +1697,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       <div class="card"><h2>📊 Consumo</h2><div class="res-m"><div><b>${media?dec(media,1):"–"}</b><span>km/l (média)</span></div><div><b>${doMes.length?R$(doMes.reduce((s,a)=>s+a.v,0)):"–"}</b><span>gasto no mês</span></div><div><b>${L.length}</b><span>abastecimentos</span></div></div>
       ${L.length?`<table class="tab-m"><thead><tr><th>Data</th><th>Valor</th><th>Litros</th><th>km/l</th><th></th></tr></thead><tbody>${[...L].reverse().map(a=>`<tr><td>${br(a.d)}<br><small style="color:#8f887d">${nKm(a.km)} km · ${a.t||""}</small></td><td>${R$(a.v)}</td><td>${dec(a.l,2)}</td><td>${a.kml==null?'<small style="color:#8f887d">Primeiro registro</small>':"<b>"+dec(a.kml,1)+"</b>"}</td><td><button data-del="${a.id}" aria-label="Apagar">🗑️</button></td></tr>`).join("")}</tbody></table>`:'<p class="nota" style="margin:0">Nenhum abastecimento ainda. O primeiro registro serve de ponto de partida para o km/l.</p>'}</div>`;
     
+    if(aberta==="via"){viaDesenha(C)}
     if(aberta==="man")C.innerHTML=`<div class="card"><h2>🔧 Manutenção</h2><p class="nota" style="margin:0 0 10px">Tudo por km. O app usa o odômetro do último abastecimento${ka!=null?` (<b>${nKm(ka)} km</b>)`:""} para mostrar quanto falta, e o ícone da Minha moto avisa quando faltar menos de 300 km.</p>
       ${MAN.map(([k,r])=>{const p=prox(k),f=falta(k),cr=f==null?"#BDB7AA":f<0?"#E26D6B":f<=300?"#E9B949":"#8FD9A3",m=M.man;
         return `<div class="man"><div class="man-t"><b>${r}</b><small style="color:${cr}">${p==null?"–":f==null?"próxima aos "+nKm(p)+" km":f<0?`passou ${nKm(-f)} km`:`faltam ${nKm(f)} km`}</small></div>
@@ -1494,7 +1724,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     v.querySelector("#bkC").onclick=async()=>{const t="INSANOS-MOTO:"+btoa(unescape(encodeURIComponent(JSON.stringify({...M,foto:fotoLer(),fundo:fundoLer(),cartimg:cartImgLer(),motofoto:motoFotoLer()}))));
       try{await navigator.clipboard.writeText(t);alert("Backup copiado. Cole numa conversa sua no WhatsApp para guardar.")}catch(_){prompt("Copie o backup:",t)}};
     v.querySelector("#bkR").onclick=()=>{const t=prompt("Cole aqui o backup (começa com INSANOS-MOTO:)");if(!t)return;
-      try{const o=JSON.parse(decodeURIComponent(escape(atob(t.trim().replace("INSANOS-MOTO:","")))));if(!o||typeof o!=="object")throw 0;M={docs:o.docs||{},abs:o.abs||[],man:o.man||{},moto:o.moto||{}};grava(M);
+      try{const o=JSON.parse(decodeURIComponent(escape(atob(t.trim().replace("INSANOS-MOTO:","")))));if(!o||typeof o!=="object")throw 0;M={docs:o.docs||{},abs:o.abs||[],man:o.man||{},moto:o.moto||{},viagens:o.viagens||[],emg:o.emg||M.emg};grava(M);
         try{if(o.foto)localStorage.setItem("foto_"+D.email,o.foto);if(o.fundo)localStorage.setItem("cartfundo_"+D.email,o.fundo);if(o.cartimg)localStorage.setItem("cartimg_"+D.email,o.cartimg);if(o.motofoto)localStorage.setItem("motofoto_"+D.email,o.motofoto)}catch(_){}
         fotoDesenha();desenha();atualizaBadge();alert("Backup restaurado.")}catch(_){alert("Esse texto não parece um backup válido.")}}}
   atualizaBadge()})();
