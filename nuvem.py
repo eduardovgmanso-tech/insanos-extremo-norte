@@ -608,7 +608,16 @@ def _colunas_nas_abas(api, pid, ap, cargo, apos, log):
             _estrutura(api, pid, [{"copyPaste": {"source": _faixa(sid, fim, fim, vz, vz), "destination": _faixa(sid, fim, fim, pos, pos), "pasteType": "PASTE_FORMULA"}}])
         log.append(f"coluna criada na aba {aba}")
 
-def _linha_pgto(api, pid, ap, r_di, log):
+def _col_garantir(api, pid, aba, titulo, prefixo):
+    """A coluna da Dados Integrantes com esse título (criada no fim, sem mexer nas outras, se ainda não existir)."""
+    cab = [str(x).strip() for x in ((_ler(api, pid, f"'{aba}'!A1:BZ1") or [[]])[0])]
+    col = next((i + 1 for i, x in enumerate(cab) if _sa(x).startswith(prefixo)), None)
+    if col is None:
+        col = max([i + 1 for i, x in enumerate(cab) if x] or [0]) + 1
+        _gravar(api, pid, [(f"'{aba}'!{_col(col)}1", titulo)])
+    return col
+
+def _linha_pgto(api, pid, ap, r_di, log, rotulo=None):
     aba = _aba_real(api, pid, "PGTO")
     if not aba:
         return
@@ -624,7 +633,7 @@ def _linha_pgto(api, pid, ap, r_di, log):
     _estrutura(api, pid, [{"copyPaste": {"source": _faixa(sid, ult, ult, 1, 26), "destination": _faixa(sid, ult + 1, ult + 1, 1, 26), "pasteType": "PASTE_NORMAL"}}])
     di = _aba_real(api, pid, "Dados Integrantes")
     _gravar(api, pid, [(f"'{aba}'!B{ult + 1}", f"='{di}'!F{r_di}&\" - \"&'{di}'!B{r_di}"),
-                       (f"'{aba}'!C{ult + 1}", f"Adesão paga {datetime.date.today():%m/%Y}"), (f"'{aba}'!J{ult + 1}", "")])   # entra pago no mês do cadastro
+                       (f"'{aba}'!C{ult + 1}", rotulo or f"Adesão paga {datetime.date.today():%m/%Y}"), (f"'{aba}'!J{ult + 1}", "")])   # entra pago no mês do cadastro
     log.append("linha criada na aba PGTO")
 
 def _mudar_cargo(api, pid, d, aba, C, linhas, fim_tab, ult_col):
@@ -759,8 +768,19 @@ def aplicar_integrante(api, pid, d):
             except ValueError:
                 pass
         _gravar(api, pid, gr)
+        try:   # 🗓️ na divisão desde, entrada no MC (transferência: a data antiga) e a partir de quando aparece nas listas
+            br_ = lambda iso: datetime.datetime.strptime(str(iso)[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+            gr2 = []
+            for chave, titulo, pref in (("div", "Na divisão desde", "na divis"), ("mc", "Entrada no MC", "entrada"), ("lista", "Listas a partir de", "listas a partir")):
+                if dd.get(chave):
+                    gr2.append((f"'{aba}'!{_col(_col_garantir(api, pid, aba, titulo, pref))}{r}", br_(dd[chave])))
+            if gr2:
+                _gravar(api, pid, gr2); log.append("datas de entrada gravadas")
+        except Exception as e:
+            log.append(f"datas de entrada não gravadas ({type(e).__name__})")
+        transf = dd.get("tipoEnt") == "transf"
         _colunas_nas_abas(api, pid, ap, dd.get("cargo", ""), d.get("apos", ""), log)
-        _linha_pgto(api, pid, ap, r, log)
+        _linha_pgto(api, pid, ap, r, log, f"Adesão paga {datetime.date.today():%m/%Y} (transferência)" if transf else None)   # o transferido já pagou na divisão anterior
         return f"{ap}: novo integrante na linha {r} da Dados Integrantes; " + "; ".join(log)
     if r is None:
         return f"{ap} não está na Dados Integrantes (nada feito)"

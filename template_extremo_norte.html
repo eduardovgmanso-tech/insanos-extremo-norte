@@ -1116,6 +1116,11 @@ html.eco .hl-env,html.eco .cav,html.eco .cav-dash,html.eco .pres .cv{filter:none
         <label>Cargo/função *<input type="text" data-cad="cargo" list="cadCargos" placeholder="Ex.: Camiseta (Grau X)"></label>
         <label>Grau *<input type="text" data-cad="grau" list="cadGraus" placeholder="Ex.: X"></label>
         <label class="inteiro">Entra na lista depois de *<select data-cad="apos" id="cadApos"></select></label>
+        <label>Tipo de entrada<select data-cad="tipoEnt" id="cadTipoEnt"><option value="novo">🆕 Novo integrante</option><option value="transf">🔁 Transferência (de outra divisão)</option></select></label>
+        <label>Na divisão desde<input type="date" data-cad="divDesde" id="cadDivDesde"></label>
+        <label>Entrada no MC<input type="date" data-cad="mcDesde" id="cadMcDesde"><small class="nota" style="font-weight:400">Na transferência, a data em que ele entrou no Insanos (conta para os Pins). No novo integrante, pode deixar em branco.</small></label>
+        <label class="inteiro">Aparece nas listas a partir de<select data-cad="listaDe" id="cadListaDe"></select><small class="nota" style="font-weight:400">Antes disso, ele não aparece na Lista, no Lançar e na Presença, não conta na porcentagem e não recebe convites.</small></label>
+        <label id="cadListaDataL" hidden>Data<input type="date" data-cad="listaData" id="cadListaData"></label>
         <label class="inteiro">Nome completo<input type="text" data-cad="nome"></label>
         <label>Nascimento<input type="date" data-cad="nasc"></label>
         <label>Telefone (WhatsApp)<input type="tel" data-cad="tel" inputmode="tel"></label>
@@ -4062,7 +4067,12 @@ function lwCampoBase(f){if(f.base_sel===undefined){f.base_sel=BASES.includes(f.b
   return `<label class="inteiro">Base<select data-lwc="base_sel">${BASES.map(b=>`<option value="${esc(b)}" ${f.base_sel===b?"selected":""}>${esc(b)}</option>`).join("")}
     <option value="__livre" ${f.base_sel==="__livre"?"selected":""}>Outro (texto livre)</option></select></label>
     <label class="inteiro" id="lwLivre" ${f.base_sel==="__livre"?"":"hidden"}>Texto da base<input type="text" data-lwc="base_livre" value="${esc(f.base_livre||"")}" placeholder="Ex.: Regional SP3 - Comando VIII"></label>`}
-function lwListaUI(){if(!document.getElementById("lwJustOp"))document.body.insertAdjacentHTML("beforeend",`<datalist id="lwJustOp">${LW_JUST.map(o=>`<option value="${esc(o)}">`).join("")}</datalist>`);const marcas=LW_TIPOS[lw.tipo].marcas||["✅","❌"];const ord=[...M].sort((a,b)=>a.o-b.o);
+function naLista(m,d){return !m.ls||!d||String(d)>=m.ls}   // 🗓️ o irmão aparece nas listas a partir da data dele
+document.addEventListener("change",ev=>{const el=ev.target;if(!el||!el.closest)return;   // trocou a data: a lista de irmãos se ajusta (quem ainda não entrou some)
+  if(el.id==="lData"){try{atualizaLanc()}catch(_){}}
+  else if(el.type==="date"&&el.closest("#lwCampos")){setTimeout(()=>{try{lwListaUI();lwAtualiza()}catch(_){}},0)}},true);
+function lwDataEv(){try{const f=lw.f&&lw.f[lw.tipo];return f&&f.data?lwDataISO(f.data):""}catch(_){return ""}}
+function lwListaUI(){if(!document.getElementById("lwJustOp"))document.body.insertAdjacentHTML("beforeend",`<datalist id="lwJustOp">${LW_JUST.map(o=>`<option value="${esc(o)}">`).join("")}</datalist>`);const marcas=LW_TIPOS[lw.tipo].marcas||["✅","❌"];const dEv=lwDataEv(),ord=[...M].filter(m=>naLista(m,dEv)).sort((a,b)=>a.o-b.o);
   const linha=m=>{const nao=lw.marca[m.n]==="❌",j=(lw.just||{})[m.n]||{op:"",txt:""};
       return `<div class="lw-l ${nao&&!lwJustTexto(m.n)?"falta":""}"><div class="lw-lin${marcas.length>4?" lw-2l":""}"><span title="${esc(lwNome(m))}">${esc(lwNome(m))}</span>
       <div class="seg lw-seg">${marcas.map(v=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="${lw.marca[m.n]===v}" style="${lw.marca[m.n]===v?(v==="❌"?"background:var(--sangue)":"background:var(--presente)"):""}">${v}</button>`).join("")}</div></div>
@@ -4091,7 +4101,7 @@ function lwTexto(){const T=LW_TIPOS[lw.tipo],f={...lw.f[lw.tipo]};if(f.data)f.da
       if(cab[i]===SEP&&b===SEP){cab.splice(i,1);mudou=true;break}}}
     while(cab[0]===SEP)cab.shift()}
   for(let i=cab.length-1;i>=0;i--)if(cab[i]===BR)cab[i]="";
-  const ord=[...M].sort((a,b)=>a.o-b.o),blocos=blocosPorGrau(ord);
+  const dEv2=lwDataEv(),ord=[...M].filter(m=>naLista(m,dEv2)).sort((a,b)=>a.o-b.o),blocos=blocosPorGrau(ord);
   const nm=T.corrido?lwNomeCurto:lwNome;
   const nomes=blocos.map(b=>b.map(m=>{const mk=lw.marca[m.n],j=mk==="❌"?lwJustTexto(m.n):"";return nm(m)+(mk?" "+mk:"")+(j?" ("+j+")":"")}).join("\n")).join(ENTRE_GRAUS);
   const txt=cab.join("\n")+"\n\n"+nomes+lwAssinatura(f)+lwAdesao(f);return T.cru?txt:zapFormatar(txt)}
@@ -4180,7 +4190,12 @@ function cadOrdem(){return [...M_FULL].sort((a,b)=>a.o-b.o)}
 function montarCadastro(){if(!$("cadCampos"))return;
   const ord=cadOrdem();
   const opsApos='<option value="">Escolha…</option>'+ord.map(m=>`<option value="${esc(m.n)}">${esc(m.lg||"")} ${esc(m.n)} (${esc(m.c)})</option>`).join("");
-  $("cadApos").innerHTML=opsApos;$("sitApos").innerHTML=opsApos;
+  $("cadApos").innerHTML=opsApos;
+  {const hj=new Date(),hoje=`${hj.getFullYear()}-${String(hj.getMonth()+1).padStart(2,"0")}-${String(hj.getDate()).padStart(2,"0")}`,fut=EV_TODOS.filter(e=>e.d>=hoje).sort((a,b)=>a.d<b.d?-1:1),s_=$("cadListaDe");
+    if(s_){const ult=fut.length?fut[fut.length-1].d:"",v0=s_.value;
+      s_.innerHTML=`<option value="tudo">Desde a entrada na divisão</option>`+fut.map(e=>`<option value="${e.d}">A partir de: ${e.d.slice(8,10)}/${e.d.slice(5,7)} · ${esc(e.e)}</option>`).join("")+
+        (ult?`<option value="depois">Só do próximo evento que for criado (depois de ${ult.slice(8,10)}/${ult.slice(5,7)})</option>`:"")+`<option value="data">Outra data…</option>`;
+      if(v0)s_.value=v0;const mostra=()=>{$("cadListaDataL").hidden=s_.value!=="data"};s_.addEventListener("change",mostra);mostra()}}$("sitApos").innerHTML=opsApos;
   // dados do integrante
   if($("diQuem")){
     $("diQuem").innerHTML='<option value="">Escolha…</option>'+cadOrdem().map(m=>`<option value="${esc(m.n)}">${esc(m.n)} · ${esc(m.c||"")}</option>`).join("");
@@ -4228,13 +4243,19 @@ function montarCadastro(){if(!$("cadCampos"))return;
       else if(/tamanho/.test(k)){const tm=v.toUpperCase().replace(/\s/g,"").match(/G[3-6]|GG|P|M|G/);if(tm)ach.tam=tm[0]}});
     $("cadCampos").querySelectorAll("[data-cad]").forEach(el=>{if(ach[el.dataset.cad])el.value=ach[el.dataset.cad]});salvarCampo();
     $("cadAviso").textContent=`Preenchi ${Object.keys(ach).length} campo(s) com a ficha. Complete Nº do sistema, cargo, grau e a posição na lista.`};
+  // 🗓️ as datas da entrada: na divisão desde, entrada no MC e a partir de quando ele aparece nas listas
+  window.cadDatas=d=>{const hj=new Date(),hoje=`${hj.getFullYear()}-${String(hj.getMonth()+1).padStart(2,"0")}-${String(hj.getDate()).padStart(2,"0")}`,div=d.divDesde||hoje,tipo=d.tipoEnt||"novo";
+    let lista=div;const v=d.listaDe||"tudo";
+    if(v==="data")lista=d.listaData||div;else if(v==="depois"){const fut=EV_TODOS.filter(e=>e.d>=hoje).map(e=>e.d).sort();const u=fut.length?new Date(fut[fut.length-1]+"T12:00:00"):new Date();u.setDate(u.getDate()+1);
+      lista=`${u.getFullYear()}-${String(u.getMonth()+1).padStart(2,"0")}-${String(u.getDate()).padStart(2,"0")}`}else if(/^\d{4}-/.test(v))lista=v;
+    return {tipoEnt:tipo,div,mc:d.mcDesde||(tipo==="novo"?div:""),lista}};
   $("cadEfetivar").onclick=async()=>{salvarCampo();const l=cadLista(),c=l.find(x=>x.id===cadAtual);if(!c)return;const d=c.d;
     const falta=[["ap","Apelido"],["num","Nº do sistema"],["cargo","Cargo"],["grau","Grau"],["apos","Entra na lista depois de"]].filter(([k])=>!d[k]).map(([,r])=>r);
     if(falta.length){alert("Preencha: "+falta.join(", "));return}
     if(M_FULL.some(m=>zNorm(m.n)===zNorm(d.ap))||(DADOS.afastados||[]).some(a=>zNorm(a.n)===zNorm(d.ap))){alert(`Já existe um integrante com o apelido "${d.ap}".`);return}
     if(!confirm(DADOS.nuvem?`Efetivar a entrada de ${d.ap}? O painel envia para a planilha do Google (Dados Integrantes, Presenca, Insights e PGTO).`:`Efetivar a entrada de ${d.ap}? O painel gera o arquivo, e o GerarPainel inclui ele na planilha (Dados Integrantes, Presenca, Insights, Staff e PGTO).`))return;
     const grau=d.grau.trim().toUpperCase(),dados={tipo:"integrante",acao:"novo",apelido:d.ap,apos:d.apos,
-      dados:{num:d.num,cargo:d.cargo,grau:(grau.length<=2?" ":"")+grau,tel:d.tel,nome:d.nome,nasc:d.nasc,colete:d.colete,tam:d.tam,email:d.email}};
+      dados:{num:d.num,cargo:d.cargo,grau:(grau.length<=2?" ":"")+grau,tel:d.tel,nome:d.nome,nasc:d.nasc,colete:d.colete,tam:d.tam,email:d.email,...cadDatas(d)}};
     if(await cadArquivo(dados,`integrante_novo_${cadSlug(d.ap)}_${Date.now()}.json`)){c.efetivado=new Date().toLocaleDateString("pt-BR");cadGuardar(l);desenharSel();
       $("cadAviso").innerHTML=DADOS.nuvem?`✅ Enviado para a planilha. Em uns 3 minutos ${esc(d.ap)} aparece no painel. O cadastro continua guardado aqui até você apagar.`
         :`✅ Arquivo gerado. Rode o <b>GerarPainel</b> para incluir ${esc(d.ap)} na planilha. O cadastro continua guardado aqui até você apagar.`}};
@@ -4525,7 +4546,9 @@ function montarLancamento(){
   setInterval(()=>{lancFlyChecar();lancExclVer()},1500);
   $("lExcluir").onclick=lancExcluir;
 }
-function atualizaLanc(){const v=Object.values(lanc),sem=v.filter(x=>!x).length;
+function atualizaLanc(){const dL=($("lData")||{}).value||"",fora=new Set(M.filter(m=>!naLista(m,dL)).map(m=>m.n));
+  document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b){const f_=fora.has(b.dataset.n);l.hidden=f_;if(f_)lanc[b.dataset.n]=""}});   // ainda não entrou: some do Lançar
+  const v=Object.entries(lanc).filter(([n])=>!fora.has(n)).map(([,x])=>x),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
     (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
   document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("sem-status",!lanc[b.dataset.n])});
@@ -4608,7 +4631,7 @@ async function salvarLancamento(){
   const d=$("lData").value,n=$("lNome").value.trim();
   if(!d){alert("Informe a data do evento.");$("lData").focus();return}
   if(!n){alert("Informe o nome do evento.");$("lNome").focus();return}
-  const faltam=[...M].sort((a,b)=>a.o-b.o).filter(m=>!lanc[m.n]).map(m=>m.n);
+  const faltam=[...M].sort((a,b)=>a.o-b.o).filter(m=>naLista(m,($("lData")||{}).value)&&!lanc[m.n]).map(m=>m.n);
   if(faltam.length){document.getElementById("lancar").classList.add("mostrar-falta");atualizaLanc();
     if(!confirm(`${faltam.length} ${faltam.length===1?"irmão ficou":"irmãos ficaram"} sem marcação:\n\n${faltam.join(", ")}\n\nEles ficam em branco na planilha e contam como "ainda não" na % do evento. Você pode completar depois pelo quadro do evento.\n\nSalvar assim mesmo?`)){
       const x=document.querySelector("#lLista .lw-l.sem-status");if(x)x.scrollIntoView({block:"center"});return}}

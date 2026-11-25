@@ -1485,6 +1485,78 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     return L}
   const viaMaps=x=>{const w=(x.paradas||[]).filter(p=>p.lat!=null).map(p=>({...p,o:p.o??0})).concat((x.pois||[]).filter(p=>p.on)).sort((a,b)=>(a.o||0)-(b.o||0)).slice(0,9).map(p=>p.lat+","+p.lng).join("|");
     return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(x.orig)+"&destination="+encodeURIComponent(x.dest)+(w?"&waypoints="+encodeURIComponent(w):"")+"&travelmode=driving"};
+  // ---- 📸 diário da viagem: a linha do tempo (local, hora, foto e comentário), montada na hora ou pelas fotos da galeria ----
+  const fotoDB=()=>new Promise((ok,erro)=>{const o=indexedDB.open("insanos_fotos",1);o.onupgradeneeded=()=>o.result.createObjectStore("f");o.onsuccess=()=>ok(o.result);o.onerror=()=>erro(o.error)});
+  const fotoGuardar=async(k,v)=>{const db=await fotoDB();await new Promise((ok,erro)=>{const t=db.transaction("f","readwrite");t.objectStore("f").put(v,k);t.oncomplete=ok;t.onerror=()=>erro(t.error)})};
+  const fotoPegar=async k=>{try{const db=await fotoDB();return await new Promise(ok=>{const r=db.transaction("f").objectStore("f").get(k);r.onsuccess=()=>ok(r.result||null);r.onerror=()=>ok(null)})}catch(_){return null}};
+  const fotoTirar=async k=>{try{const db=await fotoDB();await new Promise(ok=>{const t=db.transaction("f","readwrite");t.objectStore("f").delete(k);t.oncomplete=ok;t.onerror=ok})}catch(_){}};
+  function exifLer(buf){   // onde e quando a foto foi tirada (gravado pela câmera dentro da foto JPEG)
+    try{const v=new DataView(buf);if(v.getUint16(0)!==0xFFD8)return {};let o=2;
+      while(o<v.byteLength-4){const m=v.getUint16(o),n=v.getUint16(o+2);if(m===0xFFE1&&v.getUint32(o+4)===0x45786966){const t=o+10,le=v.getUint16(t)===0x4949,u16=a=>v.getUint16(a,le),u32=a=>v.getUint32(a,le);
+          const ifd=(a)=>{const r={},c=u16(a);for(let i=0;i<c;i++){const e=a+2+i*12;r[u16(e)]={tp:u16(e+2),n:u32(e+4),val:e+8}}return r};
+          const rac=(e,k)=>{const p=t+u32(e.val)+k*8;return u32(p)/u32(p+4)},txt=e=>{let p=e.n>4?t+u32(e.val):e.val,z="";for(let i=0;i<e.n-1;i++)z+=String.fromCharCode(v.getUint8(p+i));return z};
+          const i0=ifd(t+u32(t+4)),out={};
+          if(i0[0x8769]){const ex=ifd(t+u32(i0[0x8769].val));const d=ex[0x9003]||ex[0x9004];if(d){const z=txt(d).match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);if(z)out.ts=new Date(+z[1],+z[2]-1,+z[3],+z[4],+z[5]).getTime()}}
+          if(!out.ts&&i0[0x0132]){const z=txt(i0[0x0132]).match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);if(z)out.ts=new Date(+z[1],+z[2]-1,+z[3],+z[4],+z[5]).getTime()}
+          if(i0[0x8825]){const gp=ifd(t+u32(i0[0x8825].val));if(gp[2]&&gp[4]){const g=e=>rac(e,0)+rac(e,1)/60+rac(e,2)/3600,ref=k=>String.fromCharCode(v.getUint8(gp[k].val));
+            let la=g(gp[2]),lo=g(gp[4]);if(gp[1]&&ref(1)==="S")la=-la;if(gp[3]&&ref(3)==="W")lo=-lo;if(isFinite(la)&&isFinite(lo)&&(la||lo)){out.lat=+la.toFixed(5);out.lng=+lo.toFixed(5)}}}
+          return out}
+        if((m&0xFF00)!==0xFF00)break;o+=2+n}}catch(_){}return {}}
+  const fotoReduzir=(arq,max=1280)=>new Promise((ok,erro)=>{const u=URL.createObjectURL(arq),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement("canvas");
+    c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL("image/jpeg",.8))};im.onerror=()=>{URL.revokeObjectURL(u);erro(new Error("imagem"))};im.src=u});
+  const lugarDe=async(la,lo)=>{try{const j=await(await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=pt-BR&lat=${la}&lon=${lo}`)).json(),A=(j&&j.address)||{};
+    return [(j&&j.name)||A.tourism||A.amenity||"",A.suburb||A.neighbourhood||A.village||A.town||"",A.city||A.town||A.municipality||""].filter((z,i,L)=>z&&L.indexOf(z)===i).slice(0,2).join(", ")}catch(_){return ""}};
+  function viaGuardar(x){const i=M.viagens.findIndex(y=>y.id===x.id);if(i>=0)M.viagens[i]=JSON.parse(JSON.stringify(x));else M.viagens.push(JSON.parse(JSON.stringify(x)));grava(M)}
+  async function viaLugares(x,depois){let mudou=false;for(const e of (x.diario||[])){if(e.lugar||e.lat==null)continue;await new Promise(r=>setTimeout(r,1100));const l=await lugarDe(e.lat,e.lng);if(l){e.lugar=l;mudou=true}}
+    if(mudou){viaGuardar(x);if(depois)depois()}}   // o nome dos lugares chega depois (e também quando a internet volta)
+  function viaDiarioHTML(x){const L=[...(x.diario||[])].sort((a,b)=>a.ts-b.ts),hm2=t=>new Date(t).toTimeString().slice(0,5),dia=t=>{const d=new Date(t);return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")};
+    let ult="";return `<div class="card" id="vDiario"><h2>📸 Diário da viagem</h2><p class="nota" style="margin:0 0 10px">A linha do tempo: a cada parada, um toque em <b>Estou aqui</b> (com foto, se quiser). Ou, depois, monte tudo pelas <b>fotos da galeria</b>: o app lê onde e quando cada uma foi tirada.</p>
+      <div class="qbts" style="flex-wrap:wrap"><button class="qz" id="dAqui">📍 Estou aqui</button><button id="dGal">🖼️ Montar pelas fotos</button></div>
+      <input type="file" accept="image/*" capture="environment" id="dCam" hidden><input type="file" accept="image/*" id="dUma" hidden><input type="file" accept="image/jpeg,image/*" multiple id="dVarias" hidden>
+      ${L.some(e=>e.lat!=null)?`<canvas id="dMapa" width="1000" height="560" style="width:100%;height:auto;border-radius:14px;margin:12px 0 4px;background:#1b1a17"></canvas>`:""}
+      ${L.length?`<div style="margin-top:8px">${L.map(e=>{const d=dia(e.ts),cab=d!==ult?(ult=d,`<p style="margin:12px 0 4px;font-weight:800;color:#E9B949">🗓️ ${d}</p>`):"";
+        return cab+`<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(236,231,220,.08)">
+          <b style="min-width:46px;color:#E9B949">${hm2(e.ts)}</b>${e.foto?`<img data-foto="${es(e.foto)}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none;background:#26211c">`:""}
+          <span style="flex:1;min-width:0"><b style="display:block">${es(e.lugar||(e.lat!=null?"📍 Local salvo (o nome chega com a internet)":"Sem local na foto"))}</b>${e.txt?`<small style="color:#BDB7AA">${es(e.txt)}</small>`:""}</span>
+          <button type="button" data-d-ed="${e.id}" aria-label="Comentário" style="background:none;border:0;font-size:17px">✏️</button><button type="button" data-d-del="${e.id}" aria-label="Apagar" style="background:none;border:0;font-size:17px">🗑️</button></div>`}).join("")}</div>`
+        :'<p class="nota" style="margin:10px 0 0">Nenhuma parada ainda.</p>'}
+      <p class="nota" style="margin:10px 0 0">As fotos ficam só neste celular. Fotos que passaram pelo WhatsApp perdem o local e a hora: use as originais da galeria.</p></div>`}
+  function viaDiarioMapa(x){const cv=document.getElementById("dMapa");if(!cv)return;const g=cv.getContext("2d"),W=cv.width,H=cv.height,P=[...(x.diario||[])].filter(e=>e.lat!=null).sort((a,b)=>a.ts-b.ts);if(!P.length)return;
+    const px=(la,lo,z)=>[(lo+180)/360*256*2**z,(1-Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180))/Math.PI)/2*256*2**z];let z=15;
+    for(;z>3;z--){const xs=P.map(p=>px(p.lat,p.lng,z)[0]),ys=P.map(p=>px(p.lat,p.lng,z)[1]);if(Math.max(...xs)-Math.min(...xs)<W-120&&Math.max(...ys)-Math.min(...ys)<H-120)break}
+    const xs=P.map(p=>px(p.lat,p.lng,z)[0]),ys=P.map(p=>px(p.lat,p.lng,z)[1]),x0=(Math.max(...xs)+Math.min(...xs))/2-W/2,y0=(Math.max(...ys)+Math.min(...ys))/2-H/2,pt=p=>{const [a,b]=px(p.lat,p.lng,z);return [a-x0,b-y0]};
+    const desenhaPontos=()=>{g.lineJoin="round";g.lineCap="round";g.beginPath();P.forEach((p,k)=>{const [a,b]=pt(p);k?g.lineTo(a,b):g.moveTo(a,b)});g.strokeStyle="rgba(0,0,0,.6)";g.lineWidth=12;g.stroke();g.strokeStyle="#E9B949";g.lineWidth=6;g.stroke();
+      P.forEach((p,k)=>{const [a,b]=pt(p);g.fillStyle=k===0?"#1f8f4e":k===P.length-1?"#C62828":"#E9B949";g.strokeStyle="#111";g.lineWidth=4;g.beginPath();g.arc(a,b,17,0,7);g.fill();g.stroke();
+        g.fillStyle=k===0||k===P.length-1?"#fff":"#111";g.font="900 18px Arial";g.textAlign="center";g.fillText(String(k+1),a,b+6);g.textAlign="left"})};
+    g.fillStyle="#1b1a17";g.fillRect(0,0,W,H);desenhaPontos();   // primeiro os pontos (o mapa de fundo chega em seguida)
+    const ts=[];for(let tx=Math.floor(x0/256);tx<=Math.floor((x0+W)/256);tx++)for(let ty=Math.floor(y0/256);ty<=Math.floor((y0+H)/256);ty++)ts.push([tx,ty]);
+    Promise.all(ts.map(([tx,ty])=>new Promise(r=>{const im=new Image();im.crossOrigin="anonymous";im.onload=()=>r([im,tx,ty]);im.onerror=()=>r(null);im.src=`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`})))
+      .then(L=>{if(!L.some(Boolean))return;g.fillStyle="#1b1a17";g.fillRect(0,0,W,H);L.forEach(t=>{if(!t)return;g.globalAlpha=.6;g.filter="grayscale(1) brightness(.6) contrast(1.15)";g.drawImage(t[0],t[1]*256-x0,t[2]*256-y0);g.filter="none";g.globalAlpha=1});
+        desenhaPontos();g.fillStyle="rgba(255,255,255,.7)";g.font="16px Arial";g.textAlign="right";g.fillText("© OpenStreetMap",W-10,H-10);g.textAlign="left"})}
+  function viaDiarioAcoes(C,x,redesenha){const q=s=>C.querySelector(s);if(!q("#vDiario"))return;
+    C.querySelectorAll("img[data-foto]").forEach(async im=>{const d=await fotoPegar(im.dataset.foto);if(d)im.src=d});viaDiarioMapa(x);
+    const novo=async(e,arq)=>{e.id=Date.now()+Math.floor(Math.random()*1000);if(arq){try{const k=`via_${x.id}_${e.id}`;await fotoGuardar(k,await fotoReduzir(arq));e.foto=k}catch(_){}}
+      x.diario=(x.diario||[]).concat([e]);viaGuardar(x);redesenha();viaLugares(x,redesenha)};
+    q("#dAqui").onclick=()=>{const b=q("#dAqui");b.disabled=true;b.textContent="⏳ Pegando o local…";
+      navigator.geolocation.getCurrentPosition(p=>{const e={ts:Date.now(),lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5)};b.disabled=false;b.textContent="📍 Estou aqui";
+        const v=document.createElement("div");v.className="fa-veu";v.innerHTML=`<div class="fa-cx" role="dialog" aria-label="Nova parada"><h3 style="margin:0 0 6px">📍 Parada registrada</h3>
+          <p class="nota" style="margin:0 0 10px">${new Date(e.ts).toTimeString().slice(0,5)} · quer pôr uma foto e um comentário?</p>
+          <input type="text" id="dTx" maxlength="80" placeholder="Ex.: café na serra" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:1px solid rgba(236,231,220,.25);background:rgba(0,0,0,.35);color:#ECE7DC;font:inherit;font-size:16px">
+          <div class="qbts" style="margin-top:10px;flex-wrap:wrap"><button class="qz" data-dq="cam">📸 Tirar foto</button><button data-dq="gal">🖼️ Da galeria</button><button data-dq="sem">Sem foto</button></div></div>`;
+        document.body.appendChild(v);const fim=async arq=>{e.txt=v.querySelector("#dTx").value.trim();v.remove();await novo(e,arq)};
+        v.onclick=ev=>{const bt=ev.target.closest("[data-dq]");if(!bt){if(ev.target===v)fim(null);return}
+          if(bt.dataset.dq==="sem")return fim(null);const inp=q(bt.dataset.dq==="cam"?"#dCam":"#dUma");inp.value="";inp.onchange=()=>fim(inp.files[0]||null);inp.click()}},
+        ()=>{b.disabled=false;b.textContent="📍 Estou aqui";alert("Não consegui a localização. Libere a localização para o app nas configurações do celular.")},{enableHighAccuracy:true,timeout:15000,maximumAge:30000})};
+    q("#dGal").onclick=()=>{const inp=q("#dVarias");inp.value="";inp.onchange=async()=>{const F=[...inp.files];if(!F.length)return;const b=q("#dGal");b.disabled=true;let sem=0,ok=0;
+        for(const [i,f] of F.entries()){b.textContent=`⏳ ${i+1} de ${F.length}…`;let ex={};try{ex=exifLer(await f.slice(0,256*1024).arrayBuffer())}catch(_){}
+          const e={id:Date.now()+i,ts:ex.ts||f.lastModified||Date.now()};if(ex.lat!=null){e.lat=ex.lat;e.lng=ex.lng}else sem++;
+          try{const k=`via_${x.id}_${e.id}`;await fotoGuardar(k,await fotoReduzir(f));e.foto=k}catch(_){}x.diario=(x.diario||[]).concat([e]);ok++}
+        viaGuardar(x);redesenha();if(sem)alert(`${ok} foto${ok>1?"s":""} na linha do tempo. ${sem} sem o local gravado (entraram pela hora, sem ponto no mapa).`);viaLugares(x,redesenha)};inp.click()};
+    C.querySelectorAll("[data-d-del]").forEach(b=>b.onclick=async()=>{if(!confirm("Apagar esta parada do diário?"))return;const e=(x.diario||[]).find(z=>String(z.id)===b.dataset.dDel);
+      if(e&&e.foto)await fotoTirar(e.foto);x.diario=(x.diario||[]).filter(z=>z!==e);viaGuardar(x);redesenha()});
+    C.querySelectorAll("[data-d-ed]").forEach(b=>b.onclick=()=>{const e=(x.diario||[]).find(z=>String(z.id)===b.dataset.dEd);if(!e)return;const t=prompt("Comentário desta parada:",e.txt||"");
+      if(t===null)return;e.txt=t.trim().slice(0,80);viaGuardar(x);redesenha()});
+    if((x.diario||[]).some(e=>e.lat!=null&&!e.lugar))viaLugares(x,redesenha)}
   function viaDesenha(C){const V=M.viagens;
     if(!viaEd){C.innerHTML=`<div class="card"><h2>🗺️ Viagens</h2><p class="nota" style="margin:0 0 8px">Planeje a viagem: a rota, os pontos turísticos no caminho, o combustível da <b>sua</b> moto, o pedágio, o hotel e a alimentação. E gere o flyer para mandar no grupo.</p>
       ${V.length?[...V].sort((a,b)=>(a.ida||"")<(b.ida||"")?1:-1).map(x=>{const c=viaContas(x);return `<div class="via-it"><span style="flex:1"><b>${es(x.dest)}</b><small>${x.ida?br(x.ida):""}${x.volta&&x.volta!==x.ida?" a "+br(x.volta):""} · ${nKm(Math.round(c.km))} km · ${R$(c.tot)}</small></span><button type="button" data-via-ab="${x.id}" style="padding:8px 12px;border-radius:999px;border:0;background:#E9B949;color:#141210;font-weight:800">Abrir</button></div>`}).join(""):'<p class="nota" style="margin:0">Nenhuma viagem ainda.</p>'}
@@ -1535,7 +1607,8 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       <div class="qbts" style="margin-top:10px"><button id="vMaps">🗺️ Abrir a rota no Maps${on?` (${Math.min(on,9)} parada${on>1?"s":""})`:""}</button></div>
       <h3 style="margin:14px 0 0;font-size:16px">✅ Antes de sair</h3><ul class="via-ck">${viaChecklist(x,c).map(t=>`<li>${es(t)}</li>`).join("")}</ul>
       <div class="qbts" style="margin-top:12px;flex-wrap:wrap"><button class="qz" id="vFly">📤 Gerar o flyer da viagem</button>${x.tema!=null?'<button id="vTema">🎲 Sortear outro tema</button>':""}<button id="vSalva">💾 Salvar</button></div>`:""}
-      <div class="qbts" style="margin-top:10px">${M.viagens.some(y=>y.id===x.id)?'<button id="vApaga">🗑️ Apagar</button>':""}<button id="vVolta2">‹ Voltar</button></div></div>`;
+      </div>${x.dest?viaDiarioHTML(x):""}<div class="card" style="padding:12px">
+      <div class="qbts" style="margin-top:0">${M.viagens.some(y=>y.id===x.id)?'<button id="vApaga">🗑️ Apagar</button>':""}<button id="vVolta2">‹ Voltar</button></div></div>`;
     const q=id=>C.querySelector(id),n=v=>{const t=num2(v);return isFinite(t)&&t>=0&&String(v).trim()!==""?t:""};
     const le=()=>{x.orig=q("#vOrig").value.trim();x.dest=q("#vDest").value.trim();x.ida=q("#vIda").value;x.volta=q("#vVolta").value||x.ida;x.iv=q("#vIv").checked;x.kml=n(q("#vKml").value);x.preco=n(q("#vPreco").value);
       if(q("#vPedC")){x.pedCarro=n(q("#vPedC").value);x.pedMan=n(q("#vPedM").value)}if(q("#vDia"))x.diaria=n(q("#vDia").value);
@@ -1552,7 +1625,8 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
         if(d_>40)p.longe=Math.round(d_)}catch(_){}
       x.paradas=(x.paradas||[]).concat([p]).sort((a,b)=>(a.o??1e9)-(b.o??1e9));const y=scrollY;desenha();scrollTo(0,y);if(p.longe)alert(`⚠️ "${n}" fica a ${p.longe} km da rota. Confira se é o lugar certo.`)}}
     C.querySelectorAll("[data-par-del]").forEach(b=>b.onclick=()=>{le();x.paradas.splice(+b.dataset.parDel,1);const y=scrollY;desenha();scrollTo(0,y)});
-    {const ap=q("#vApaga");if(ap)ap.onclick=()=>{if(!confirm("Apagar esta viagem?"))return;M.viagens=M.viagens.filter(y=>y.id!==x.id);grava(M);viaEd=null;desenha()}}
+    viaDiarioAcoes(C,x,()=>{const y=scrollY;desenha();scrollTo(0,y)});
+    {const ap=q("#vApaga");if(ap)ap.onclick=()=>{(x.diario||[]).forEach(e=>{if(e.foto)fotoTirar(e.foto)});if(!confirm("Apagar esta viagem?"))return;M.viagens=M.viagens.filter(y=>y.id!==x.id);grava(M);viaEd=null;desenha()}}
     {const mp=q("#vMaps");if(mp)mp.onclick=()=>{le();window.open(viaMaps(x),"_blank")}}
     q("#vCalc").onclick=async()=>{le();const m=q("#vMsg");if(!x.orig||!x.dest){m.textContent="Preencha de onde sai e o destino.";return}
       if(!(x.kml>0)||!(x.preco>0)){m.textContent="Preencha quantos km/l a sua moto faz e o preço do litro.";return}
@@ -2191,7 +2265,7 @@ def montar_pessoais(membros, eventos, eventos_ins, gerado):
                            "clima": clima_evento(e["d"], lugar_evento(e["d"], e["e"])[1], lugar_evento(e["d"], e["e"])[0]),
                            "mapa": lugar_evento(e["d"], e["e"])[0],
                            "st": "sim" if e["p"][i] == 1 else "nao" if e["p"][i] == 0 else ""}
-                          for e in sorted(list(eventos) + list(EVENTOS_CONV), key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat()],   # oficiais e de convidado (estes só na agenda, fora da porcentagem)
+                          for e in sorted(list(eventos) + list(EVENTOS_CONV), key=lambda x: x["d"]) if e["d"] >= datetime.date.today().isoformat() and e["d"] >= (m.get("ls") or "")],   # oficiais e de convidado (estes só na agenda, fora da porcentagem)
                  "insp": (lambda ui: {"d": ui["d"], "e": ui["e"], "tk": token_rsvp(email, ui["d"], ui["e"])}
                           if ui and ui["d"] >= (datetime.date.today() - datetime.timedelta(days=10)).isoformat() and ui["p"][i] != 1 else None)(
                           max([e for e in eventos_ins if e["d"] <= datetime.date.today().isoformat()], key=lambda x: x["d"], default=None))}
@@ -2656,7 +2730,7 @@ def montar_lembretes(membros, eventos, eventos_ins, pag):
             ins.append({"d": ult_ins["d"], "nome": ult_ins["e"], "resp": sum(1 for v in ult_ins["p"] if v == 1)})
         evs = []
         for e in eventos:
-            if e["d"] >= hoje and e["p"][i] in (None, "", "-") and (conta_irmao(i, e["d"]) or i in ent):
+            if e["d"] >= hoje and e["p"][i] in (None, "", "-") and (conta_irmao(i, e["d"]) or i in ent or m.get("ls")) and e["d"] >= (m.get("ls") or ""):
                 evs.append({"d": e["d"], "nome": e["e"]})
         st = str(pag.get("status", {}).get(m["n"], "") or "")
         pago = bool(re.search(r"pago|aguard|ades", st, re.I))
@@ -3907,7 +3981,9 @@ def main():
     col_sit = next((k for k, v in enumerate(cab_di) if _semac(v).startswith("situa")), None)
     col_desde = next((k for k, v in enumerate(cab_di) if "afastad" in _semac(v)), None)
     col_ent = next((k for k, v in enumerate(cab_di) if _semac(v).startswith("entrada")), None)   # "Entrada no MC" (honrarias)
-    entradas = {}
+    col_div = next((k for k, v in enumerate(cab_di) if _semac(v).startswith("na divis")), None)          # "Na divisão desde"
+    col_ls = next((k for k, v in enumerate(cab_di) if _semac(v).startswith("listas a partir")), None)    # "Listas a partir de"
+    entradas, divs, listas_de = {}, {}, {}
     situ = {}          # apelido -> {"s": ativo|afastado|excluido, "desde": data, "linha": n, "d": Numero Lista, "grau": ...}
     ordem_di = []      # apelidos na ordem das linhas da aba
     emails = {}
@@ -3953,6 +4029,11 @@ def main():
                             entradas[apelido.lower()] = datetime.date(a, int(mm.group(2)), int(mm.group(1))).isoformat()
                         except ValueError:
                             pass
+            for col_x, dest_x in ((col_div, divs), (col_ls, listas_de)):   # 🗓️ na divisão desde e a partir de quando aparece nas listas
+                if col_x is not None and col_x < len(r_full) and r_full[col_x] not in (None, ""):
+                    iso_x = iso_qualquer(r_full[col_x])
+                    if re.match(r"^\d{4}-\d{2}-\d{2}$", iso_x):
+                        dest_x[apelido.lower()] = iso_x
             if col_email is not None:
                 emails[apelido.lower()] = texto(r_full[col_email] if col_email < len(r_full) else "").lower()
             # dados para a Solicitação kit/colete (vão SÓ para o ADM do computador, nunca para o link)
@@ -4102,7 +4183,8 @@ def main():
         if nome.lower() not in info:
             avisos.append(nome)
         m = {"n": nome, "c": cargo or texto(lin_cargos[c]), "num": num, "o": ordem, "tel": tel, "lg": lg,
-             "x": extra_colete.get(nome.lower(), {}), "ent": entradas.get(nome.lower(), "")}
+             "x": extra_colete.get(nome.lower(), {}), "ent": entradas.get(nome.lower(), ""),
+             **({"ls": listas_de[nome.lower()]} if nome.lower() in listas_de else {}), **({"dv": divs[nome.lower()]} if nome.lower() in divs else {})}
         if nasc:  # nascimento (coluna "Nascimento") e idade calculada na data de hoje
             hoje = datetime.date.today()
             m["nasc"] = nasc.isoformat()
@@ -4162,6 +4244,12 @@ def main():
         if sx["s"] == "afastado":
             AFASTADOS.append(info_afastamento(sx["apelido"], sx["desde"]))
 
+    # 🗓️ antes da data "Listas a partir de", o irmão não conta (nem como falta) e não aparece nos eventos
+    for i_, m_ in enumerate(membros):
+        if m_.get("ls"):
+            for e in eventos:
+                if e["d"] < m_["ls"]:
+                    e["p"][i_] = None; e["st"][i_] = 0
     # ⭐ oficial / 🤝 convidado (aba Categorias, gravada pelo Lançar): sem registro = oficial. Os de convidado ficam à parte:
     # não contam na porcentagem do irmão (Meu painel, carteirinha, conquistas, honrarias, ranking); o comando vê pelo seletor da Presença
     global EVENTOS_CONV
@@ -4200,6 +4288,11 @@ def main():
             evs.append({"d": d, "e": texto(r[2]), "p": pp})
         return evs
     eventos_ins = eventos_da_aba(abas_extras.get("ins", []))
+    for i_, m_ in enumerate(membros):   # 🗓️ nos insights também
+        if m_.get("ls"):
+            for e in eventos_ins:
+                if e["d"] < m_["ls"]:
+                    e["p"][i_] = None
     eventos_staff = []        # staff agora é "STAFF" na aba Presenca (a aba Staff não é mais usada)
 
     with open(IMAGEM, "rb") as f:
