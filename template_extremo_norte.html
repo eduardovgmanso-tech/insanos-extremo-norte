@@ -768,6 +768,18 @@ body.iz-preencher .wrap > *:not(header):not(#analBar):not(#insZap):not(footer):n
 .lw-l{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:8px;background:rgba(0,0,0,.22)}
 .lw-l span{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
 .lw-col{display:flex;flex-direction:column;gap:4px}
+/* linhas zebradas: uma sim, uma não, um fundo mais claro (o olho não pula de linha ao marcar) */
+.lw-col>.lw-l:nth-child(even){background:rgba(236,231,220,.16)}
+.lw-col>.lw-l:nth-child(even of :not([hidden]):not(.filt)){background:rgba(236,231,220,.16)}.lw-col>.lw-l:nth-child(odd of :not([hidden]):not(.filt)){background:rgba(0,0,0,.38)}
+.lw-l[hidden],#lLista .lw-l[hidden]{display:none!important}
+#lLista .lw-l.filt,#lLista .lanc-g.filt,#lLista .lw-col.filt,#lLista .lanc-just.filt{display:none!important}   /* 🔎 filtro "Sem resposta" do Lançar (só visual) */
+#lFiltro{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}#lFiltro button{font:inherit;font-weight:700;font-size:15px;padding:9px 16px;border-radius:999px;border:1px solid rgba(236,231,220,.25);background:transparent;color:#ECE7DC;cursor:pointer}
+#lFiltro button[aria-pressed="true"]{background:#ECE7DC;color:#141210;border-color:#ECE7DC}#lFiltro button b{margin-left:6px;opacity:.75}   /* quem ainda não entrou nas listas some de verdade */
+/* a cor da resposta: confirmou = verde clarinho, não vai = vermelho clarinho (sem resposta: o zebrado) */
+.lw-col>.lw-l.ok{background:rgba(76,175,106,.28)!important}.lw-col>.lw-l.nao{background:rgba(214,72,72,.26)!important}
+/* zebrado nas outras listas do comando */
+.linha:nth-child(even of .linha),.ac-l:nth-child(even of .ac-l),.pag-l:nth-child(even of .pag-l){background:rgba(236,231,220,.11)}
+.pag-l.st-pago{background:rgba(76,175,106,.22)!important}.pag-l.st-aguard{background:rgba(233,185,73,.17)!important}
 .lw-bloco{margin-bottom:6px}
 .lw-bloco .lanc-g span{font-weight:400;color:var(--osso2)}
 .lw-b-vao .lanc-g{color:var(--presente)}.lw-b-nao .lanc-g{color:#D25A57}
@@ -3496,7 +3508,7 @@ function montarPagamentos(){montarAfastados();montarAntecipados();
     const bAdes=semBoleto&&(c!=="pago"||ades)?`<button type="button" class="btn-comp ades ${ades?"on":""}" data-ades="${esc(m.n)}" title="${ades?"Clique para desfazer":"Irmão novo: pagou a adesão no mês em que entrou (sem boleto de mensalidade)"}">${ades?"✅ Adesão paga":"✅ Adesão paga?"}</button>`:"";
     const dir=ades?bAdes:c==="pago"?`<span class="st pago">Pago em Dia</span><span class="trava" title="Pago no boleto: não pode ser alterado">🔒</span>`
       :`<button type="button" class="btn-comp ${c==="aguard"?"on":""}" data-comp="${esc(m.n)}" title="${c==="aguard"?"Clique para tirar a compensação":"Marcar que ele mandou o comprovante"}">${c==="aguard"?"⏰ Em compensação":"Marcar ⏰"}</button>${bAdes}`;
-    return `<div class="pag-l ${m.n in pagPend?"pend":""}"><div class="nome">${esc(m.n)}<span>Nº ${esc(m.num)} · ${esc(m.c)}</span>${ob?`<span class="pag-obs">${esc(ob)}</span>`:""}${info?`<span class="pag-env">${esc(info)}</span>`:""}${aviso?`<span class="pag-obs">${esc(aviso)}</span>`:""}</div>
+    return `<div class="pag-l ${m.n in pagPend?"pend":""} st-${cls(m.n)}"><div class="nome">${esc(m.n)}<span>Nº ${esc(m.num)} · ${esc(m.c)}</span>${ob?`<span class="pag-obs">${esc(ob)}</span>`:""}${info?`<span class="pag-env">${esc(info)}</span>`:""}${aviso?`<span class="pag-obs">${esc(aviso)}</span>`:""}</div>
       <div class="dir">${P.boleto[m.n]?`<a href="${esc(P.boleto[m.n])}" target="_blank" rel="noopener noreferrer">boleto</a>`:""}${dir}${bEnv}${bAgr}</div></div>`};
   // dois blocos: falta pagar (sem pagamento e depois em compensação) e pagos (o pagamento mais recente primeiro)
   const pe=P.pago_em||{},visto=window.PAG_VISTO_ANT!=null?window.PAG_VISTO_ANT:"";
@@ -4074,7 +4086,7 @@ document.addEventListener("change",ev=>{const el=ev.target;if(!el||!el.closest)r
 function lwDataEv(){try{const f=lw.f&&lw.f[lw.tipo];return f&&f.data?lwDataISO(f.data):""}catch(_){return ""}}
 function lwListaUI(){if(!document.getElementById("lwJustOp"))document.body.insertAdjacentHTML("beforeend",`<datalist id="lwJustOp">${LW_JUST.map(o=>`<option value="${esc(o)}">`).join("")}</datalist>`);const marcas=LW_TIPOS[lw.tipo].marcas||["✅","❌"];const dEv=lwDataEv(),ord=[...M].filter(m=>naLista(m,dEv)).sort((a,b)=>a.o-b.o);
   const linha=m=>{const nao=lw.marca[m.n]==="❌",j=(lw.just||{})[m.n]||{op:"",txt:""};
-      return `<div class="lw-l ${nao&&!lwJustTexto(m.n)?"falta":""}"><div class="lw-lin${marcas.length>4?" lw-2l":""}"><span title="${esc(lwNome(m))}">${esc(lwNome(m))}</span>
+      return `<div class="lw-l ${nao&&!lwJustTexto(m.n)?"falta":""} ${String(lw.marca[m.n]||"").startsWith("✅")?"ok":nao?"nao":""}"><div class="lw-lin${marcas.length>4?" lw-2l":""}"><span title="${esc(lwNome(m))}">${esc(lwNome(m))}</span>
       <div class="seg lw-seg">${marcas.map(v=>`<button type="button" data-n="${esc(m.n)}" data-v="${v}" aria-pressed="${lw.marca[m.n]===v}" style="${lw.marca[m.n]===v?(v==="❌"?"background:var(--sangue)":"background:var(--presente)"):""}">${v}</button>`).join("")}</div></div>
       ${nao?`<div class="lw-just"><input type="text" class="lw-jtx" data-jn="${esc(m.n)}" list="lwJustOp" maxlength="80" value="${esc(lwJustTexto(m.n))}" placeholder="Justificativa (toque para ver as opções)" aria-label="Justificativa de ${esc(m.n)}"></div>`:""}</div>`};
   // cada irmão fica sempre no mesmo lugar (ordem da hierarquia, por grupo): marcar só muda a cor do botão.
@@ -4546,8 +4558,22 @@ function montarLancamento(){
   setInterval(()=>{lancFlyChecar();lancExclVer()},1500);
   $("lExcluir").onclick=lancExcluir;
 }
+let lancFiltro=null;   // null = Todos · Set = os que estavam sem resposta quando "Sem resposta" foi tocado
+function lancFiltroUI(){const L=$("lLista");if(!L)return;let f=$("lFiltro");
+  if(!f){L.insertAdjacentHTML("beforebegin",'<div id="lFiltro" role="group" aria-label="Filtro"><button type="button" data-lf="todos">Todos</button><button type="button" data-lf="sem">Sem resposta <b></b></button></div>');f=$("lFiltro");
+    f.onclick=ev=>{const b=ev.target.closest("[data-lf]");if(!b)return;
+      if(b.dataset.lf==="sem"){const dL=($("lData")||{}).value||"";lancFiltro=new Set(M.filter(m=>naLista(m,dL)&&!lanc[m.n]).map(m=>m.n))}else lancFiltro=null;
+      atualizaLanc();const p_=$("lFiltro");if(p_)p_.scrollIntoView({block:"start",behavior:"smooth"})}}
+  else if(f.nextElementSibling!==L)L.before(f);   // fica logo antes dos nomes (depois do "Mandar para todos que não vão")
+  const dL=($("lData")||{}).value||"",sem=M.filter(m=>naLista(m,dL)&&!lanc[m.n]).length;
+  f.querySelector('[data-lf="sem"] b').textContent=sem;f.querySelector('[data-lf="todos"]').setAttribute("aria-pressed",!lancFiltro);f.querySelector('[data-lf="sem"]').setAttribute("aria-pressed",!!lancFiltro);
+  L.querySelectorAll(".lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b)l.classList.toggle("filt",!!lancFiltro&&!lancFiltro.has(b.dataset.n))});
+  L.querySelectorAll(".lanc-just").forEach(i=>i.classList.toggle("filt",!!lancFiltro&&!lancFiltro.has(i.dataset.jn)));   // o campo do motivo vai junto com a linha
+  L.querySelectorAll(".lw-col").forEach(c=>{const vazio=![...c.querySelectorAll(".lw-l")].some(l=>!l.hidden&&!l.classList.contains("filt"));c.classList.toggle("filt",vazio);
+    const g=c.previousElementSibling;if(g&&g.classList.contains("lanc-g"))g.classList.toggle("filt",vazio)})}   // o grupo sem ninguém some junto
 function atualizaLanc(){const dL=($("lData")||{}).value||"",fora=new Set(M.filter(m=>!naLista(m,dL)).map(m=>m.n));
-  document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b){const f_=fora.has(b.dataset.n);l.hidden=f_;if(f_)lanc[b.dataset.n]=""}});   // ainda não entrou: some do Lançar
+  document.querySelectorAll("#lLista .lw-l").forEach(l=>{const b=l.querySelector("button[data-n]");if(b){const n_=b.dataset.n,f_=fora.has(n_);l.hidden=f_;if(f_)lanc[n_]="";
+    l.classList.toggle("ok",lanc[n_]==="Sim"||lanc[n_]==="Staff");l.classList.toggle("nao",lanc[n_]==="Não")}});   // a cor da resposta   // ainda não entrou: some do Lançar
   const v=Object.entries(lanc).filter(([n])=>!fora.has(n)).map(([,x])=>x),sem=v.filter(x=>!x).length;
   const nSt=v.filter(x=>x==="Staff").length;$("lCont").innerHTML=`<b>${v.filter(x=>x==="Sim"||x==="Staff").length}</b> presentes${nSt?` (${nSt} 🛠️ no staff)`:""} · ${v.filter(x=>x==="Não").length} faltas · ${v.filter(x=>x==="-").length} sem resposta (–)`+
     (sem?` · <span style="color:#E9B949;font-weight:600">${sem} sem marcação (ficam em branco: "ainda não")</span>`:` · <span style="color:var(--presente);font-weight:600">todos preenchidos ✓</span>`);
@@ -4556,6 +4582,7 @@ function atualizaLanc(){const dL=($("lData")||{}).value||"",fora=new Set(M.filte
   document.querySelectorAll("#lLista .lanc-just").forEach(i=>{const n=i.dataset.jn;i.hidden=lanc[n]!=="Não";if(document.activeElement!==i)i.value=lancJust[n]||"";
     i.placeholder=conv?"Motivo da falta (opcional)":"Motivo da falta (obrigatório)"});
   try{lancIncUI()}catch(_){}
+  try{lancFiltroUI()}catch(_){}
   lancZapAtualiza()}
 // 💬 no Lançar: mensagem de incentivo para quem não vai (só em evento oficial, de hoje em diante, já lançado)
 function lancIncAlvo(){const d=($("lData")||{}).value||"",e=(($("lNome")||{}).value||"").trim(),conv=($("lCat")||{}).value==="convidado";
@@ -4620,7 +4647,7 @@ function lancResumo(){const I=lancInfo||lancInfoPadrao($("lNome").value),f=Objec
 // seletor do evento: novo, ou um já lançado (para corrigir a lista; a nuvem atualiza a mesma linha)
 function lancEventos(){const s=$("lEv");if(!s)return;const evs=EV_TODOS.map((e,k)=>({...e,k})).sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:b.k-a.k);
   s.innerHTML=`<option value="novo">➕ Novo ou alterar evento</option>`+evs.map(e=>`<option value="${e.k}">${fmtD(e.d)} · ${evConv(e.d,e.e)?"🤝 ":""}${esc(e.e)}</option>`).join("");s.value="novo";
-  s.onchange=()=>{const k=s.value,e=k==="novo"?null:EV_TODOS[+k];if($("lCat"))$("lCat").value=e&&evConv(e.d,e.e)?"convidado":"oficial";
+  s.onchange=()=>{lancFiltro=null;const k=s.value,e=k==="novo"?null:EV_TODOS[+k];if($("lCat"))$("lCat").value=e&&evConv(e.d,e.e)?"convidado":"oficial";
     const hoje=new Date();$("lData").value=e?e.d:`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;$("lNome").value=e?e.e:"";
     Object.keys(lanc).forEach(n=>{const i=M_FULL.findIndex(x=>x.n===n),v=e?e.p[i]:null;lanc[n]=v===1?"Sim":v==="S"?"Staff":v===0?"Não":v==="-"?"-":""});
     Object.keys(lancJust).forEach(n=>delete lancJust[n]);if(e&&e.j)Object.assign(lancJust,e.j);   // os motivos já registrados desse evento

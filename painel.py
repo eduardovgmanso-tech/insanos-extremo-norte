@@ -1073,6 +1073,10 @@ details{border-top:1px solid var(--linha);padding-top:8px;margin-top:8px}summary
 .cart .fechar{display:block;width:100%;margin-top:14px;padding:11px;border-radius:12px;border:1px solid rgba(236,231,220,.3);background:transparent;color:#ECE7DC;font-weight:700;font-size:15px}
 .msg-meu{display:block;width:100%;margin:-4px 0 14px;padding:13px;border-radius:16px;border:1px solid rgba(233,185,73,.45);background:rgba(233,185,73,.08);color:#ECE7DC;font-weight:800;font-size:16px}
 .sos-meu{display:block;width:100%;margin:0 0 14px;padding:15px;border-radius:16px;border:0;background:#c62828;color:#fff;font-weight:900;font-size:17px;letter-spacing:.3px;box-shadow:0 0 0 3px rgba(198,40,40,.22)}
+/* linhas zebradas (uma sim, uma não) e a cor da resposta: verde = vou/presente, vermelho = não vou/falta */
+.ev{padding-left:8px;padding-right:8px;border-radius:10px}
+#lista .ev:nth-child(even of .ev),#proxL .ev:nth-child(even of .ev),#anivL .ev:nth-child(even of .ev){background:rgba(236,231,220,.08)}
+.ev.ok{background:rgba(76,175,106,.17)!important}.ev.nao{background:rgba(214,72,72,.17)!important}
 .nota{color:var(--osso2);font-size:12.5px}.sair{display:block;margin:18px auto 0;background:transparent;border:1px solid var(--linha);color:var(--osso);border-radius:999px;padding:10px 22px;font-weight:700}
 </style></head><body><div class="w" id="app"></div><script>
 const D=__DADOS__,CAV="__CAV__";
@@ -1170,7 +1174,7 @@ const texto=e=>TT==="ev"
   ?`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não fui* ao evento *${e[1]}* de *${br(e[0])}*, mas eu estive presente.\n\nPodem conferir o lançamento? Obrigado! 🤝`
   :`Fala, comando! Sou o *${D.n}* (${D.c}).\n\nNo painel aparece que eu *não respondi* o insight *${e[1]}* de *${br(e[0])}*, mas eu respondi.\n\nPodem conferir o lançamento? Obrigado! 🤝`;
 function desenha(){const L=(TT==="ev"?D.ev:D.iv).filter(e=>(!FF||e[2]!==1)&&(!PER||e[0].startsWith(PER)));
-  document.getElementById("lista").innerHTML=L.length?L.map((e,k)=>`<div class="ev"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span><b style="flex:1;font-weight:500">${es(e[1])}${e[2]===0&&e[3]?`<small style="display:block;color:#E07472;font-weight:600;font-size:12.5px">Motivo: ${es(e[3])}</small>`:""}</b>
+  document.getElementById("lista").innerHTML=L.length?L.map((e,k)=>`<div class="ev ${e[2]===1?"ok":"nao"}"><i>${e[2]===1?"✅":"❌"}</i><span>${e[0].slice(8,10)}/${e[0].slice(5,7)}</span><b style="flex:1;font-weight:500">${es(e[1])}${e[2]===0&&e[3]?`<small style="display:block;color:#E07472;font-weight:600;font-size:12.5px">Motivo: ${es(e[3])}</small>`:""}</b>
     ${e[2]===1?"":`<button class="q" data-k="${k}">Questionar</button>`}</div>${k===ABERTO?`<div class="qbox"><pre>${es(texto(e))}</pre>
       <div class="qbts"><button class="qc" data-k="${k}">📋 Copiar</button><button class="qz" data-k="${k}">Abrir no WhatsApp</button></div></div>`:""}`).join("")
     :`<p class="nota">${FF?"Nenhuma falta. 💪":"Nada lançado ainda."}</p>`;
@@ -1206,7 +1210,7 @@ function proxDesenha(){const el=document.getElementById("proxL");if(!el)return;l
     if(r){r.textContent=`${D.prox.length} evento${D.prox.length>1?"s":""}`+(sem?` · ${sem} sem a sua resposta`:" · todos respondidos ✓");r.style.color=sem?"#E9B949":""}}
   el.innerHTML=D.prox.map((e,k)=>{const st=loc[e.d+"|"+e.e]||e.st,dd=e.d.slice(8,10)+"/"+e.d.slice(5,7);
     const mt=st==="nao"?motivoGuardado(e):"",txt=st==="sim"?"✅ Você vai":st==="nao"?"❌ Você não vai"+(mt?` (${mt})`:""):"Ainda não respondeu";
-    return `<div class="ev" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b>${e.clima?`<small style="width:100%;padding-left:54px;color:#BDB7AA">Previsão: ${es(e.clima)}</small>`:""}${e.hora||e.local?`<small style="width:100%;padding-left:54px;color:#E9B949;font-weight:600">${[e.hora&&"🕗 "+es(e.hora),e.local&&"📍 "+es(e.local)].filter(Boolean).join(" · ")}</small>`:""}<small class="nota" style="width:100%;padding-left:54px">${txt}</small>
+    return `<div class="ev ${st==="sim"?"ok":st==="nao"?"nao":""}" style="flex-wrap:wrap"><span>${dd}</span><b style="flex:1;font-weight:600">${es(e.e)}</b>${e.clima?`<small style="width:100%;padding-left:54px;color:#BDB7AA">Previsão: ${es(e.clima)}</small>`:""}${e.hora||e.local?`<small style="width:100%;padding-left:54px;color:#E9B949;font-weight:600">${[e.hora&&"🕗 "+es(e.hora),e.local&&"📍 "+es(e.local)].filter(Boolean).join(" · ")}</small>`:""}<small class="nota" style="width:100%;padding-left:54px">${txt}</small>
       <div class="qbts" style="width:100%;padding-left:54px;margin-top:6px"><button data-r="vou" data-k="${k}" class="${st==="sim"?"qz":""}">✅ Vou</button><button data-r="nao" data-k="${k}"${st==="nao"?' style="background:#7a2e2c;border-color:#7a2e2c;color:#fff"':""}>❌ Não vou</button><button data-ag="${k}">📅 Agenda</button>${e.mapa?`<button data-mp="${k}">🗺️ Maps</button><button data-wz="${k}">🚙 Waze</button>`:""}</div></div>`}).join("");
   el.querySelectorAll("[data-ag]").forEach(b=>b.onclick=()=>agendaAdd(D.prox[+b.dataset.ag]));
 el.querySelectorAll("[data-mp]").forEach(b=>b.onclick=()=>window.open("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(D.prox[+b.dataset.mp].mapa),"_blank"));
@@ -1382,6 +1386,9 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
     .moto-ft img{width:100%;height:100%;object-fit:cover;display:block}.moto-ft span{display:flex;flex-direction:column;align-items:center;font-size:30px;gap:6px}.moto-ft small{font-size:13.5px;color:#BDB7AA}
     .man{padding:12px 0;border-bottom:1px solid rgba(236,231,220,.08)}.man-t{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}.man-t small{font-weight:700;font-size:13px;text-align:right}.man-p{display:block;color:#8f887d;font-size:12.5px;margin-top:4px}
     .nav-m button{position:relative}.nav-bdg{position:absolute;top:2px;right:calc(50% - 26px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5484D;color:#fff;font-size:11px;font-weight:800;line-height:18px;text-align:center;box-shadow:0 0 0 2px rgba(13,11,9,.95)}.nav-bdg[hidden]{display:none}
+    .tab-m tbody tr:nth-child(even) td{background:rgba(236,231,220,.07)}.tab-m td:first-child{border-radius:8px 0 0 8px}.tab-m td:last-child{border-radius:0 8px 8px 0}
+    .doc,.man,.via-it,.d-it{padding-left:8px!important;padding-right:8px!important;border-radius:10px}
+    .doc:nth-child(even of .doc),.man:nth-child(even of .man),.via-it:nth-child(even of .via-it),.d-it:nth-child(even of .d-it){background:rgba(236,231,220,.08)}
     .aviso-doc{background:rgba(155,17,17,.18);border:1px solid rgba(220,80,80,.6);border-radius:14px;padding:12px 14px;margin:0 0 14px;font-weight:600}</style>`);
   const v=document.createElement("div");v.id="motoV";v.className="w";document.getElementById("app").after(v);
   // menu embaixo: Início · Carteirinha · SOS (no centro) · Conquistas · Minha moto (o topo fica enxuto e a caveira sobe)
@@ -1515,7 +1522,7 @@ function holoCobrir(el,mask){if(!el||el.__hl||!el.parentNode)return;   // envelo
       <input type="file" accept="image/*" capture="environment" id="dCam" hidden><input type="file" accept="image/*" id="dUma" hidden><input type="file" accept="image/jpeg,image/*" multiple id="dVarias" hidden>
       ${L.some(e=>e.lat!=null)?`<canvas id="dMapa" width="1000" height="560" style="width:100%;height:auto;border-radius:14px;margin:12px 0 4px;background:#1b1a17"></canvas>`:""}
       ${L.length?`<div style="margin-top:8px">${L.map(e=>{const d=dia(e.ts),cab=d!==ult?(ult=d,`<p style="margin:12px 0 4px;font-weight:800;color:#E9B949">🗓️ ${d}</p>`):"";
-        return cab+`<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(236,231,220,.08)">
+        return cab+`<div class="d-it" style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(236,231,220,.08)">
           <b style="min-width:46px;color:#E9B949">${hm2(e.ts)}</b>${e.foto?`<img data-foto="${es(e.foto)}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex:none;background:#26211c">`:""}
           <span style="flex:1;min-width:0"><b style="display:block">${es(e.lugar||(e.lat!=null?"📍 Local salvo (o nome chega com a internet)":"Sem local na foto"))}</b>${e.txt?`<small style="color:#BDB7AA">${es(e.txt)}</small>`:""}</span>
           <button type="button" data-d-ed="${e.id}" aria-label="Comentário" style="background:none;border:0;font-size:17px">✏️</button><button type="button" data-d-del="${e.id}" aria-label="Apagar" style="background:none;border:0;font-size:17px">🗑️</button></div>`}).join("")}</div>`
